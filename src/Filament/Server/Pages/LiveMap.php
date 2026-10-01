@@ -12,6 +12,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Headdetect\Overseer\Filament\Server\Clusters\Overseer;
 use Headdetect\Overseer\Models\TimedBan;
 use Headdetect\Overseer\Services\ConsoleService;
 use Headdetect\Overseer\Services\Map\MapService;
@@ -26,9 +27,11 @@ class LiveMap extends Page
 
     protected static string|\BackedEnum|null $navigationIcon = 'tabler-map-2';
 
-    protected static ?string $slug = 'overseer/map';
+    protected static ?string $slug = 'map';
 
-    protected static ?int $navigationSort = 29;
+    protected static ?string $cluster = Overseer::class;
+
+    protected static ?int $navigationSort = 1;
 
     protected string $view = 'overseer::live-map';
 

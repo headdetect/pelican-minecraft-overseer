@@ -24,6 +24,7 @@ use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Alignment;
+use Headdetect\Overseer\Filament\Server\Clusters\Overseer;
 use Headdetect\Overseer\Services\ConfigFiles;
 use Headdetect\Overseer\Support\ConfigSchema;
 use Headdetect\Overseer\Support\Permission;
@@ -34,9 +35,11 @@ class Config extends ServerFormPage
 {
     protected static string|\BackedEnum|null $navigationIcon = 'tabler-settings-2';
 
-    protected static ?string $slug = 'overseer/config';
+    protected static ?string $slug = 'config';
 
-    protected static ?int $navigationSort = 32;
+    protected static ?string $cluster = Overseer::class;
+
+    protected static ?int $navigationSort = 4;
 
     /** @var array<string, array<string, bool|int|string>> values as loaded, per source and key */
     public array $original = [];

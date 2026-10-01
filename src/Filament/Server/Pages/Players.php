@@ -23,6 +23,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
+use Headdetect\Overseer\Filament\Server\Clusters\Overseer;
 use Headdetect\Overseer\Models\TimedBan;
 use Headdetect\Overseer\Services\ConsoleService;
 use Headdetect\Overseer\Services\PlayerService;
@@ -39,9 +40,11 @@ class Players extends Page implements HasTable
 
     protected static string|\BackedEnum|null $navigationIcon = 'tabler-users-group';
 
-    protected static ?string $slug = 'overseer/players';
+    protected static ?string $slug = 'players';
 
-    protected static ?int $navigationSort = 30;
+    protected static ?string $cluster = Overseer::class;
+
+    protected static ?int $navigationSort = 2;
 
     #[Url(as: 'tab')]
     public ?string $activeTab = null;

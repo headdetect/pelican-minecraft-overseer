@@ -17,6 +17,7 @@ use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Headdetect\Overseer\Filament\Server\Clusters\Overseer;
 use Headdetect\Overseer\Models\AuditEntry;
 use Headdetect\Overseer\Services\ConsoleService;
 use Headdetect\Overseer\Services\GameRules;
@@ -27,9 +28,11 @@ class QuickCommands extends ServerFormPage
 {
     protected static string|\BackedEnum|null $navigationIcon = 'tabler-bolt';
 
-    protected static ?string $slug = 'overseer/commands';
+    protected static ?string $slug = 'commands';
 
-    protected static ?int $navigationSort = 31;
+    protected static ?string $cluster = Overseer::class;
+
+    protected static ?int $navigationSort = 3;
 
     /** Whether game rule values could be read from the server. */
     public bool $rulesKnown = false;
