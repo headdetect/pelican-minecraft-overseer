@@ -15,6 +15,6 @@ jobs:
           php-version: '8.4'
           coverage: none
       - name: Lint
-        run: find src lang config database tests -name '*.php' -print0 | xargs -0 -n1 php -l
+        run: find src lang config database resources tests -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Unit tests
         run: php tests/run.php
