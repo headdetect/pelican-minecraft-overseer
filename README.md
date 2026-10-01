@@ -95,6 +95,6 @@ To add a setting, add one entry to the right file in `resources/schemas/`.
 php tests/run.php
 ```
 
-To build the plugin zip locally, run `bin/build-zip.sh`; it lands in `dist/`. Pushing a tag such as `v0.2.0`, or running the **Release** workflow from the Actions tab with a version, runs the same script in GitHub Actions and attaches the zip to a GitHub Release.
+To build the plugin zip locally, run `bin/build-zip.sh`; it lands in `dist/`. Every merge to `main` publishes a GitHub Release with the zip attached. The version is the newest release with its last number bumped (0.1.0, then 0.1.1, and so on). To start a new minor or major version, raise `version` in `plugin.json` and the next merge uses it. Pushing a tag such as `v0.2.0`, or running the **Release** workflow from the Actions tab with a version, releases that exact version.
 
 The tests cover input checking, `server.properties` reading and writing, Paper YAML edits, the config schemas, reply parsing, reading squaremap's config and JSON, and the RCON client (against a small fake RCON server). The Filament pages need a running Pelican panel to try. The map script (`resources/map/live-map.js`) has no dependencies and is inlined into the page, so nothing needs building.
