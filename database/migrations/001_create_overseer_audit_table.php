@@ -8,22 +8,22 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('underseer_timed_bans', function (Blueprint $table) {
+        Schema::create('overseer_audit', function (Blueprint $table) {
             $table->id();
             $table->foreignId('server_id')->constrained()->cascadeOnDelete();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
-            $table->string('player', 32);
-            $table->string('reason')->nullable();
-            $table->timestamp('expires_at');
-            $table->timestamp('lifted_at')->nullable();
-            $table->timestamps();
+            $table->string('action', 64);
+            $table->string('target', 64)->nullable();
+            $table->text('command');
+            $table->text('response')->nullable();
+            $table->timestamp('created_at')->useCurrent();
 
-            $table->index(['lifted_at', 'expires_at']);
+            $table->index(['server_id', 'created_at']);
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('underseer_timed_bans');
+        Schema::dropIfExists('overseer_audit');
     }
 };

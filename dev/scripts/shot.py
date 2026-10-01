@@ -29,8 +29,8 @@ with sync_playwright() as p:
 
     response = page.goto(args.base + args.path, wait_until="load")
     if "/login" in page.url:
-        page.locator("input[type=email], input[type=text]").first.fill("admin@underseer.test")
-        page.locator("input[type=password]").fill("underseer")
+        page.locator("input[type=email], input[type=text]").first.fill("admin@overseer.test")
+        page.locator("input[type=password]").fill("overseer")
         page.locator("button[type=submit]").click()
         page.wait_for_url(lambda url: "/login" not in url)
         context.storage_state(path=state)

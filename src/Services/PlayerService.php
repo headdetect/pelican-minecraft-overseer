@@ -1,6 +1,6 @@
 <?php
 
-namespace Headdetect\Underseer\Services;
+namespace Headdetect\Overseer\Services;
 
 use App\Models\Server;
 use App\Repositories\Daemon\DaemonFileRepository;

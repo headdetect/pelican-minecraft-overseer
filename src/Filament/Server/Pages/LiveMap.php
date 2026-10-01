@@ -1,6 +1,6 @@
 <?php
 
-namespace Headdetect\Underseer\Filament\Server\Pages;
+namespace Headdetect\Overseer\Filament\Server\Pages;
 
 use App\Enums\ContainerStatus;
 use App\Models\Server;
@@ -12,12 +12,12 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use Headdetect\Underseer\Models\TimedBan;
-use Headdetect\Underseer\Services\ConsoleService;
-use Headdetect\Underseer\Services\Map\MapService;
-use Headdetect\Underseer\Services\PlayerService;
-use Headdetect\Underseer\Support\CommandInput;
-use Headdetect\Underseer\Support\Permission;
+use Headdetect\Overseer\Models\TimedBan;
+use Headdetect\Overseer\Services\ConsoleService;
+use Headdetect\Overseer\Services\Map\MapService;
+use Headdetect\Overseer\Services\PlayerService;
+use Headdetect\Overseer\Support\CommandInput;
+use Headdetect\Overseer\Support\Permission;
 use Livewire\Attributes\Renderless;
 
 class LiveMap extends Page
@@ -26,11 +26,11 @@ class LiveMap extends Page
 
     protected static string|\BackedEnum|null $navigationIcon = 'tabler-map-2';
 
-    protected static ?string $slug = 'underseer/map';
+    protected static ?string $slug = 'overseer/map';
 
     protected static ?int $navigationSort = 29;
 
-    protected string $view = 'underseer::live-map';
+    protected string $view = 'overseer::live-map';
 
     /** @var array{status: string, port: ?int, worlds: array<int, array<string, mixed>>} */
     public array $source = [];
@@ -48,7 +48,7 @@ class LiveMap extends Page
 
     public static function getNavigationLabel(): string
     {
-        return trans('underseer::underseer.map.title');
+        return trans('overseer::overseer.map.title');
     }
 
     public function getTitle(): string
@@ -70,9 +70,9 @@ class LiveMap extends Page
         return [
             'mode' => $squaremap ? 'squaremap' : 'grid',
             'worlds' => $squaremap ? $this->source['worlds'] : self::gridWorlds(),
-            'tileBase' => url("/underseer/servers/{$this->server()->uuid}/map") . '/',
+            'tileBase' => url("/overseer/servers/{$this->server()->uuid}/map") . '/',
             'headUrl' => 'https://mc-heads.net/avatar/{name}/64',
-            'refresh' => (int) config('underseer.map.refresh', 5),
+            'refresh' => (int) config('overseer.map.refresh', 5),
         ];
     }
 
@@ -117,8 +117,8 @@ class LiveMap extends Page
         }
 
         return [
-            'title' => trans("underseer::underseer.map.setup.$status.title"),
-            'body' => trans("underseer::underseer.map.setup.$status.body", ['port' => $this->source['port'] ?? '']),
+            'title' => trans("overseer::overseer.map.setup.$status.title"),
+            'body' => trans("overseer::overseer.map.setup.$status.body", ['port' => $this->source['port'] ?? '']),
         ];
     }
 
@@ -142,8 +142,8 @@ class LiveMap extends Page
         return Action::make('kick')
             ->visible(fn () => $this->can(Permission::PLAYERS_KICK))
             ->color('warning')
-            ->modalHeading(fn (array $arguments) => trans('underseer::underseer.players.kick_heading', ['name' => $arguments['name'] ?? '']))
-            ->modalSubmitActionLabel(trans('underseer::underseer.players.actions.kick'))
+            ->modalHeading(fn (array $arguments) => trans('overseer::overseer.players.kick_heading', ['name' => $arguments['name'] ?? '']))
+            ->modalSubmitActionLabel(trans('overseer::overseer.players.actions.kick'))
             ->schema([$this->reasonField()])
             ->action(fn (array $arguments, array $data) => $this->runFor('kick', 'kick', $arguments['name'] ?? '', 'kicked', CommandInput::text($data['reason'] ?? '')));
     }
@@ -153,17 +153,17 @@ class LiveMap extends Page
         return Action::make('ban')
             ->visible(fn () => $this->can(Permission::PLAYERS_BAN))
             ->color('danger')
-            ->modalHeading(fn (array $arguments) => trans('underseer::underseer.players.ban_heading', ['name' => $arguments['name'] ?? '']))
-            ->modalSubmitActionLabel(trans('underseer::underseer.players.actions.ban'))
+            ->modalHeading(fn (array $arguments) => trans('overseer::overseer.players.ban_heading', ['name' => $arguments['name'] ?? '']))
+            ->modalSubmitActionLabel(trans('overseer::overseer.players.actions.ban'))
             ->schema([
                 $this->reasonField(),
                 Select::make('duration')
-                    ->label(trans('underseer::underseer.players.duration'))
+                    ->label(trans('overseer::overseer.players.duration'))
                     ->options([
-                        '1' => trans('underseer::underseer.players.durations.hour'),
-                        '24' => trans('underseer::underseer.players.durations.day'),
-                        '168' => trans('underseer::underseer.players.durations.week'),
-                        'forever' => trans('underseer::underseer.players.durations.forever'),
+                        '1' => trans('overseer::overseer.players.durations.hour'),
+                        '24' => trans('overseer::overseer.players.durations.day'),
+                        '168' => trans('overseer::overseer.players.durations.week'),
+                        'forever' => trans('overseer::overseer.players.durations.forever'),
                     ])
                     ->default('forever')
                     ->selectablePlaceholder(false),
@@ -171,7 +171,7 @@ class LiveMap extends Page
             ->action(function (array $arguments, array $data) {
                 $reason = CommandInput::text($data['reason'] ?? '');
                 $hours = $data['duration'] === 'forever' ? null : (int) $data['duration'];
-                $shownReason = $hours ? trim($reason . ' (' . trans('underseer::underseer.players.ban_for', ['hours' => $hours]) . ')') : $reason;
+                $shownReason = $hours ? trim($reason . ' (' . trans('overseer::overseer.players.ban_for', ['hours' => $hours]) . ')') : $reason;
 
                 if (!$this->runFor('ban', 'ban', $arguments['name'] ?? '', 'banned', $shownReason)) {
                     return;
@@ -194,9 +194,9 @@ class LiveMap extends Page
         return Action::make('op')
             ->visible(fn () => $this->can(Permission::PLAYERS_OP))
             ->requiresConfirmation()
-            ->modalHeading(fn (array $arguments) => trans('underseer::underseer.map.op_heading', ['name' => $arguments['name'] ?? '']))
-            ->modalDescription(trans('underseer::underseer.players.op_warning'))
-            ->modalSubmitActionLabel(trans('underseer::underseer.players.actions.op'))
+            ->modalHeading(fn (array $arguments) => trans('overseer::overseer.map.op_heading', ['name' => $arguments['name'] ?? '']))
+            ->modalDescription(trans('overseer::overseer.players.op_warning'))
+            ->modalSubmitActionLabel(trans('overseer::overseer.players.actions.op'))
             ->action(fn (array $arguments) => $this->runFor('op', 'op', $arguments['name'] ?? '', 'opped'));
     }
 
@@ -210,9 +210,9 @@ class LiveMap extends Page
     private function reasonField(): TextInput
     {
         return TextInput::make('reason')
-            ->label(trans('underseer::underseer.players.reason'))
-            ->helperText(trans('underseer::underseer.players.reason_help'))
-            ->datalist(config('underseer.reasons', []))
+            ->label(trans('overseer::overseer.players.reason'))
+            ->helperText(trans('overseer::overseer.players.reason_help'))
+            ->datalist(config('overseer.reasons', []))
             ->maxLength(200);
     }
 
@@ -227,7 +227,7 @@ class LiveMap extends Page
             $reply = app(ConsoleService::class)->run($this->server(), $action, trim("$verb $name $suffix"), $name);
 
             Notification::make()
-                ->title(trans("underseer::underseer.players.notifications.$notification", ['name' => $name]))
+                ->title(trans("overseer::overseer.players.notifications.$notification", ['name' => $name]))
                 ->body($reply ?: null)
                 ->success()
                 ->send();
@@ -239,7 +239,7 @@ class LiveMap extends Page
             return true;
         } catch (Exception $exception) {
             Notification::make()
-                ->title(trans('underseer::underseer.players.notifications.failed'))
+                ->title(trans('overseer::overseer.players.notifications.failed'))
                 ->body($exception->getMessage())
                 ->danger()
                 ->send();
@@ -286,7 +286,7 @@ class LiveMap extends Page
     {
         $world = fn (string $name, string $type) => [
             'name' => $name,
-            'label' => trans("underseer::underseer.map.worlds.$type"),
+            'label' => trans("overseer::overseer.map.worlds.$type"),
             'type' => $type,
             'max' => 4,
             'def' => 2,

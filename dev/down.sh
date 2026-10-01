@@ -14,7 +14,7 @@ uuid=$(cat "$DEV_DATA/server-uuid" 2>/dev/null || true)
 if [ "${1:-}" = --wipe ]; then
   [ -n "$uuid" ] && docker rm -f "$uuid" >/dev/null 2>&1 || true
   docker compose down -v
-  docker network rm underseer_dev >/dev/null 2>&1 || true
+  docker network rm overseer_dev >/dev/null 2>&1 || true
   # Wings writes these files as root, so a root container deletes them.
   docker run --rm -v "$PWD:/d" alpine:3 rm -rf /d/.data
   echo "down: stopped and wiped"

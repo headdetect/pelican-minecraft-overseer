@@ -1,6 +1,6 @@
 <?php
 
-namespace Headdetect\Underseer\Support;
+namespace Headdetect\Overseer\Support;
 
 use App\Models\Server;
 
@@ -10,27 +10,27 @@ use App\Models\Server;
  */
 final class Permission
 {
-    public const GROUP = 'underseer';
+    public const GROUP = 'overseer';
 
-    public const MAP_VIEW = 'underseer.map-view';
+    public const MAP_VIEW = 'overseer.map-view';
 
-    public const PLAYERS_VIEW = 'underseer.players-view';
+    public const PLAYERS_VIEW = 'overseer.players-view';
 
-    public const PLAYERS_KICK = 'underseer.players-kick';
+    public const PLAYERS_KICK = 'overseer.players-kick';
 
-    public const PLAYERS_BAN = 'underseer.players-ban';
+    public const PLAYERS_BAN = 'overseer.players-ban';
 
-    public const PLAYERS_OP = 'underseer.players-op';
+    public const PLAYERS_OP = 'overseer.players-op';
 
-    public const PLAYERS_WHITELIST = 'underseer.players-whitelist';
+    public const PLAYERS_WHITELIST = 'overseer.players-whitelist';
 
-    public const COMMANDS_WORLD = 'underseer.commands-world';
+    public const COMMANDS_WORLD = 'overseer.commands-world';
 
-    public const COMMANDS_OPS = 'underseer.commands-ops';
+    public const COMMANDS_OPS = 'overseer.commands-ops';
 
-    public const CONFIG_VIEW = 'underseer.config-view';
+    public const CONFIG_VIEW = 'overseer.config-view';
 
-    public const CONFIG_EDIT = 'underseer.config-edit';
+    public const CONFIG_EDIT = 'overseer.config-edit';
 
     /** @return string[] permission names without the group prefix, as Pelican registers them */
     public static function names(): array

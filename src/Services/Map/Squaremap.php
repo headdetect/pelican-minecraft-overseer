@@ -1,6 +1,6 @@
 <?php
 
-namespace Headdetect\Underseer\Services\Map;
+namespace Headdetect\Overseer\Services\Map;
 
 /**
  * Reads squaremap's config and the JSON files its web server publishes.

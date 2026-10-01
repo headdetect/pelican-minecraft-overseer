@@ -1,13 +1,13 @@
 /*
- * Underseer Live Map: a small tile viewer for squaremap tiles, with live player markers.
+ * Overseer Live Map: a small tile viewer for squaremap tiles, with live player markers.
  * No libraries. Loaded once per page through Livewire's @assets and used as
- * x-data="underseerLiveMap(config)".
+ * x-data="overseerLiveMap(config)".
  *
  * Coordinates follow squaremap: at zoom level `max` one pixel is one block, each
  * level below halves that, and tile (tx, ty) at a level holds blocks starting at
  * tx * 512 * 2^(max - level) on x and ty * the same on z.
  */
-window.underseerLiveMap = function (cfg) {
+window.overseerLiveMap = function (cfg) {
     const TILE = 512;
 
     return {

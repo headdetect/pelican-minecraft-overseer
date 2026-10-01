@@ -1,15 +1,15 @@
 <?php
 
-namespace Headdetect\Underseer\Services;
+namespace Headdetect\Overseer\Services;
 
 use App\Enums\ContainerStatus;
 use App\Facades\Activity;
 use App\Models\Server;
 use App\Repositories\Daemon\DaemonFileRepository;
 use Exception;
-use Headdetect\Underseer\Support\ConfigSchema;
-use Headdetect\Underseer\Support\Properties;
-use Headdetect\Underseer\Support\YamlLines;
+use Headdetect\Overseer\Support\ConfigSchema;
+use Headdetect\Overseer\Support\Properties;
+use Headdetect\Overseer\Support\YamlLines;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use RuntimeException;
 
@@ -20,7 +20,7 @@ use RuntimeException;
  */
 class ConfigFiles
 {
-    public const BACKUP_DIR = '.underseer/backups';
+    public const BACKUP_DIR = '.overseer/backups';
 
     private const MAX_FILE_SIZE = 1024 * 1024;
 
@@ -168,7 +168,7 @@ class ConfigFiles
             $logged[$key] = ($entries[$key]['type'] ?? null) === 'password' ? '(changed)' : $value;
         }
 
-        Activity::event('server:underseer.config')
+        Activity::event('server:overseer.config')
             ->property(['file' => $file, 'backup' => $backup, 'changes' => $logged])
             ->log();
 
@@ -202,7 +202,7 @@ class ConfigFiles
                 ->sort()
                 ->values();
 
-            $keep = max(1, (int) config('underseer.config.backups', 10));
+            $keep = max(1, (int) config('overseer.config.backups', 10));
             if ($copies->count() > $keep) {
                 $this->files($server)->deleteFiles(self::BACKUP_DIR, $copies->slice(0, $copies->count() - $keep)->all());
             }

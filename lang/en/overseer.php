@@ -99,7 +99,7 @@ return [
             'offline' => 'The server is not running',
             'nobody' => 'Nobody is online',
             'no_rcon' => "Can't see who is online yet",
-            'no_rcon_help' => 'Turn on RCON in server.properties (enable-rcon=true and an rcon.password) so Underseer can read the player list. Kick, ban and op still work from the other tabs.',
+            'no_rcon_help' => 'Turn on RCON in server.properties (enable-rcon=true and an rcon.password) so Overseer can read the player list. Kick, ban and op still work from the other tabs.',
         ],
         'notifications' => [
             'kicked' => 'Kicked :name',
@@ -143,7 +143,7 @@ return [
         ],
         'recent' => [
             'title' => 'Recent actions',
-            'help' => 'What admins ran from Underseer on this server. Also in the Activity log.',
+            'help' => 'What admins ran from Overseer on this server. Also in the Activity log.',
             'empty' => 'Nothing yet.',
         ],
         'buttons' => [
@@ -198,7 +198,7 @@ return [
             'offline' => 'The server is not running',
             'offline_help' => 'Game rules are stored in the world, so the server has to be running to read and change them.',
             'no_rcon' => "Can't read game rules yet",
-            'no_rcon_help' => 'Turn on Remote console (RCON) under Server settings, set a password, save and restart. Underseer then reads and changes game rules here.',
+            'no_rcon_help' => 'Turn on Remote console (RCON) under Server settings, set a password, save and restart. Overseer then reads and changes game rules here.',
             'error' => "Couldn't load these settings",
             'error_help' => 'The panel could not reach the server. Reload the page to try again.',
         ],

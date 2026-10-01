@@ -3,4 +3,4 @@
 set -euo pipefail
 tty=()
 [ -t 0 ] && tty=(-it)
-exec docker exec "${tty[@]}" -u www-data underseer-dev-panel php artisan "$@"
+exec docker exec "${tty[@]}" -u www-data overseer-dev-panel php artisan "$@"

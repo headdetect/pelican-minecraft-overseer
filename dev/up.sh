@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Starts a local Pelican panel, wings and a Fabric server with squaremap, and
-# installs Underseer from this checkout. Safe to re-run: each step skips what
+# installs Overseer from this checkout. Safe to re-run: each step skips what
 # already exists. See dev/README.md.
 set -euo pipefail
 
@@ -8,9 +8,9 @@ cd "$(dirname "$0")"
 export DEV_DATA="$PWD/.data"
 export PANEL_PORT="${PANEL_PORT:-8890}"
 export WINGS_PORT="${WINGS_PORT:-8891}"
-ADMIN_EMAIL=admin@underseer.test
-ADMIN_PASSWORD=underseer
-PANEL=underseer-dev-panel
+ADMIN_EMAIL=admin@overseer.test
+ADMIN_PASSWORD=overseer
+PANEL=overseer-dev-panel
 
 panel() { docker exec -u www-data "$PANEL" "$@"; }
 seed() { panel env DEV_DATA="$DEV_DATA" WINGS_PORT="$WINGS_PORT" php /dev-scripts/seed.php "$@"; }
@@ -48,7 +48,7 @@ fi
 # block the panel stores in it, and give the file to www-data so the panel can
 # update that block.
 docker exec -i -u root "$PANEL" php -r '
-  $file = "/var/www/html/plugins/underseer/plugin.json";
+  $file = "/var/www/html/plugins/overseer/plugin.json";
   $data = json_decode(stream_get_contents(STDIN), true, flags: JSON_THROW_ON_ERROR);
   if (is_file($file)) {
       $data["meta"] = json_decode(file_get_contents($file), true)["meta"] ?? null;
@@ -57,11 +57,11 @@ docker exec -i -u root "$PANEL" php -r '
   chown($file, "www-data");
 ' < ../plugin.json
 
-if ! panel php artisan p:plugin:list | grep -q 'Underseer.*enabled'; then
-  echo "up: installing Underseer"
+if ! panel php artisan p:plugin:list | grep -q 'Overseer.*enabled'; then
+  echo "up: installing Overseer"
   # Dev mode turns the asset build's failure into an error, and a plugin with
   # no assets does not need that build.
-  docker exec -u www-data -e PANEL_PLUGIN_DEV_MODE=false "$PANEL" php artisan p:plugin:install underseer
+  docker exec -u www-data -e PANEL_PLUGIN_DEV_MODE=false "$PANEL" php artisan p:plugin:install overseer
 fi
 
 echo "up: writing the wings configuration"
@@ -84,7 +84,7 @@ while :; do
   case "$status" in
     installed) break ;;
     install_failed|reinstall_failed)
-      echo "up: install failed. Run: docker logs underseer-dev-wings 2>&1 | grep -i error" >&2
+      echo "up: install failed. Run: docker logs overseer-dev-wings 2>&1 | grep -i error" >&2
       exit 1 ;;
   esac
   sleep 5
@@ -100,6 +100,6 @@ Panel   http://localhost:$PANEL_PORT  ($ADMIN_EMAIL / $ADMIN_PASSWORD)
 Server  http://localhost:$PANEL_PORT/server/${uuid:0:8}
 Game    localhost:25565
 
-The server takes a minute or two to boot. Underseer's pages are in the server's
+The server takes a minute or two to boot. Overseer's pages are in the server's
 sidebar. Watch the boot with: docker logs -f $uuid
 EOF

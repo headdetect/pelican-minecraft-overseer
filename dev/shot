@@ -3,7 +3,7 @@
 # Prints the HTTP status, browser console errors and new laravel.log lines.
 #
 # Usage: dev/shot <page> [--click TEXT]... [--wait MS]
-#   <page> is a panel path such as /admin/plugins, or an Underseer page name
+#   <page> is a panel path such as /admin/plugins, or an Overseer page name
 #   (players, map, commands, config) on the dev server.
 #   --click clicks the first visible element with that text, in order, before
 #   the screenshot. --wait sets the pause before the screenshot (default 1500).
@@ -20,12 +20,12 @@ case "$page" in
   /*) path=$page ;;
   *)
     uuid=$(cat .data/server-uuid 2>/dev/null) || { echo "shot: no dev server. Run dev/up.sh." >&2; exit 1; }
-    path="/server/${uuid:0:8}/underseer/$page" ;;
+    path="/server/${uuid:0:8}/overseer/$page" ;;
 esac
 name=$(printf '%s' "$page" | tr -c 'A-Za-z0-9' '-' | sed 's/^-*//; s/-*$//')
 mkdir -p .data/shots
 
-logs() { docker exec underseer-dev-panel sh -c 'cat storage/logs/*.log 2>/dev/null | wc -l'; }
+logs() { docker exec overseer-dev-panel sh -c 'cat storage/logs/*.log 2>/dev/null | wc -l'; }
 before=$(logs)
 
 # The image has the browsers but not the Python package. Install the matching
@@ -43,6 +43,6 @@ docker run --rm --network host --user "$(id -u):$(id -g)" -e HOME=/tmp \
 after=$(logs)
 if [ "$after" -gt "$before" ]; then
   echo "--- laravel.log ($((after - before)) new lines)"
-  docker exec underseer-dev-panel sh -c "cat storage/logs/*.log | tail -n $((after - before))" | cut -c1-400
+  docker exec overseer-dev-panel sh -c "cat storage/logs/*.log | tail -n $((after - before))" | cut -c1-400
 fi
 echo "shot: dev/.data/shots/$name.png"

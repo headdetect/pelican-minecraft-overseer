@@ -1,6 +1,6 @@
 <?php
 
-namespace Headdetect\Underseer\Models;
+namespace Headdetect\Overseer\Models;
 
 use App\Models\Server;
 use Illuminate\Database\Eloquent\Builder;
@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * A ban Underseer will lift by itself. Minecraft has no built-in temporary ban,
+ * A ban Overseer will lift by itself. Minecraft has no built-in temporary ban,
  * so the player is banned normally and pardoned when this expires.
  *
  * @property int $id
@@ -22,7 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class TimedBan extends Model
 {
-    protected $table = 'underseer_timed_bans';
+    protected $table = 'overseer_timed_bans';
 
     protected $fillable = ['server_id', 'user_id', 'player', 'reason', 'expires_at', 'lifted_at'];
 

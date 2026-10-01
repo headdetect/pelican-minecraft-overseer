@@ -1,12 +1,12 @@
 <?php
 
-namespace Headdetect\Underseer\Services;
+namespace Headdetect\Overseer\Services;
 
 use App\Models\Server;
 use RuntimeException;
 
 /**
- * Game rules Underseer exposes as switches. Minecraft 1.21.11 renamed every rule
+ * Game rules Overseer exposes as switches. Minecraft 1.21.11 renamed every rule
  * to snake_case, so each one carries both names and the right one is picked per server.
  */
 class GameRules
@@ -101,7 +101,7 @@ class GameRules
     /** True for 1.21.11+ names, false for the old camelCase names, null when it can't be checked. */
     public function usesModernNames(Server $server): ?bool
     {
-        return cache()->remember("underseer.$server->uuid.gamerule-style", now()->addHour(), function () use ($server) {
+        return cache()->remember("overseer.$server->uuid.gamerule-style", now()->addHour(), function () use ($server) {
             $reply = $this->console->query($server, 'gamerule keep_inventory');
 
             return $reply === null ? null : self::parseValue($reply) !== null;

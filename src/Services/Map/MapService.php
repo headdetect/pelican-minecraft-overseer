@@ -1,12 +1,12 @@
 <?php
 
-namespace Headdetect\Underseer\Services\Map;
+namespace Headdetect\Overseer\Services\Map;
 
 use App\Enums\ContainerStatus;
 use App\Models\Server;
 use App\Repositories\Daemon\DaemonFileRepository;
 use Exception;
-use Headdetect\Underseer\Support\ServerAddress;
+use Headdetect\Overseer\Support\ServerAddress;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
@@ -41,7 +41,7 @@ class MapService
      */
     public function source(Server $server, bool $fresh = false): array
     {
-        $key = "underseer:map:$server->uuid";
+        $key = "overseer:map:$server->uuid";
         if ($fresh) {
             Cache::forget($key);
         }
@@ -140,10 +140,10 @@ class MapService
 
     private function get(Server $server, int $port, string $path): ?Response
     {
-        $host = ServerAddress::host($server, config('underseer.map.host') ?: config('underseer.rcon.host'));
+        $host = ServerAddress::host($server, config('overseer.map.host') ?: config('overseer.rcon.host'));
 
         try {
-            return Http::timeout((float) config('underseer.map.timeout', 3.0))
+            return Http::timeout((float) config('overseer.map.timeout', 3.0))
                 ->withoutRedirecting()
                 ->get("http://$host:$port/$path");
         } catch (Exception) {

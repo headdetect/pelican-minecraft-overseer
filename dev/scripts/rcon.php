@@ -3,7 +3,7 @@
 // Runs one RCON command against the dev server. dev/rcon calls this.
 
 use App\Models\Server;
-use Headdetect\Underseer\Services\Rcon\RconConnector;
+use Headdetect\Overseer\Services\Rcon\RconConnector;
 
 require '/var/www/html/vendor/autoload.php';
 $app = require '/var/www/html/bootstrap/app.php';

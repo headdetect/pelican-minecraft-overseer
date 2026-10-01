@@ -1,10 +1,10 @@
 <?php
 
-namespace Headdetect\Underseer\Http\Controllers;
+namespace Headdetect\Overseer\Http\Controllers;
 
 use App\Models\Server;
-use Headdetect\Underseer\Services\Map\MapService;
-use Headdetect\Underseer\Support\Permission;
+use Headdetect\Overseer\Services\Map\MapService;
+use Headdetect\Overseer\Support\Permission;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 

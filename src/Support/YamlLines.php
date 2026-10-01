@@ -1,6 +1,6 @@
 <?php
 
-namespace Headdetect\Underseer\Support;
+namespace Headdetect\Overseer\Support;
 
 /**
  * Reads and changes single values in a YAML file such as Paper's config, by

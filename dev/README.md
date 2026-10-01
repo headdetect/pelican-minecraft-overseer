@@ -1,7 +1,7 @@
 # Local development
 
 This folder runs a Pelican panel, wings and a Fabric Minecraft server on your
-machine. The panel loads Underseer straight from this checkout. After you
+machine. The panel loads Overseer straight from this checkout. After you
 change a PHP or Blade file, reload the page to see the change.
 
 ## Requirements
@@ -24,7 +24,7 @@ The first `dev/up.sh` takes a few minutes. It does what the web installer and
 the admin pages do by hand:
 
 1. Migrates the panel database and creates the admin account.
-2. Installs Underseer.
+2. Installs Overseer.
 3. Creates a node and writes the wings configuration.
 4. Imports the Fabric egg and creates a server called `dev`.
 5. Writes `server.properties` with RCON on, accepts the EULA and downloads
@@ -34,7 +34,7 @@ the admin pages do by hand:
 When it finishes, it prints the panel address and the login:
 
 - Panel: `http://localhost:8890`
-- Login: `admin@underseer.test`, password `underseer`
+- Login: `admin@overseer.test`, password `overseer`
 - Game: `localhost:25565`
 
 `dev/up.sh` picks the newest Minecraft release that has both a squaremap and a
@@ -57,7 +57,7 @@ Some changes need one more step:
   that file, because it stores the install state of the plugin in it.
 
 The panel runs with `APP_DEBUG` on, so an error page shows the stack trace.
-Plugin dev mode is also on. An error in Underseer then stops the page, and the
+Plugin dev mode is also on. An error in Overseer then stops the page, and the
 panel does not quietly mark the plugin as errored.
 
 ## Tools
@@ -65,13 +65,13 @@ panel does not quietly mark the plugin as errored.
 - `dev/test` runs `tests/run.php` with the PHP in the panel.
 - `dev/artisan <args>` runs `php artisan` in the panel.
 - `dev/rcon <command>` sends one RCON command through the RCON client of
-  Underseer.
+  Overseer.
 - `dev/shot <page>` saves a screenshot of a panel page.
 
 `dev/shot` logs in as the admin with headless Chromium and saves a PNG in
 `dev/.data/shots/`. It also prints the HTTP status, browser console errors and
 new lines from the Laravel log. The page is a panel path, or the name of an
-Underseer page on the dev server:
+Overseer page on the dev server:
 
 ```bash
 dev/shot players

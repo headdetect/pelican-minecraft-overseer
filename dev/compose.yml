@@ -1,14 +1,14 @@
-# Local Pelican panel and wings for developing Underseer. Start it with
+# Local Pelican panel and wings for developing Overseer. Start it with
 # dev/up.sh, which sets DEV_DATA and seeds the panel. See dev/README.md.
 #
 # Both services use the host network, so localhost means the same machine for
 # the browser, the panel, wings and the game server's RCON and map ports.
-name: underseer-dev
+name: overseer-dev
 
 services:
   panel:
     image: ghcr.io/pelican/panel:latest
-    container_name: underseer-dev-panel
+    container_name: overseer-dev-panel
     network_mode: host
     environment:
       XDG_DATA_HOME: /pelican-data
@@ -27,18 +27,18 @@ services:
       # The plugin source, read-only. Edits show up on the next page load
       # because opcache checks file timestamps. plugin.json is a copy that
       # up.sh writes, because the panel stores install state in it.
-      - ../src:/var/www/html/plugins/underseer/src:ro
-      - ../resources:/var/www/html/plugins/underseer/resources:ro
-      - ../routes:/var/www/html/plugins/underseer/routes:ro
-      - ../config:/var/www/html/plugins/underseer/config:ro
-      - ../database:/var/www/html/plugins/underseer/database:ro
-      - ../lang:/var/www/html/plugins/underseer/lang:ro
-      - ../tests:/var/www/html/plugins/underseer/tests:ro
+      - ../src:/var/www/html/plugins/overseer/src:ro
+      - ../resources:/var/www/html/plugins/overseer/resources:ro
+      - ../routes:/var/www/html/plugins/overseer/routes:ro
+      - ../config:/var/www/html/plugins/overseer/config:ro
+      - ../database:/var/www/html/plugins/overseer/database:ro
+      - ../lang:/var/www/html/plugins/overseer/lang:ro
+      - ../tests:/var/www/html/plugins/overseer/tests:ro
       - ./scripts:/dev-scripts:ro
 
   wings:
     image: ghcr.io/pelican/wings:latest
-    container_name: underseer-dev-wings
+    container_name: overseer-dev-wings
     network_mode: host
     tty: true
     environment:

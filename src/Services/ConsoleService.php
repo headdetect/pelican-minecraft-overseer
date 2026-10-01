@@ -1,20 +1,20 @@
 <?php
 
-namespace Headdetect\Underseer\Services;
+namespace Headdetect\Overseer\Services;
 
 use App\Enums\ContainerStatus;
 use App\Facades\Activity;
 use App\Models\Server;
 use Exception;
-use Headdetect\Underseer\Models\AuditEntry;
-use Headdetect\Underseer\Services\Rcon\RconClient;
-use Headdetect\Underseer\Services\Rcon\RconConnector;
-use Headdetect\Underseer\Services\Rcon\RconException;
-use Headdetect\Underseer\Support\CommandInput;
+use Headdetect\Overseer\Models\AuditEntry;
+use Headdetect\Overseer\Services\Rcon\RconClient;
+use Headdetect\Overseer\Services\Rcon\RconConnector;
+use Headdetect\Overseer\Services\Rcon\RconException;
+use Headdetect\Overseer\Support\CommandInput;
 use RuntimeException;
 
 /**
- * The one way Underseer runs a command on a server. Every call is checked,
+ * The one way Overseer runs a command on a server. Every call is checked,
  * written to the audit table and to Pelican's activity log.
  *
  * Commands go over RCON when it is set up, so the server's reply can be shown.
@@ -69,7 +69,7 @@ class ConsoleService
             'response' => $response,
         ]);
 
-        Activity::event("server:underseer.$action")
+        Activity::event("server:overseer.$action")
             ->property(['command' => $command, 'target' => $target])
             ->log();
 

@@ -32,7 +32,7 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 const EGG_URL = 'https://raw.githubusercontent.com/pelican-eggs/minecraft/main/java/fabric/egg-fabric.yaml';
 const GAME_PORT = 25565;
 const RCON_PORT = 25575;
-const RCON_PASSWORD = 'underseer-dev';
+const RCON_PASSWORD = 'overseer-dev';
 // squaremap's default is 8080, which is often taken on a laptop.
 const MAP_PORT = 8100;
 
@@ -99,7 +99,7 @@ switch ($step) {
     case 'node':
         $node = node() ?? Node::create([
             'name' => 'dev',
-            'description' => 'Local wings for Underseer development',
+            'description' => 'Local wings for Overseer development',
             'scheme' => 'http',
             'fqdn' => 'localhost',
             'public' => true,
@@ -135,9 +135,9 @@ switch ($step) {
         ];
         $config['docker'] = [
             'network' => [
-                'name' => 'underseer_dev',
+                'name' => 'overseer_dev',
                 // Wings attaches containers to this one, which is a separate key.
-                'network_mode' => 'underseer_dev',
+                'network_mode' => 'overseer_dev',
                 'interface' => '172.29.0.1',
                 'interfaces' => ['v4' => ['subnet' => '172.29.0.0/16', 'gateway' => '172.29.0.1']],
             ],
@@ -167,7 +167,7 @@ switch ($step) {
 
         $server = app(ServerCreationService::class)->handle([
             'name' => 'dev',
-            'owner_id' => User::query()->where('email', 'admin@underseer.test')->value('id'),
+            'owner_id' => User::query()->where('email', 'admin@overseer.test')->value('id'),
             'egg_id' => $egg->id,
             'image' => $egg->docker_images['Java 25'] ?? end($egg->docker_images),
             'memory' => 4096,
@@ -202,7 +202,7 @@ switch ($step) {
         $files = (new DaemonFileRepository())->setServer($server);
 
         // Skip a server that already booted once, so a re-run keeps its world
-        // and any settings changed through Underseer.
+        // and any settings changed through Overseer.
         $existing = collect($files->getDirectory('/'))->pluck('name');
         if ($existing->contains('server.properties')) {
             echo "seed: server.properties exists, skipping\n";
@@ -211,7 +211,7 @@ switch ($step) {
 
         $files->putContent('eula.txt', "eula=true\n");
         $files->putContent('server.properties', implode("\n", [
-            'motd=Underseer dev',
+            'motd=Overseer dev',
             'enable-rcon=true',
             'rcon.password=' . RCON_PASSWORD,
             'rcon.port=' . RCON_PORT,

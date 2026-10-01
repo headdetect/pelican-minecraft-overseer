@@ -1,19 +1,19 @@
 <?php
 
-namespace Headdetect\Underseer\Providers;
+namespace Headdetect\Overseer\Providers;
 
 use App\Models\Subuser;
-use Headdetect\Underseer\Console\Commands\LiftExpiredBans;
-use Headdetect\Underseer\Services\ConsoleService;
-use Headdetect\Underseer\Services\GameRules;
-use Headdetect\Underseer\Services\Map\MapService;
-use Headdetect\Underseer\Services\PlayerService;
-use Headdetect\Underseer\Services\Rcon\RconConnector;
-use Headdetect\Underseer\Support\Permission;
+use Headdetect\Overseer\Console\Commands\LiftExpiredBans;
+use Headdetect\Overseer\Services\ConsoleService;
+use Headdetect\Overseer\Services\GameRules;
+use Headdetect\Overseer\Services\Map\MapService;
+use Headdetect\Overseer\Services\PlayerService;
+use Headdetect\Overseer\Services\Rcon\RconConnector;
+use Headdetect\Overseer\Support\Permission;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\ServiceProvider;
 
-class UnderseerPluginProvider extends ServiceProvider
+class OverseerPluginProvider extends ServiceProvider
 {
     public function register(): void
     {
@@ -27,14 +27,14 @@ class UnderseerPluginProvider extends ServiceProvider
         Subuser::registerCustomPermissions(
             name: Permission::GROUP,
             permissions: Permission::names(),
-            translationPrefix: 'underseer::permissions',
+            translationPrefix: 'overseer::permissions',
             icon: 'tabler-eye',
         );
     }
 
     public function boot(): void
     {
-        $this->loadRoutesFrom(plugin_path('underseer', 'routes/web.php'));
+        $this->loadRoutesFrom(plugin_path('overseer', 'routes/web.php'));
 
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             $schedule->command(LiftExpiredBans::class)->everyMinute()->withoutOverlapping();

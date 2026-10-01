@@ -1,6 +1,6 @@
 <?php
 
-namespace Headdetect\Underseer\Services\Rcon;
+namespace Headdetect\Overseer\Services\Rcon;
 
 use RuntimeException;
 
