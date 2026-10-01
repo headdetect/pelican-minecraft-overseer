@@ -33,7 +33,9 @@ The browser never connects to squaremap: the panel fetches the tiles and passes 
 
 ## Install
 
-Copy this repository into your panel's plugin folder as `underseer` (the folder name must match the plugin id):
+The easiest way is the zip from the [latest release](https://github.com/headdetect/pelican-minecraft-overseer/releases/latest). In the panel go to **Admin → Plugins**, choose **Import from file**, upload `underseer-<version>.zip`, then press **Install** on the Underseer row. To update later, import the newer zip the same way.
+
+Or copy this repository into your panel's plugin folder as `underseer` (the folder name must match the plugin id):
 
 ```bash
 cd /var/www/pelican/plugins
@@ -42,7 +44,7 @@ cd /var/www/pelican
 php artisan p:plugin:install underseer
 ```
 
-You can also zip the folder and import it under **Admin → Plugins**. Installing runs the plugin's two migrations. Pelican's queue worker and scheduler need to be running: the scheduler lifts timed bans.
+Installing runs the plugin's two migrations. Pelican's queue worker and scheduler need to be running: the scheduler lifts timed bans.
 
 Then give people access under the server's **Users** page. The Underseer tab has one permission per action:
 
@@ -92,5 +94,7 @@ To add a setting, add one entry to the right file in `resources/schemas/`.
 ```bash
 php tests/run.php
 ```
+
+To build the plugin zip locally, run `bin/build-zip.sh`; it lands in `dist/`. Pushing a tag such as `v0.2.0` runs the same script in GitHub Actions and attaches the zip to a GitHub Release.
 
 The tests cover input checking, `server.properties` reading and writing, Paper YAML edits, the config schemas, reply parsing, reading squaremap's config and JSON, and the RCON client (against a small fake RCON server). The Filament pages need a running Pelican panel to try. The map script (`resources/map/live-map.js`) has no dependencies and is inlined into the page, so nothing needs building.
