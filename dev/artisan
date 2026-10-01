@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Runs php artisan in the dev panel. Example: dev/artisan filament:cache-components
+set -euo pipefail
+tty=()
+[ -t 0 ] && tty=(-it)
+exec docker exec "${tty[@]}" -u www-data underseer-dev-panel php artisan "$@"

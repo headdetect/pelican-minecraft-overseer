@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Stops the local dev stack, including the game server that wings started.
+# Usage: dev/down.sh [--wipe]
+#   --wipe  also delete the panel database, the plugin state and the world
+set -euo pipefail
+
+cd "$(dirname "$0")"
+export DEV_DATA="$PWD/.data"
+
+# Wings names a game container after its server's uuid. compose does not manage
+# that container, so stop it by name.
+uuid=$(cat "$DEV_DATA/server-uuid" 2>/dev/null || true)
+
+if [ "${1:-}" = --wipe ]; then
+  [ -n "$uuid" ] && docker rm -f "$uuid" >/dev/null 2>&1 || true
+  docker compose down -v
+  docker network rm underseer_dev >/dev/null 2>&1 || true
+  # Wings writes these files as root, so a root container deletes them.
+  docker run --rm -v "$PWD:/d" alpine:3 rm -rf /d/.data
+  echo "down: stopped and wiped"
+else
+  [ -n "$uuid" ] && docker stop "$uuid" >/dev/null 2>&1 || true
+  docker compose down
+  echo "down: stopped. dev/up.sh starts it again with the same world."
+fi

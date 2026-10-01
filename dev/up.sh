@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# Starts a local Pelican panel, wings and a Fabric server with squaremap, and
+# installs Underseer from this checkout. Safe to re-run: each step skips what
+# already exists. See dev/README.md.
+set -euo pipefail
+
+cd "$(dirname "$0")"
+export DEV_DATA="$PWD/.data"
+export PANEL_PORT="${PANEL_PORT:-8890}"
+export WINGS_PORT="${WINGS_PORT:-8891}"
+ADMIN_EMAIL=admin@underseer.test
+ADMIN_PASSWORD=underseer
+PANEL=underseer-dev-panel
+
+panel() { docker exec -u www-data "$PANEL" "$@"; }
+seed() { panel env DEV_DATA="$DEV_DATA" WINGS_PORT="$WINGS_PORT" php /dev-scripts/seed.php "$@"; }
+
+# Polls until a URL answers with any HTTP status, or gives up after $2 seconds.
+wait_http() {
+  local url=$1 limit=$2 waited=0
+  until [ "$(curl -s -o /dev/null -w '%{http_code}' "$url")" != 000 ]; do
+    [ "$waited" -ge "$limit" ] && { echo "up: $url did not answer in ${limit}s" >&2; return 1; }
+    sleep 2; waited=$((waited + 2))
+  done
+}
+
+mkdir -p "$DEV_DATA/wings"
+# Docker creates a missing bind-mount source as a directory, so the file must
+# exist before compose starts wings.
+[ -f "$DEV_DATA/wings/config.yml" ] || : > "$DEV_DATA/wings/config.yml"
+
+echo "up: starting panel"
+docker compose up -d panel
+wait_http "http://localhost:$PANEL_PORT" 180
+
+# Replaces the web installer: database, then an admin account.
+if ! panel grep -q '^APP_INSTALLED=true' /pelican-data/.env; then
+  echo "up: first run, migrating the database"
+  panel touch /pelican-data/database/database.sqlite
+  panel php artisan migrate --force --no-interaction >/dev/null
+  panel sed -i 's/^APP_INSTALLED=.*/APP_INSTALLED=true/' /pelican-data/.env
+  panel php artisan p:user:make --email="$ADMIN_EMAIL" --username=admin \
+    --password="$ADMIN_PASSWORD" --admin=1 >/dev/null
+fi
+
+# compose mounts the source directories read-only, so the plugin directory and
+# plugin.json are root's. Write plugin.json from the checkout, keep the meta
+# block the panel stores in it, and give the file to www-data so the panel can
+# update that block.
+docker exec -i -u root "$PANEL" php -r '
+  $file = "/var/www/html/plugins/underseer/plugin.json";
+  $data = json_decode(stream_get_contents(STDIN), true, flags: JSON_THROW_ON_ERROR);
+  if (is_file($file)) {
+      $data["meta"] = json_decode(file_get_contents($file), true)["meta"] ?? null;
+  }
+  file_put_contents($file, json_encode(array_filter($data, fn ($v) => $v !== null), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+  chown($file, "www-data");
+' < ../plugin.json
+
+if ! panel php artisan p:plugin:list | grep -q 'Underseer.*enabled'; then
+  echo "up: installing Underseer"
+  # Dev mode turns the asset build's failure into an error, and a plugin with
+  # no assets does not need that build.
+  docker exec -u www-data -e PANEL_PLUGIN_DEV_MODE=false "$PANEL" php artisan p:plugin:install underseer
+fi
+
+echo "up: writing the wings configuration"
+seed node > "$DEV_DATA/wings/config.yml.new"
+if cmp -s "$DEV_DATA/wings/config.yml.new" "$DEV_DATA/wings/config.yml"; then
+  rm "$DEV_DATA/wings/config.yml.new"
+  docker compose up -d wings
+else
+  mv "$DEV_DATA/wings/config.yml.new" "$DEV_DATA/wings/config.yml"
+  docker compose up -d --force-recreate wings
+fi
+wait_http "http://localhost:$WINGS_PORT/api/system" 60
+
+seed server
+seed uuid > "$DEV_DATA/server-uuid"
+
+echo "up: waiting for the server install. The first one takes a few minutes."
+while :; do
+  status=$(seed status)
+  case "$status" in
+    installed) break ;;
+    install_failed|reinstall_failed)
+      echo "up: install failed. Run: docker logs underseer-dev-wings 2>&1 | grep -i error" >&2
+      exit 1 ;;
+  esac
+  sleep 5
+done
+
+seed configure
+seed start
+
+uuid=$(cat "$DEV_DATA/server-uuid")
+cat <<EOF
+
+Panel   http://localhost:$PANEL_PORT  ($ADMIN_EMAIL / $ADMIN_PASSWORD)
+Server  http://localhost:$PANEL_PORT/server/${uuid:0:8}
+Game    localhost:25565
+
+The server takes a minute or two to boot. Underseer's pages are in the server's
+sidebar. Watch the boot with: docker logs -f $uuid
+EOF

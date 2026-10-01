@@ -1,0 +1,58 @@
+# Local Pelican panel and wings for developing Underseer. Start it with
+# dev/up.sh, which sets DEV_DATA and seeds the panel. See dev/README.md.
+#
+# Both services use the host network, so localhost means the same machine for
+# the browser, the panel, wings and the game server's RCON and map ports.
+name: underseer-dev
+
+services:
+  panel:
+    image: ghcr.io/pelican/panel:latest
+    container_name: underseer-dev-panel
+    network_mode: host
+    environment:
+      XDG_DATA_HOME: /pelican-data
+      # Caddy listens on the port in APP_URL. Plain http needs no certificate.
+      APP_URL: "http://localhost:${PANEL_PORT:-8890}"
+      APP_ENV: local
+      # The web installer writes this. Without it the entrypoint waits forever
+      # for a network database on every boot after the first.
+      DB_CONNECTION: sqlite
+      APP_DEBUG: "true"
+      # Plugin load errors throw instead of marking the plugin errored.
+      PANEL_PLUGIN_DEV_MODE: "true"
+    volumes:
+      - panel-data:/pelican-data
+      - plugins:/var/www/html/plugins
+      # The plugin source, read-only. Edits show up on the next page load
+      # because opcache checks file timestamps. plugin.json is a copy that
+      # up.sh writes, because the panel stores install state in it.
+      - ../src:/var/www/html/plugins/underseer/src:ro
+      - ../resources:/var/www/html/plugins/underseer/resources:ro
+      - ../routes:/var/www/html/plugins/underseer/routes:ro
+      - ../config:/var/www/html/plugins/underseer/config:ro
+      - ../database:/var/www/html/plugins/underseer/database:ro
+      - ../lang:/var/www/html/plugins/underseer/lang:ro
+      - ../tests:/var/www/html/plugins/underseer/tests:ro
+      - ./scripts:/dev-scripts:ro
+
+  wings:
+    image: ghcr.io/pelican/wings:latest
+    container_name: underseer-dev-wings
+    network_mode: host
+    tty: true
+    environment:
+      WINGS_UID: 988
+      WINGS_GID: 988
+      WINGS_USERNAME: pelican
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/containers/:/var/lib/docker/containers/
+      - "${DEV_DATA:?run dev/up.sh}/wings/config.yml:/etc/pelican/config.yml"
+      # Wings creates game containers on the host daemon and bind-mounts their
+      # files by path, so the path must be the same inside and outside.
+      - "${DEV_DATA}/wings:${DEV_DATA}/wings"
+
+volumes:
+  panel-data:
+  plugins:

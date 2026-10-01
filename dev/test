@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Runs the plugin's unit tests with the dev panel's PHP, so no local PHP is needed.
+set -euo pipefail
+exec docker exec -u www-data underseer-dev-panel php /var/www/html/plugins/underseer/tests/run.php "$@"
