@@ -21,6 +21,11 @@ return [
     // How many entries the "Recent actions" list shows.
     'recent_actions' => (int) env('UNDERSEER_RECENT_ACTIONS', 10),
 
+    'config' => [
+        // How many old copies of each config file to keep in .underseer/backups on the server.
+        'backups' => (int) env('UNDERSEER_CONFIG_BACKUPS', 10),
+    ],
+
     // Default reasons offered when kicking or banning.
     'reasons' => ['Griefing', 'Harassment', 'Cheating', 'Spam'],
 ];

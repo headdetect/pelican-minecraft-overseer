@@ -19,7 +19,9 @@ use Headdetect\Underseer\Services\PlayerService;
 use Headdetect\Underseer\Services\Rcon\RconClient;
 use Headdetect\Underseer\Services\Rcon\RconException;
 use Headdetect\Underseer\Support\CommandInput;
+use Headdetect\Underseer\Support\ConfigSchema;
 use Headdetect\Underseer\Support\Properties;
+use Headdetect\Underseer\Support\YamlLines;
 
 $failures = 0;
 $count = 0;
@@ -82,6 +84,112 @@ check('colon separator', $props['server-ip'], '');
 check('spaces around equals', $props['pvp'], 'false');
 check('missing key default', Properties::bool($props, 'white-list', true), true);
 check('comments skipped', array_key_exists('!', $props) || array_key_exists('#Minecraft', $props), false);
+
+// --- server.properties writing: only the changed lines move ---
+$file = "#Minecraft server properties\n#Tue Sep 30 12:00:00 UTC 2026\npvp=true\nmotd=Old\n\n# kept comment\nlevel-type=minecraft\\:normal\nrcon.password=s3cr\\=t\n";
+$updated = Properties::update($file, ['pvp' => 'false']);
+check('update changes one line', $updated, str_replace('pvp=true', 'pvp=false', $file));
+check('update keeps the rest', Properties::parse($updated)['rcon.password'], 's3cr=t');
+check('update escapes like Java', Properties::update("level-type=x\n", ['level-type' => 'minecraft:flat']), "level-type=minecraft\\:flat\n");
+check('update escapes = and #', Properties::update('', ['motd' => 'a=b #1']), "motd=a\\=b \\#1\n");
+check('update leading space', Properties::update('', ['motd' => ' hi']), "motd=\\ hi\n");
+check('update round trip', Properties::parse(Properties::update($file, ['motd' => "Doobie's: Kingdom \\o/ #1"]))['motd'], "Doobie's: Kingdom \\o/ #1");
+check('update adds missing key at the end', Properties::update("a=1\n", ['b' => '2']), "a=1\nb=2\n");
+check('update keeps CRLF', Properties::update("a=1\r\nb=2\r\n", ['a' => '3']), "a=3\r\nb=2\r\n");
+check('update no trailing newline kept', Properties::update('a=1', ['a' => '2']), 'a=2');
+check('update ignores commented key', Properties::update("#pvp=true\npvp=true\n", ['pvp' => 'false']), "#pvp=true\npvp=false\n");
+check('update newline cannot add a key', Properties::parse(Properties::update('', ['motd' => "hi\nop=me"])), ['motd' => "hi\nop=me"]);
+
+// --- Paper YAML: change one value, keep comments ---
+$yaml = <<<'YAML'
+# This is the world defaults configuration file for Paper.
+# Lots of comments here.
+_version: 31
+anticheat:
+  anti-xray:
+    enabled: false # off by default
+    engine-mode: 1
+    hidden-blocks:
+    - copper_ore
+chunks:
+  max-auto-save-chunks-per-tick: 24
+entities:
+  spawning:
+    despawn-ranges:
+      monster:
+        hard: 128
+        soft: 32
+    per-player-mob-spawns: true
+environment:
+  treasure-maps:
+    enabled: 'true'
+  nether-ceiling-void-damage-height: disabled
+collisions:
+  max-entity-collisions: 8
+YAML;
+check('yaml get nested', YamlLines::get($yaml, 'anticheat.anti-xray.enabled'), 'false');
+check('yaml get deep', YamlLines::get($yaml, 'entities.spawning.despawn-ranges.monster.hard'), '128');
+check('yaml get quoted', YamlLines::get($yaml, 'environment.treasure-maps.enabled'), 'true');
+check('yaml get sibling after nested block', YamlLines::get($yaml, 'entities.spawning.per-player-mob-spawns'), 'true');
+check('yaml get mapping is not a value', YamlLines::get($yaml, 'anticheat.anti-xray'), null);
+check('yaml get list is not a value', YamlLines::get($yaml, 'anticheat.anti-xray.hidden-blocks'), null);
+check('yaml get missing', YamlLines::get($yaml, 'anticheat.nope.enabled'), null);
+check('yaml get wrong level', YamlLines::get($yaml, 'enabled'), null);
+$changed = YamlLines::set($yaml, 'anticheat.anti-xray.enabled', 'true');
+check('yaml set keeps comment', explode("\n", $changed)[5], '    enabled: true # off by default');
+check('yaml set changes one line', count(array_diff_assoc(explode("\n", $changed), explode("\n", $yaml))), 1);
+check('yaml set other key', YamlLines::get(YamlLines::set($yaml, 'collisions.max-entity-collisions', '2'), 'collisions.max-entity-collisions'), '2');
+check('yaml set missing', YamlLines::set($yaml, 'nope.nope', '1'), null);
+check('yaml scalar plain', YamlLines::scalar('24'), '24');
+check('yaml scalar needs quotes', YamlLines::scalar('a: b'), "'a: b'");
+check('yaml scalar empty', YamlLines::scalar(''), "''");
+
+// --- Config schema ---
+foreach (array_keys(ConfigSchema::SOURCES) as $source) {
+    foreach (ConfigSchema::entries($source) as $key => $entry) {
+        $where = "$source/$key";
+        check("$where has title and help", is_string($entry['title'] ?? null) && is_string($entry['help'] ?? null), true);
+        check("$where help is one short line", mb_strlen($entry['help']) <= 100 && !str_contains($entry['help'], "\n"), true);
+        check("$where type", in_array($entry['type'], ['bool', 'int', 'range', 'enum', 'string', 'password'], true), true);
+        if (in_array($entry['type'], ['int', 'range'], true)) {
+            check("$where bounds", isset($entry['min'], $entry['max']) && $entry['min'] < $entry['max'], true);
+        }
+        if ($entry['type'] === 'enum') {
+            check("$where options", is_array($entry['options'] ?? null) && $entry['options'] !== [], true);
+        }
+        if ($source === 'rules') {
+            check("$where has old name", array_key_exists('old', $entry), true);
+        }
+    }
+}
+$int = ['title' => 'Max players', 'type' => 'int', 'min' => 1, 'max' => 1000];
+check('toFile int', ConfigSchema::toFile($int, '30'), '30');
+check('toFile int from number', ConfigSchema::toFile($int, 30), '30');
+throws('toFile int too big', fn () => ConfigSchema::toFile($int, 5000));
+throws('toFile int not a number', fn () => ConfigSchema::toFile($int, '3; op me'));
+check('toFile bool', ConfigSchema::toFile(['title' => 'PVP', 'type' => 'bool'], false), 'false');
+$enum = ['title' => 'Difficulty', 'type' => 'enum', 'options' => ['easy' => 'Easy', 'hard' => 'Hard']];
+check('toFile enum', ConfigSchema::toFile($enum, 'hard'), 'hard');
+throws('toFile enum unknown', fn () => ConfigSchema::toFile($enum, 'hard; stop'));
+check('toFile text one line', ConfigSchema::toFile(['title' => 'MOTD', 'type' => 'string'], "Hi\nthere"), 'Hi there');
+throws('toFile text too long', fn () => ConfigSchema::toFile(['title' => 'MOTD', 'type' => 'string', 'max' => 5], 'too long'));
+check('fromFile bool', ConfigSchema::fromFile(['type' => 'bool'], 'TRUE'), true);
+check('fromFile bad bool hidden', ConfigSchema::fromFile(['type' => 'bool'], 'maybe'), null);
+check('fromFile int', ConfigSchema::fromFile(['type' => 'int'], '-1'), -1);
+check('fromFile bad int hidden', ConfigSchema::fromFile(['type' => 'int'], 'default'), null);
+check('fromFile password never sent', ConfigSchema::fromFile(['type' => 'password'], 'hunter2'), '');
+check('live command template', ConfigSchema::liveCommand(['live' => 'difficulty {value}'], 'hard'), 'difficulty hard');
+check('live command map', ConfigSchema::liveCommand(['live' => ['true' => 'whitelist on', 'false' => 'whitelist off']], 'false'), 'whitelist off');
+check('live command none', ConfigSchema::liveCommand(['restart' => true], '10'), null);
+check('field names have no dots', ConfigSchema::fieldName('rcon.port') === ConfigSchema::fieldName('rcon.port') && !str_contains(ConfigSchema::fieldName('rcon.port'), '.'), true);
+check('search matches title', ConfigSchema::matches('pvp', ['title' => 'Player vs player', 'help' => 'x'], 'player'), true);
+check('search matches key', ConfigSchema::matches('view-distance', ['title' => 'View', 'help' => 'x'], 'VIEW-DIST'), true);
+check('search no match', ConfigSchema::matches('pvp', ['title' => 'Player vs player', 'help' => 'x'], 'motd'), false);
+check('secrets are hidden', ConfigSchema::isHidden('server', 'management-server-secret'), true);
+check('rcon password is write-only', ConfigSchema::entries('server')['rcon.password']['type'], 'password');
+check('gamerule raw int', GameRules::parseRaw('Gamerule minecraft:random_tick_speed is currently set to: 3'), '3');
+check('gamerule raw bool', GameRules::parseRaw('Gamerule keepInventory is currently set to: true'), 'true');
+check('gamerule raw unknown', GameRules::parseRaw('Unknown or incomplete command'), null);
 
 // --- Server replies ---
 check('list', PlayerService::parseList('There are 2 of a max of 20 players online: Doobie, kelp_lord'), ['Doobie', 'kelp_lord']);

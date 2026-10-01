@@ -28,6 +28,10 @@ final class Permission
 
     public const COMMANDS_OPS = 'underseer.commands-ops';
 
+    public const CONFIG_VIEW = 'underseer.config-view';
+
+    public const CONFIG_EDIT = 'underseer.config-edit';
+
     /** @return string[] permission names without the group prefix, as Pelican registers them */
     public static function names(): array
     {
@@ -42,6 +46,8 @@ final class Permission
                 self::PLAYERS_WHITELIST,
                 self::COMMANDS_WORLD,
                 self::COMMANDS_OPS,
+                self::CONFIG_VIEW,
+                self::CONFIG_EDIT,
             ],
         );
     }

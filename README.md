@@ -7,9 +7,8 @@ A [Pelican](https://pelican.dev) panel plugin for running a Minecraft Java serve
 - **Live Map**: the world map from squaremap with a marker for everyone online, updated every 5 seconds. Switch between Overworld, Nether and End, drag and zoom, and click a player to kick, ban or op them. Without squaremap, players are drawn on a block grid using RCON.
 - **Players**: who is online and where they are, plus everyone the server has seen, ops, the whitelist and bans. Kick (with a reason), ban for 1 hour, 1 day, 7 days or permanently, unban, op or deop, and whitelist from each row.
 - **Quick Commands**: one-click time of day, weather and difficulty; switches for common game rules; save the world, whitelist on or off, broadcast, or run any command. A "Recent actions" list shows who ran what.
+- **Config**: server settings, game rules and Paper settings as a form. Each setting has a plain title, a one-line description and the right control (switch, number, slider, dropdown or text), plus a tag saying whether it applies right away or needs a restart. Search across all settings, review a before-and-after list, then save. See [Config](#config) below.
 - Every action is checked against its own subuser permission and written to the server's Activity log.
-
-**Planned**: a config editor where each setting has a plain title, a one-line description and the right control.
 
 ## Requirements
 
@@ -57,6 +56,8 @@ Then give people access under the server's **Users** page. The Underseer tab has
 | players-whitelist | Change the whitelist |
 | commands-world | Time, weather, difficulty, game rules, save |
 | commands-ops | Whitelist on or off, broadcast, any command |
+| config-view | Open the Config page |
+| config-edit | Change settings on the Config page |
 
 The server owner and panel admins always have every permission.
 
@@ -72,6 +73,19 @@ Optional `.env` values on the panel:
 | `UNDERSEER_MAP_TIMEOUT` | `3.0` | Seconds to wait for squaremap |
 | `UNDERSEER_MAP_REFRESH` | `5` | Seconds between player position updates on the map |
 | `UNDERSEER_RECENT_ACTIONS` | `10` | Rows in "Recent actions" |
+| `UNDERSEER_CONFIG_BACKUPS` | `10` | Old copies of each config file kept on the server |
+
+## Config
+
+The Config page has three sections:
+
+- **Server settings** (`server.properties`). Only settings that are in the server's file are shown, so a setting newer Minecraft versions moved elsewhere (such as `pvp`, which is a game rule in recent versions) disappears here and shows up under Game rules. Turn on **Show advanced** to see the rest of the file as plain text boxes. The server's address and port are left out because Pelican sets them, and secrets are never sent to the browser: the RCON password box is write-only.
+- **Game rules**, read and changed with `/gamerule` over RCON, so they need the server running with RCON on. Both the 1.21.11+ names and the older ones work, and a rule your version doesn't have is hidden.
+- **Paper settings** (`config/paper-world-defaults.yml`), only on Paper servers.
+
+Saving changes only the lines you changed, so comments and settings Underseer doesn't know about stay as they were. Before each save the old file is copied to `.underseer/backups/` on the server. Difficulty, default game mode, whitelist and AFK kick also apply right away through the console when the server is running. Anything else that needs a restart shows a **Restart to apply** button after saving.
+
+To add a setting, add one entry to the right file in `resources/schemas/`.
 
 ## Development
 
@@ -79,4 +93,4 @@ Optional `.env` values on the panel:
 php tests/run.php
 ```
 
-The tests cover input checking, `server.properties` parsing, reply parsing, reading squaremap's config and JSON, and the RCON client (against a small fake RCON server). The Filament pages need a running Pelican panel to try. The map script (`resources/map/live-map.js`) has no dependencies and is inlined into the page, so nothing needs building.
+The tests cover input checking, `server.properties` reading and writing, Paper YAML edits, the config schemas, reply parsing, reading squaremap's config and JSON, and the RCON client (against a small fake RCON server). The Filament pages need a running Pelican panel to try. The map script (`resources/map/live-map.js`) has no dependencies and is inlined into the page, so nothing needs building.

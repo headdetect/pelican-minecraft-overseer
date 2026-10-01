@@ -3,6 +3,7 @@
 namespace Headdetect\Underseer\Services;
 
 use App\Models\Server;
+use RuntimeException;
 
 /**
  * Game rules Underseer exposes as switches. Minecraft 1.21.11 renamed every rule
@@ -67,6 +68,36 @@ class GameRules
         $this->console->run($server, 'gamerule', 'gamerule ' . ($modern ? $new : $old) . " $state", $key);
     }
 
+    /**
+     * The current value of any rule as the server prints it ("true", "3"), or null when
+     * it can't be read or this server's version has no such rule.
+     */
+    public function read(Server $server, ?string $new, ?string $old): ?string
+    {
+        $name = $this->nameFor($server, $new, $old);
+
+        return $name === null ? null : self::parseRaw($this->console->query($server, "gamerule $name"));
+    }
+
+    /** Sets any rule. The value must already be checked. */
+    public function write(Server $server, ?string $new, ?string $old, string $value): void
+    {
+        $name = $this->nameFor($server, $new, $old);
+
+        if ($name === null) {
+            throw new RuntimeException('This rule is not available on this server version.');
+        }
+
+        $this->console->run($server, 'gamerule', "gamerule $name $value", $new ?? $old);
+    }
+
+    private function nameFor(Server $server, ?string $new, ?string $old): ?string
+    {
+        $modern = $this->usesModernNames($server);
+
+        return $modern === null ? null : ($modern ? $new : $old);
+    }
+
     /** True for 1.21.11+ names, false for the old camelCase names, null when it can't be checked. */
     public function usesModernNames(Server $server): ?bool
     {
@@ -85,5 +116,15 @@ class GameRules
         }
 
         return strtolower($m[1]) === 'true';
+    }
+
+    /** Reads "Gamerule randomTickSpeed is currently set to: 3" as "3". */
+    public static function parseRaw(?string $reply): ?string
+    {
+        if ($reply === null || !preg_match('/set to:\s*(-?[\w.]+)/i', $reply, $m)) {
+            return null;
+        }
+
+        return strtolower($m[1]);
     }
 }
