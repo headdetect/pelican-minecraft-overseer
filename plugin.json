@@ -3,7 +3,7 @@
     "name": "Underseer",
     "author": "headdetect",
     "version": "0.1.0",
-    "description": "Minecraft admin tools for Pelican: player list with quick actions, one-click world commands, and (soon) a live map and config editor.",
+    "description": "Minecraft admin tools for Pelican: a live map, the player list with quick actions, one-click world commands, and (soon) a config editor.",
     "category": "plugin",
     "url": "https://github.com/headdetect/pelican-minecraft-overseer",
     "update_url": null,

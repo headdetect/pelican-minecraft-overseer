@@ -1,6 +1,54 @@
 <?php
 
 return [
+    'map' => [
+        'title' => 'Live Map',
+        'aria' => 'World map. Drag to move, scroll or use plus and minus to zoom, arrow keys to pan.',
+        'world' => 'World',
+        'worlds' => [
+            'overworld' => 'Overworld',
+            'nether' => 'Nether',
+            'end' => 'The End',
+        ],
+        'zoom' => 'Zoom',
+        'zoom_in' => 'Zoom in',
+        'zoom_out' => 'Zoom out',
+        'live' => 'Live · every :seconds s',
+        'loading' => 'Loading players',
+        'stale' => 'Positions unavailable',
+        'online' => 'Online now',
+        'nobody' => 'Nobody is online.',
+        'health' => 'health',
+        'op_heading' => 'Make :name an operator?',
+        'no_positions_squaremap' => "Can't read player positions from squaremap right now.",
+        'no_positions_rcon' => 'Turn on RCON in server.properties to see where players are.',
+        'source_squaremap' => 'Map from squaremap on this server. Players hidden by squaremap, like spectators, are not shown.',
+        'source_rcon' => 'No map tiles yet, so players are drawn on a block grid. Positions come from RCON.',
+        'check_again' => 'Check again',
+        'setup' => [
+            'not_installed' => [
+                'title' => 'Install squaremap to see the map',
+                'body' => 'squaremap draws the world as a flat map. Add it to the plugins folder (Paper) or mods folder (Fabric), restart, and add its web port (8080 unless you change it) as an allocation for this server. Until then, players show on a plain grid.',
+            ],
+            'web_off' => [
+                'title' => "squaremap's web server is off",
+                'body' => 'Set settings.internal-webserver.enabled to true in squaremap\'s config.yml and restart the server.',
+            ],
+            'port_not_allocated' => [
+                'title' => 'Add port :port to this server',
+                'body' => 'squaremap serves the map on port :port, but that port isn\'t one of this server\'s allocations, so the panel can\'t reach it. Ask a panel admin to add it under the server\'s Network settings, or change settings.internal-webserver.port to a port the server already has.',
+            ],
+            'unreachable' => [
+                'title' => "Can't reach squaremap",
+                'body' => 'The panel couldn\'t load the map from port :port. Check that squaremap finished starting and that settings.internal-webserver.bind is 0.0.0.0.',
+            ],
+            'offline' => [
+                'title' => 'The server is not running',
+                'body' => 'Start the server to load the map.',
+            ],
+        ],
+    ],
+
     'players' => [
         'title' => 'Players',
         'tabs' => [

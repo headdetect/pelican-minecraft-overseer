@@ -6,6 +6,7 @@ use App\Models\Server;
 use App\Repositories\Daemon\DaemonFileRepository;
 use Exception;
 use Headdetect\Underseer\Support\Properties;
+use Headdetect\Underseer\Support\ServerAddress;
 
 /**
  * Builds an RCON connection for a server from its own server.properties.
@@ -32,7 +33,7 @@ class RconConnector
         $properties = $this->properties($server);
 
         $client = new RconClient(
-            $this->host($server),
+            ServerAddress::host($server, config('underseer.rcon.host')),
             (int) ($properties['rcon.port'] ?? 25575),
             $properties['rcon.password'],
             (float) config('underseer.rcon.timeout', 2.0),
@@ -56,21 +57,5 @@ class RconConnector
         }
 
         return $this->properties[$server->uuid];
-    }
-
-    private function host(Server $server): string
-    {
-        if ($override = config('underseer.rcon.host')) {
-            return $override;
-        }
-
-        $ip = $server->allocation?->ip;
-
-        // A bind-all address can't be dialled; the node's address reaches the same machine.
-        if (!$ip || in_array($ip, ['0.0.0.0', '::'], true)) {
-            return $server->node->fqdn;
-        }
-
-        return is_ipv6($ip) ? "[$ip]" : $ip;
     }
 }

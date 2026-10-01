@@ -3,7 +3,8 @@
 // Keys follow Pelican's subuser permission convention: <group>_title, <group>_desc, <group>_<permission>.
 return [
     'underseer_title' => 'Underseer',
-    'underseer_desc' => 'Minecraft admin tools: the player list, quick actions on players, and world commands.',
+    'underseer_desc' => 'Minecraft admin tools: the live map, the player list, quick actions on players, and world commands.',
+    'underseer_map_view' => 'See the Live Map with where everyone online is standing.',
     'underseer_players_view' => 'See the Players page, with who is online, ops, the whitelist and bans.',
     'underseer_players_kick' => 'Kick players from the server.',
     'underseer_players_ban' => 'Ban and unban players.',
