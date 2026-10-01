@@ -2,6 +2,7 @@ name: Release
 
 on:
   push:
+    branches: [main]
     tags: ['v*']
   workflow_dispatch:
     inputs:
@@ -12,27 +13,53 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
-    env:
-      VERSION: ${{ inputs.version || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
           coverage: none
+      - name: Pick version
+        id: version
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            version="${{ inputs.version }}"
+          elif [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            version="$GITHUB_REF_NAME"
+          else
+            # A merge to main: bump the patch number of the newest release tag, unless
+            # plugin.json was raised past it by hand, in which case use that version.
+            if git tag --points-at HEAD | grep -q '^v'; then
+              echo "This commit is already released."
+              exit 0
+            fi
+            version=$(bin/next-version.sh)
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Lint
+        if: steps.version.outputs.version
         run: find src lang config database resources tests -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Unit tests
+        if: steps.version.outputs.version
         run: php tests/run.php
       - name: Build plugin zip
+        if: steps.version.outputs.version
         id: build
-        run: echo "zip=$(bin/build-zip.sh "$VERSION")" >> "$GITHUB_OUTPUT"
+        run: echo "zip=$(bin/build-zip.sh "${{ steps.version.outputs.version }}")" >> "$GITHUB_OUTPUT"
       - name: Publish release
+        if: steps.version.outputs.version
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           gh release create "$VERSION" "${{ steps.build.outputs.zip }}" \
             --target "$GITHUB_SHA" \
