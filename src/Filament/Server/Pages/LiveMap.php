@@ -1,0 +1,312 @@
+<?php
+
+namespace Headdetect\Underseer\Filament\Server\Pages;
+
+use App\Enums\ContainerStatus;
+use App\Models\Server;
+use App\Traits\Filament\BlockAccessInConflict;
+use Exception;
+use Filament\Actions\Action;
+use Filament\Facades\Filament;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Pages\Page;
+use Headdetect\Underseer\Models\TimedBan;
+use Headdetect\Underseer\Services\ConsoleService;
+use Headdetect\Underseer\Services\Map\MapService;
+use Headdetect\Underseer\Services\PlayerService;
+use Headdetect\Underseer\Support\CommandInput;
+use Headdetect\Underseer\Support\Permission;
+use Livewire\Attributes\Renderless;
+
+class LiveMap extends Page
+{
+    use BlockAccessInConflict;
+
+    protected static string|\BackedEnum|null $navigationIcon = 'tabler-map-2';
+
+    protected static ?string $slug = 'underseer/map';
+
+    protected static ?int $navigationSort = 29;
+
+    protected string $view = 'underseer::live-map';
+
+    /** @var array{status: string, port: ?int, worlds: array<int, array<string, mixed>>} */
+    public array $source = [];
+
+    /** @var string[] */
+    public array $ops = [];
+
+    public static function canAccess(): bool
+    {
+        /** @var Server $server */
+        $server = Filament::getTenant();
+
+        return Permission::allows(Permission::MAP_VIEW, $server) && parent::canAccess();
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return trans('underseer::underseer.map.title');
+    }
+
+    public function getTitle(): string
+    {
+        return static::getNavigationLabel();
+    }
+
+    public function mount(): void
+    {
+        $this->source = app(MapService::class)->source($this->server());
+        $this->ops = app(PlayerService::class)->ops($this->server());
+    }
+
+    /** What the map script needs. Built here so the view stays simple. */
+    public function mapConfig(): array
+    {
+        $squaremap = $this->source['status'] === MapService::READY;
+
+        return [
+            'mode' => $squaremap ? 'squaremap' : 'grid',
+            'worlds' => $squaremap ? $this->source['worlds'] : self::gridWorlds(),
+            'tileBase' => url("/underseer/servers/{$this->server()->uuid}/map") . '/',
+            'headUrl' => 'https://mc-heads.net/avatar/{name}/64',
+            'refresh' => (int) config('underseer.map.refresh', 5),
+        ];
+    }
+
+    /**
+     * Player positions for the map, polled by the browser while the page is open.
+     *
+     * @return array{ok: bool, players: array<int, array<string, mixed>>}
+     */
+    #[Renderless]
+    public function positions(): array
+    {
+        $server = $this->server();
+        abort_unless(Permission::allows(Permission::MAP_VIEW, $server), 403);
+
+        if ($server->retrieveStatus() !== ContainerStatus::Running) {
+            return ['ok' => true, 'players' => []];
+        }
+
+        $players = ($this->source['status'] ?? null) === MapService::READY
+            ? app(MapService::class)->players($server)
+            : $this->rconPlayers($server);
+
+        return [
+            'ok' => $players !== null,
+            'players' => array_map(fn (array $player) => [...$player, 'op' => in_array($player['name'], $this->ops, true)], $players ?? []),
+        ];
+    }
+
+    /** Looks for squaremap again, for after an admin installs or sets it up. */
+    public function checkAgain(): void
+    {
+        app(MapService::class)->source($this->server(), fresh: true);
+
+        $this->redirect(static::getUrl(), navigate: true);
+    }
+
+    public function statusMessage(): ?array
+    {
+        $status = $this->source['status'];
+        if ($status === MapService::READY) {
+            return null;
+        }
+
+        return [
+            'title' => trans("underseer::underseer.map.setup.$status.title"),
+            'body' => trans("underseer::underseer.map.setup.$status.body", ['port' => $this->source['port'] ?? '']),
+        ];
+    }
+
+    public function hasRcon(): bool
+    {
+        return app(ConsoleService::class)->hasRcon($this->server());
+    }
+
+    /** @return array{kick: bool, ban: bool, op: bool} */
+    public function abilities(): array
+    {
+        return [
+            'kick' => $this->can(Permission::PLAYERS_KICK),
+            'ban' => $this->can(Permission::PLAYERS_BAN),
+            'op' => $this->can(Permission::PLAYERS_OP),
+        ];
+    }
+
+    public function kickAction(): Action
+    {
+        return Action::make('kick')
+            ->visible(fn () => $this->can(Permission::PLAYERS_KICK))
+            ->color('warning')
+            ->modalHeading(fn (array $arguments) => trans('underseer::underseer.players.kick_heading', ['name' => $arguments['name'] ?? '']))
+            ->modalSubmitActionLabel(trans('underseer::underseer.players.actions.kick'))
+            ->schema([$this->reasonField()])
+            ->action(fn (array $arguments, array $data) => $this->runFor('kick', 'kick', $arguments['name'] ?? '', 'kicked', CommandInput::text($data['reason'] ?? '')));
+    }
+
+    public function banAction(): Action
+    {
+        return Action::make('ban')
+            ->visible(fn () => $this->can(Permission::PLAYERS_BAN))
+            ->color('danger')
+            ->modalHeading(fn (array $arguments) => trans('underseer::underseer.players.ban_heading', ['name' => $arguments['name'] ?? '']))
+            ->modalSubmitActionLabel(trans('underseer::underseer.players.actions.ban'))
+            ->schema([
+                $this->reasonField(),
+                Select::make('duration')
+                    ->label(trans('underseer::underseer.players.duration'))
+                    ->options([
+                        '1' => trans('underseer::underseer.players.durations.hour'),
+                        '24' => trans('underseer::underseer.players.durations.day'),
+                        '168' => trans('underseer::underseer.players.durations.week'),
+                        'forever' => trans('underseer::underseer.players.durations.forever'),
+                    ])
+                    ->default('forever')
+                    ->selectablePlaceholder(false),
+            ])
+            ->action(function (array $arguments, array $data) {
+                $reason = CommandInput::text($data['reason'] ?? '');
+                $hours = $data['duration'] === 'forever' ? null : (int) $data['duration'];
+                $shownReason = $hours ? trim($reason . ' (' . trans('underseer::underseer.players.ban_for', ['hours' => $hours]) . ')') : $reason;
+
+                if (!$this->runFor('ban', 'ban', $arguments['name'] ?? '', 'banned', $shownReason)) {
+                    return;
+                }
+
+                if ($hours) {
+                    TimedBan::create([
+                        'server_id' => $this->server()->id,
+                        'user_id' => user()?->id,
+                        'player' => CommandInput::playerName($arguments['name']),
+                        'reason' => $reason ?: null,
+                        'expires_at' => now()->addHours($hours),
+                    ]);
+                }
+            });
+    }
+
+    public function opAction(): Action
+    {
+        return Action::make('op')
+            ->visible(fn () => $this->can(Permission::PLAYERS_OP))
+            ->requiresConfirmation()
+            ->modalHeading(fn (array $arguments) => trans('underseer::underseer.map.op_heading', ['name' => $arguments['name'] ?? '']))
+            ->modalDescription(trans('underseer::underseer.players.op_warning'))
+            ->modalSubmitActionLabel(trans('underseer::underseer.players.actions.op'))
+            ->action(fn (array $arguments) => $this->runFor('op', 'op', $arguments['name'] ?? '', 'opped'));
+    }
+
+    public function deopAction(): Action
+    {
+        return Action::make('deop')
+            ->visible(fn () => $this->can(Permission::PLAYERS_OP))
+            ->action(fn (array $arguments) => $this->runFor('deop', 'deop', $arguments['name'] ?? '', 'deopped'));
+    }
+
+    private function reasonField(): TextInput
+    {
+        return TextInput::make('reason')
+            ->label(trans('underseer::underseer.players.reason'))
+            ->helperText(trans('underseer::underseer.players.reason_help'))
+            ->datalist(config('underseer.reasons', []))
+            ->maxLength(200);
+    }
+
+    /**
+     * Runs "<verb> <player> [<suffix>]" after checking the name, and reports the result.
+     * $suffix must already be cleaned with CommandInput::text().
+     */
+    private function runFor(string $action, string $verb, string $player, string $notification, string $suffix = ''): bool
+    {
+        try {
+            $name = CommandInput::playerName($player);
+            $reply = app(ConsoleService::class)->run($this->server(), $action, trim("$verb $name $suffix"), $name);
+
+            Notification::make()
+                ->title(trans("underseer::underseer.players.notifications.$notification", ['name' => $name]))
+                ->body($reply ?: null)
+                ->success()
+                ->send();
+
+            if (in_array($action, ['op', 'deop'], true)) {
+                $this->ops = app(PlayerService::class)->ops($this->server());
+            }
+
+            return true;
+        } catch (Exception $exception) {
+            Notification::make()
+                ->title(trans('underseer::underseer.players.notifications.failed'))
+                ->body($exception->getMessage())
+                ->danger()
+                ->send();
+
+            return false;
+        }
+    }
+
+    /** @return ?array<int, array<string, mixed>> */
+    private function rconPlayers(Server $server): ?array
+    {
+        $online = app(PlayerService::class)->online($server);
+        if ($online === null) {
+            return null;
+        }
+
+        $players = [];
+        foreach ($online as $player) {
+            if ($player['x'] === null) {
+                continue;
+            }
+
+            $players[] = [
+                'name' => $player['name'],
+                'world' => in_array($player['dimension'], ['the_nether', 'the_end'], true) ? $player['dimension'] : 'overworld',
+                'x' => $player['x'],
+                'y' => $player['y'],
+                'z' => $player['z'],
+                'yaw' => null,
+                'health' => null,
+            ];
+        }
+
+        return $players;
+    }
+
+    /**
+     * The three vanilla dimensions, for the plain grid shown without squaremap.
+     * Zoom 4 is one pixel per block; each step down halves it.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function gridWorlds(): array
+    {
+        $world = fn (string $name, string $type) => [
+            'name' => $name,
+            'label' => trans("underseer::underseer.map.worlds.$type"),
+            'type' => $type,
+            'max' => 4,
+            'def' => 2,
+            'extra' => 2,
+            'spawn' => ['x' => 0, 'z' => 0],
+        ];
+
+        return [$world('overworld', 'overworld'), $world('the_nether', 'nether'), $world('the_end', 'end')];
+    }
+
+    private function can(string $permission): bool
+    {
+        return Permission::allows($permission, $this->server());
+    }
+
+    private function server(): Server
+    {
+        /** @var Server $server */
+        $server = Filament::getTenant();
+
+        return $server;
+    }
+}

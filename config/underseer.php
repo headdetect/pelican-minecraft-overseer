@@ -9,6 +9,15 @@ return [
         'timeout' => (float) env('UNDERSEER_RCON_TIMEOUT', 2.0),
     ],
 
+    // The Live Map reads squaremap's web server from the panel. Its port must be one of the server's allocations.
+    'map' => [
+        // Host the panel connects to. Empty = the same host used for RCON.
+        'host' => env('UNDERSEER_MAP_HOST'),
+        'timeout' => (float) env('UNDERSEER_MAP_TIMEOUT', 3.0),
+        // How often the map asks for new player positions, in seconds.
+        'refresh' => max(2, (int) env('UNDERSEER_MAP_REFRESH', 5)),
+    ],
+
     // How many entries the "Recent actions" list shows.
     'recent_actions' => (int) env('UNDERSEER_RECENT_ACTIONS', 10),
 

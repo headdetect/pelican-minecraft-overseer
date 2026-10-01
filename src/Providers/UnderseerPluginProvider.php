@@ -6,6 +6,7 @@ use App\Models\Subuser;
 use Headdetect\Underseer\Console\Commands\LiftExpiredBans;
 use Headdetect\Underseer\Services\ConsoleService;
 use Headdetect\Underseer\Services\GameRules;
+use Headdetect\Underseer\Services\Map\MapService;
 use Headdetect\Underseer\Services\PlayerService;
 use Headdetect\Underseer\Services\Rcon\RconConnector;
 use Headdetect\Underseer\Support\Permission;
@@ -21,6 +22,7 @@ class UnderseerPluginProvider extends ServiceProvider
         $this->app->scoped(ConsoleService::class);
         $this->app->scoped(PlayerService::class);
         $this->app->scoped(GameRules::class);
+        $this->app->scoped(MapService::class);
 
         Subuser::registerCustomPermissions(
             name: Permission::GROUP,
@@ -32,6 +34,8 @@ class UnderseerPluginProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->loadRoutesFrom(plugin_path('underseer', 'routes/web.php'));
+
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             $schedule->command(LiftExpiredBans::class)->everyMinute()->withoutOverlapping();
         });

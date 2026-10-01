@@ -12,6 +12,8 @@ final class Permission
 {
     public const GROUP = 'underseer';
 
+    public const MAP_VIEW = 'underseer.map-view';
+
     public const PLAYERS_VIEW = 'underseer.players-view';
 
     public const PLAYERS_KICK = 'underseer.players-kick';
@@ -32,6 +34,7 @@ final class Permission
         return array_map(
             fn (string $key) => substr($key, strlen(self::GROUP) + 1),
             [
+                self::MAP_VIEW,
                 self::PLAYERS_VIEW,
                 self::PLAYERS_KICK,
                 self::PLAYERS_BAN,

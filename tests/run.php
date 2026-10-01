@@ -14,6 +14,7 @@ spl_autoload_register(function (string $class) {
 });
 
 use Headdetect\Underseer\Services\GameRules;
+use Headdetect\Underseer\Services\Map\Squaremap;
 use Headdetect\Underseer\Services\PlayerService;
 use Headdetect\Underseer\Services\Rcon\RconClient;
 use Headdetect\Underseer\Services\Rcon\RconException;
@@ -92,6 +93,51 @@ check('dimension', PlayerService::parseDimension('Doobie has the following entit
 check('gamerule old reply', GameRules::parseValue('Gamerule keepInventory is currently set to: false'), false);
 check('gamerule new reply', GameRules::parseValue('Gamerule minecraft:keep_inventory is currently set to: true'), true);
 check('gamerule unknown', GameRules::parseValue('Incorrect argument for command'), null);
+
+// --- squaremap ---
+$squaremapConfig = <<<'YAML'
+config-version: 2
+settings:
+  web-address: http://localhost:8080
+  web-directory:
+    path: web
+  internal-webserver:
+    # Serve the map from the plugin itself
+    enabled: true
+    bind: 0.0.0.0
+    port: 8123 # changed for Pelican
+  ui:
+    port: 1
+world-settings:
+  default:
+    internal-webserver:
+      port: 9999
+YAML;
+check('squaremap config', Squaremap::parseConfig($squaremapConfig), ['enabled' => true, 'port' => 8123]);
+check('squaremap web off', Squaremap::parseConfig("settings:\n  internal-webserver:\n    enabled: false\n"), ['enabled' => false, 'port' => 8080]);
+check('squaremap defaults', Squaremap::parseConfig("settings:\n  ui:\n    port: 1\n"), ['enabled' => true, 'port' => 8080]);
+check('squaremap port outside block ignored', Squaremap::parseConfig("settings:\n  internal-webserver:\n    enabled: true\n  port: 1234\n")['port'], 8080);
+check('squaremap worlds', Squaremap::worlds(['worlds' => [
+    ['name' => 'minecraft_the_nether', 'display_name' => 'The <b>Nether</b>', 'type' => 'nether', 'order' => 1],
+    ['name' => 'minecraft_overworld', 'display_name' => 'World', 'type' => 'normal', 'order' => 0],
+    ['name' => '../etc', 'type' => 'normal'],
+]]), [
+    ['name' => 'minecraft_overworld', 'label' => 'World', 'type' => 'overworld'],
+    ['name' => 'minecraft_the_nether', 'label' => 'The Nether', 'type' => 'nether'],
+]);
+check('squaremap world settings', Squaremap::worldSettings(['zoom' => ['max' => 3, 'def' => 1, 'extra' => 2], 'spawn' => ['x' => -40, 'z' => 212]]), ['max' => 3, 'def' => 1, 'extra' => 2, 'spawn' => ['x' => -40, 'z' => 212]]);
+check('squaremap world settings missing', Squaremap::worldSettings([])['max'], 3);
+check('squaremap players', Squaremap::players(['players' => [
+    ['name' => 'Doobie', 'uuid' => 'abc', 'world' => 'minecraft_overworld', 'x' => 212, 'y' => 71, 'z' => -141, 'yaw' => 90, 'health' => 20],
+    ['name' => 'hidden', 'world' => 'minecraft_overworld'],
+], 'max' => 20]), [
+    ['name' => 'Doobie', 'world' => 'minecraft_overworld', 'x' => 212, 'y' => 71, 'z' => -141, 'yaw' => 90, 'health' => 20],
+]);
+check('tile path allowed', Squaremap::isProxiedPath('tiles/minecraft_overworld/3/-1_0.png'), true);
+check('world settings allowed', Squaremap::isProxiedPath('tiles/minecraft_overworld/settings.json'), true);
+check('players.json not proxied', Squaremap::isProxiedPath('tiles/players.json'), false);
+check('traversal rejected', Squaremap::isProxiedPath('tiles/../../etc/3/0_0.png'), false);
+check('other files rejected', Squaremap::isProxiedPath('index.html'), false);
 
 // --- RCON packets ---
 $packet = RconClient::encode(7, RconClient::TYPE_COMMAND, 'list');
