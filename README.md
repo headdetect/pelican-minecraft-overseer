@@ -4,10 +4,19 @@ A [Pelican](https://pelican.dev) panel plugin for running a Minecraft Java serve
 
 **Working now**
 
-- **Overview**: quick stats for game time, Minecraft version, modpack (with a link to its Modrinth or CurseForge page), CPU, memory and disk. The modpack comes from `modrinth.index.json`, which the Modrinth generic egg leaves in the server folder, or from the [Modpack Manager](https://hub.pelican.dev/plugins/modpack-manager) plugin. Below the stats is a live map: the world map from squaremap with a marker for everyone online, updated every 5 seconds. Switch between Overworld, Nether and End, drag and zoom, and click a player to kick, ban or op them. Without squaremap, players are drawn on a block grid using RCON.
-- **Players**: who is online and where they are, plus everyone the server has seen, ops, the whitelist and bans. Kick (with a reason), ban for 1 hour, 1 day, 7 days or permanently, unban, op or deop, and whitelist from each row.
-- **Quick Commands**: one-click time of day, weather and difficulty; switches for common game rules; save the world, whitelist on or off, broadcast, or run any command. A "Recent actions" list shows who ran what.
-- **Config**: server settings, game rules and Paper settings as a form. Each setting has a plain title, a one-line description and the right control (switch, number, slider, dropdown or text), plus a tag saying whether it applies right away or needs a restart. Search across all settings, review a before-and-after list, then save. See [Config](#config) below.
+- **Overview**: CPU, memory and disk use, and Save, Broadcast and Command buttons. A live map from squaremap shows everyone online, refreshed every 5 seconds. Switch between Overworld, Nether and End, drag and zoom, and click a player to kick, ban or op them. Without squaremap, players are drawn on a block grid using RCON. Beside the map:
+  - Live chat, joins and leaves, with a box to message everyone.
+  - Who is online now, spectators included. Click a player to find them on the map.
+  - The game time with a day or night icon, and one-click time of day and weather.
+  - The Minecraft version, the modpack with a link to its Modrinth or CurseForge page, and uptime. The modpack comes from `modrinth.index.json`, which the Modrinth generic egg leaves in the server folder, or from the [Modpack Manager](https://hub.pelican.dev/plugins/modpack-manager) plugin.
+  - Recent actions, below the map.
+- **Players**: everyone who has played on the server and the whitelist, with when each was last online, plus ops and bans. Each player has an actions menu:
+  - Op or deop, and add to or remove from the whitelist.
+  - Give an item, or teleport to another player or to coordinates. These need the player online.
+  - Kick with a reason, ban for 1 hour, 1 day, 7 days or for good, and unban.
+- **Config**: server settings, game rules and Paper settings as a form, with a plain title and description for each setting. Change what you need, then save from the top of the page, or save and restart when a change only applies on restart. An undo icon resets a setting to its vanilla default. The Files tab edits any mod or plugin config file directly. See [Config](#config) below.
+- **Tools**: generate chunks ahead of time with [Chunky](https://modrinth.com/plugin/chunky), with progress, pause, continue and cancel, and render the squaremap map for a world.
+- The Overseer item in the sidebar shows how many players are online. Every Overseer page warns when RCON is off, can't be reached, or is published on a public address.
 - Every action is checked against its own subuser permission and written to the server's Activity log.
 
 ## Requirements
