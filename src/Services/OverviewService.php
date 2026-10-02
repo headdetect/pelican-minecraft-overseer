@@ -50,8 +50,8 @@ class OverviewService
         ];
     }
 
-    /** Console lines to read for chat. Overseer's own RCON connections add two lines per poll. */
-    private const CHAT_LINES = 1000;
+    /** Console lines to read for chat. Each RCON connection, Overseer's polls included, logs two lines, so 5000 lines is about an hour. */
+    private const CHAT_LINES = 5000;
 
     /**
      * Recent chat, joins and leaves from the last console lines, which Wings

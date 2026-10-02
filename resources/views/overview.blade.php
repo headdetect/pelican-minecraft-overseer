@@ -135,7 +135,7 @@
         <div class="us-side">
 
             <x-filament::section :heading="trans('overseer::overseer.chat.title')" compact>
-                <div class="us-chat" x-ref="chat" aria-live="polite">
+                <div class="us-chat" aria-live="polite">
                     <template x-for="(m, i) in chat" :key="i">
                         <div class="us-chat-line" :class="`is-${m.type}`">
                             <span class="us-chat-time" x-text="m.time.slice(0, 5)"></span>

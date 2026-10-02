@@ -182,7 +182,8 @@
 .us-map > :first-child { display: flex; flex-direction: column; min-height: 0; }
 .us-map > :first-child > .us-viewport { flex: 1; }
 .us-side { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
-.us-chat { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; font-size: 13px; overflow-wrap: anywhere; }
+/* Six one-line messages tall, then it scrolls. */
+.us-chat { max-height: calc(6 * 1.35em + 5 * 3px); overflow-y: auto; display: flex; flex-direction: column; gap: 3px; font-size: 13px; overflow-wrap: anywhere; }
 .us-chat-line { line-height: 1.35; }
 .us-chat-line b { font-weight: 600; }
 .us-chat-line.is-say b { color: var(--us-warn); }

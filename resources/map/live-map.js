@@ -27,6 +27,7 @@ window.overseerLiveMap = function (cfg) {
         time: null,
         server: null,
         chat: [],
+        chatScrolled: false,
         draft: '',
         sending: false,
         selected: null,
@@ -96,11 +97,23 @@ window.overseerLiveMap = function (cfg) {
         },
 
         // Keeps the chat scrolled to the newest line, unless someone scrolled up to read.
+        // The chat box is inside a Filament section, which has its own x-data,
+        // so $refs can't see it. Keep scrolling until it has been scrolled once.
+        chatBox() {
+            return this.$root.querySelector('.us-chat');
+        },
+
         setChat(lines) {
-            const box = this.$refs.chat;
-            const atBottom = !box || box.scrollHeight - box.scrollTop - box.clientHeight < 24;
+            const box = this.chatBox();
+            const atBottom = !this.chatScrolled || !box || box.scrollHeight - box.scrollTop - box.clientHeight < 24;
             this.chat = lines;
-            if (atBottom) this.$nextTick(() => box && (box.scrollTop = box.scrollHeight));
+            if (!atBottom) return;
+            this.$nextTick(() => requestAnimationFrame(() => {
+                const el = this.chatBox();
+                if (!el) return;
+                el.scrollTop = el.scrollHeight;
+                this.chatScrolled = lines.length > 0;
+            }));
         },
 
         async sendChat() {
