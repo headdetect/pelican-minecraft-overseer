@@ -150,6 +150,12 @@
     backdrop-filter: blur(8px);
     cursor: default;
 }
+.us-point { width: 250px; }
+.us-point-coords { display: flex; gap: 10px; font-family: ui-monospace, monospace; font-size: 14px; font-weight: 600; }
+.us-point-note { margin-top: 6px; font-size: 12px; color: var(--us-muted); }
+.us-point-tp { display: flex; gap: 6px; align-items: center; margin-top: 10px; }
+.us-point-tp select { flex: 1; min-width: 0; padding: 4px 8px; font-size: 13px; border: 1px solid var(--us-border); border-radius: 6px; background: var(--us-panel); color: inherit; }
+.us-point-dot { position: absolute; z-index: 4; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; border: 2px solid #fff; background: var(--us-accent); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25); pointer-events: none; }
 .us-pop-head { display: flex; gap: 10px; align-items: center; }
 .us-pop-head img { width: 32px; height: 32px; border-radius: 4px; image-rendering: pixelated; }
 .us-pop-where { margin-top: 8px; font-size: 12px; color: var(--us-muted); font-family: ui-monospace, monospace; }

@@ -4,7 +4,7 @@ A [Pelican](https://pelican.dev) panel plugin for running a Minecraft Java serve
 
 **Working now**
 
-- **Overview**: CPU, memory and disk use, and Save, Broadcast and Command buttons. A live map from squaremap shows everyone online, refreshed every 5 seconds. Switch between Overworld, Nether and End, drag and zoom, and click a player to kick, ban or op them. Without squaremap, players are drawn on a block grid using RCON. Beside the map:
+- **Overview**: CPU, memory and disk use, and Save, Broadcast and Command buttons. A live map from squaremap shows everyone online, refreshed every 5 seconds. Switch between Overworld, Nether and End, drag and zoom, and click a player to kick, ban, op them or change their game mode. Click anywhere else to see that spot's coordinates, ground height included, and teleport a player there. Without squaremap, players are drawn on a block grid using RCON. Beside the map:
   - Live chat, joins and leaves, with a box to message everyone.
   - Who is online now, spectators included. Click a player to find them on the map.
   - The game time with a day or night icon, and one-click time of day and weather.
@@ -14,7 +14,7 @@ A [Pelican](https://pelican.dev) panel plugin for running a Minecraft Java serve
   - Op or deop, and add to or remove from the whitelist.
   - Give an item, or teleport to another player or to coordinates. These need the player online.
   - Kick with a reason, ban for 1 hour, 1 day, 7 days or for good, and unban.
-- **Config**: server settings, game rules and Paper settings as a form, with a plain title and description for each setting. Change what you need, then save from the top of the page, or save and restart when a change only applies on restart. An undo icon resets a setting to its vanilla default. The Files tab edits any mod or plugin config file directly. See [Config](#config) below.
+- **Config**: server settings, game rules and Paper settings as a form, with a plain title and description for each setting. Change what you need, then save from the top of the page, or save and restart when a change only applies on restart. An undo icon resets a setting to its vanilla default. The Files tab lists mod and plugin config files and opens them in the panel's file editor. See [Config](#config) below.
 - **Tools**: generate chunks ahead of time with [Chunky](https://modrinth.com/plugin/chunky), with progress, pause, continue and cancel, and render the squaremap map for a world.
 - The Overseer item in the sidebar shows how many players are online. Every Overseer page warns when RCON is off, can't be reached, or is published on a public address.
 - Every action is checked against its own subuser permission and written to the server's Activity log.

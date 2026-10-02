@@ -17,6 +17,7 @@ use Headdetect\Overseer\Filament\Server\Concerns\RunsQuickCommands;
 use Headdetect\Overseer\Models\TimedBan;
 use Headdetect\Overseer\Services\ConsoleService;
 use Headdetect\Overseer\Services\Map\MapService;
+use Headdetect\Overseer\Services\Map\Surface;
 use Headdetect\Overseer\Services\OverviewService;
 use Headdetect\Overseer\Services\PlayerService;
 use Headdetect\Overseer\Support\CommandInput;
@@ -99,6 +100,8 @@ class Overview extends Page
             'tileBase' => url("/overseer/servers/{$this->server()->uuid}/map") . '/',
             'headUrl' => 'https://mc-heads.net/avatar/{name}/64',
             'refresh' => (int) config('overseer.map.refresh', 5),
+            'canTeleport' => $this->can(Permission::PLAYERS_CHEAT),
+            'surfaceUrl' => route('overseer.map.surface', ['server' => $this->server()->uuid]),
             'labels' => [
                 'joined' => trans('overseer::overseer.chat.joined'),
                 'left' => trans('overseer::overseer.chat.left'),
@@ -152,6 +155,30 @@ class Overview extends Page
             'modpack' => $stats['modpack'],
             'uptime' => $uptime !== null ? trans('overseer::overseer.overview.uptime', ['time' => ServerStats::uptime($uptime)]) : null,
         ];
+    }
+
+    /** Teleports a player to a point clicked on the map. */
+    public function teleportTo(string $player, string $world, int $x, int $y, int $z): bool
+    {
+        abort_unless($this->can(Permission::PLAYERS_CHEAT), 403);
+
+        try {
+            $name = CommandInput::playerName($player);
+            $command = CommandInput::teleport($name, ['to' => 'coords', 'x' => $x, 'y' => $y, 'z' => $z, 'dimension' => Surface::dimension($world)]);
+            $reply = app(ConsoleService::class)->run($this->server(), 'teleport', $command, $name);
+
+            Notification::make()
+                ->title(trans('overseer::overseer.players.notifications.teleported', ['name' => $name]))
+                ->body($reply ?: null)
+                ->success()
+                ->send();
+
+            return true;
+        } catch (Exception $exception) {
+            Notification::make()->title(trans('overseer::overseer.players.notifications.failed'))->body($exception->getMessage())->danger()->send();
+
+            return false;
+        }
     }
 
     /** Sends a chat message as "[Rcon] <panel user>: message", with say. */
@@ -212,6 +239,7 @@ class Overview extends Page
             'ban' => $this->can(Permission::PLAYERS_BAN),
             'op' => $this->can(Permission::PLAYERS_OP),
             'gamemode' => $this->can(Permission::PLAYERS_CHEAT),
+            'teleport' => $this->can(Permission::PLAYERS_CHEAT),
         ];
     }
 

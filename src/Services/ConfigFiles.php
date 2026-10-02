@@ -14,7 +14,6 @@ use Headdetect\Overseer\Support\YamlLines;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
-use InvalidArgumentException;
 use RuntimeException;
 
 /**
@@ -224,37 +223,6 @@ class ConfigFiles
 
             return $found;
         });
-    }
-
-    /** The contents of a file the editor may open. */
-    public function readEditable(Server $server, string $file): string
-    {
-        $this->checkEditable($server, $file);
-
-        return $this->read($server, $file) ?? '';
-    }
-
-    /** Saves a file the editor opened, after keeping a copy of the old one. Returns the backup path. */
-    public function writeEditable(Server $server, string $file, string $contents): ?string
-    {
-        $this->checkEditable($server, $file);
-
-        $old = $this->read($server, $file);
-        $backup = $old !== null ? $this->backup($server, $file, $old) : null;
-        $this->files($server)->putContent($file, $contents);
-
-        Activity::event('server:overseer.config')
-            ->property(['file' => $file, 'backup' => $backup, 'changes' => ['edited in the file editor']])
-            ->log();
-
-        return $backup;
-    }
-
-    private function checkEditable(Server $server, string $file): void
-    {
-        if (!EditableFiles::isEditable($file) || !in_array($file, $this->editableFiles($server), true)) {
-            throw new InvalidArgumentException("Overseer can't edit \"$file\".");
-        }
     }
 
     /** The file's contents, or null when it doesn't exist. */

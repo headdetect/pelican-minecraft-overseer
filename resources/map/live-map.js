@@ -26,6 +26,8 @@ window.overseerLiveMap = function (cfg) {
         time: null,
         server: null,
         chat: [],
+        // The point menu: a block clicked on the map, with its ground height once known.
+        point: null,
         chatScrolled: false,
         draft: '',
         sending: false,
@@ -313,6 +315,56 @@ window.overseerLiveMap = function (cfg) {
             });
 
             this.placePop();
+            this.placePoint();
+        },
+
+        openPoint(e) {
+            const r = this.$refs.viewport.getBoundingClientRect();
+            const b = this.toBlock(e.clientX - r.left, e.clientY - r.top);
+            const point = { world: this.world, x: Math.floor(b.x), z: Math.floor(b.z), y: null, loading: true, failed: false, player: this.players[0]?.name ?? '', sending: false };
+            this.point = point;
+            this.placePoint();
+            // A plain fetch, so it doesn't wait behind the Livewire position poll.
+            const url = `${cfg.surfaceUrl}?${new URLSearchParams({ world: point.world, x: point.x, z: point.z })}`;
+            fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+                .then((r) => (r.ok ? r.json() : { y: null }))
+                .then(({ y }) => {
+                    point.y = y;
+                    point.loading = false;
+                    point.failed = y === null;
+                }, () => {
+                    point.loading = false;
+                    point.failed = true;
+                });
+        },
+
+        placePoint() {
+            const p = this.point;
+            if (!p) return;
+            if (p.world !== this.world) {
+                this.point = null;
+                return;
+            }
+            const at = this.toScreen(p.x + 0.5, p.z + 0.5);
+            const { w, h } = this.size();
+            p.left = Math.max(8, Math.min(at.x + 12, w - 268));
+            p.top = Math.max(8, Math.min(at.y - 20, h - 190));
+            p.dotX = at.x;
+            p.dotY = at.y;
+        },
+
+        async teleportHere() {
+            const p = this.point;
+            if (!p || p.y === null || !p.player || p.sending) return;
+            p.sending = true;
+            try {
+                if (await this.$wire.teleportTo(p.player, p.world, p.x, p.y, p.z)) {
+                    this.point = null;
+                    this.tick();
+                }
+            } finally {
+                p.sending = false;
+            }
         },
 
         placePop() {
@@ -376,7 +428,7 @@ window.overseerLiveMap = function (cfg) {
         },
 
         onDown(e) {
-            if (e.button !== 0 || e.target.closest('.us-pin, .us-pop, .us-controls')) return;
+            if (e.button !== 0 || e.target.closest('.us-pin, .us-pop, .us-point, .us-controls')) return;
             this.drag = { x: e.clientX, y: e.clientY, cx: this.cx, cz: this.cz, moved: false };
             this.$refs.viewport.setPointerCapture(e.pointerId);
         },
@@ -398,8 +450,14 @@ window.overseerLiveMap = function (cfg) {
             this.render();
         },
 
-        onUp() {
-            if (this.drag && !this.drag.moved) this.selected = null;
+        onUp(e) {
+            if (this.drag && !this.drag.moved) {
+                const hadPopup = this.selected || this.point;
+                this.selected = null;
+                this.point = null;
+                // A click on empty map opens the point menu, unless it closed a popup.
+                if (!hadPopup && cfg.canTeleport && e) this.openPoint(e);
+            }
             this.drag = null;
             this.$refs.viewport.classList.remove('is-dragging');
             this.renderPins();
@@ -418,6 +476,7 @@ window.overseerLiveMap = function (cfg) {
                 this.zoomBy(-1);
             } else if (e.key === 'Escape') {
                 this.selected = null;
+                this.point = null;
                 this.renderPins();
             } else {
                 return;

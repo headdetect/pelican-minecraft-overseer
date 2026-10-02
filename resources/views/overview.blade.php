@@ -75,7 +75,7 @@
                 x-on:wheel.prevent="onWheel($event)"
                 x-on:pointerdown="onDown($event)"
                 x-on:pointermove="onMove($event)"
-                x-on:pointerup="onUp()"
+                x-on:pointerup="onUp($event)"
                 x-on:pointercancel="onUp()"
                 x-on:pointerleave="coords = ''"
                 x-on:keydown="onKey($event)"
@@ -103,6 +103,33 @@
                     <span x-show="state === 'stale'" x-cloak>{{ trans('overseer::overseer.map.stale') }}</span>
                 </div>
                 <div class="us-chip us-coords" x-show="coords" x-text="coords"></div>
+
+                <template x-if="point">
+                    <div>
+                        <span class="us-point-dot" :style="`left:${point.dotX}px;top:${point.dotY}px`" aria-hidden="true"></span>
+                        <div class="us-pop us-point" :style="`left:${point.left}px;top:${point.top}px`" x-on:pointerdown.stop role="dialog" aria-label="{{ trans('overseer::overseer.map.point.title') }}">
+                            <div class="us-point-coords">
+                                <span x-text="`x ${point.x}`"></span>
+                                <span x-text="point.loading ? 'y …' : (point.y === null ? 'y ?' : `y ${point.y}`)"></span>
+                                <span x-text="`z ${point.z}`"></span>
+                            </div>
+                            <div class="us-pop-where" x-text="worldLabel(point.world)"></div>
+                            <div class="us-point-note" x-show="point.failed" x-cloak>{{ trans('overseer::overseer.map.point.no_ground') }}</div>
+                            <div class="us-point-note" x-show="!point.loading && point.world.includes('nether')" x-cloak>{{ trans('overseer::overseer.map.point.nether') }}</div>
+                            <template x-if="players.length">
+                                <div class="us-point-tp">
+                                    <select x-model="point.player" aria-label="{{ trans('overseer::overseer.map.point.player') }}">
+                                        <template x-for="pl in players" :key="pl.name">
+                                            <option :value="pl.name" x-text="pl.name"></option>
+                                        </template>
+                                    </select>
+                                    <x-filament::button size="xs" x-on:click="teleportHere()" x-bind:disabled="point.loading || point.y === null || point.sending">{{ trans('overseer::overseer.map.point.teleport') }}</x-filament::button>
+                                </div>
+                            </template>
+                            <div class="us-point-note" x-show="!players.length">{{ trans('overseer::overseer.map.point.nobody') }}</div>
+                        </div>
+                    </div>
+                </template>
 
                 <template x-if="pop && selectedPlayer">
                     <div class="us-pop" :style="`left:${pop.left}px;top:${pop.top}px`" x-on:pointerdown.stop>

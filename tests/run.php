@@ -15,6 +15,7 @@ spl_autoload_register(function (string $class) {
 
 use Headdetect\Overseer\Services\GameRules;
 use Headdetect\Overseer\Services\Map\Squaremap;
+use Headdetect\Overseer\Services\Map\Surface;
 use Headdetect\Overseer\Services\PlayerService;
 use Headdetect\Overseer\Services\Rcon\RconClient;
 use Headdetect\Overseer\Services\Rcon\RconException;
@@ -153,6 +154,14 @@ check('too deep', EditableFiles::isEditable('config/a/b/c/d.toml'), false);
 check('language toml', EditableFiles::language('config/x.toml'), 'ini');
 check('language yaml', EditableFiles::language('plugins/x/config.yml'), 'yaml');
 
+// --- Map point teleport ---
+check('surface y', Surface::parseY('Marker has the following entity data: 71.0d'), 71);
+check('surface y negative', Surface::parseY('Marker has the following entity data: -12.5d'), -13);
+check('surface y missing', Surface::parseY('No entity was found'), null);
+check('dimension from squaremap', Surface::dimension('minecraft_the_nether'), 'minecraft:the_nether');
+check('dimension from grid', Surface::dimension('overworld'), 'minecraft:overworld');
+throws('dimension modded', fn () => Surface::dimension('twilightforest_twilight_forest'));
+
 // --- Chat ---
 $chat = ChatLog::parse([
     '[12:04:31] [Server thread/INFO]: <Doobie> hi all',
@@ -165,6 +174,7 @@ $chat = ChatLog::parse([
     'garbage',
 ]);
 check('chat count', count($chat), 5);
+check('chat skips mod status lines', ChatLog::parse(['[23:53:00] [Server thread/INFO]: [Chunky] Task running for minecraft:overworld.']), []);
 check('chat message', $chat[0], ['time' => '12:04:31', 'type' => 'chat', 'name' => 'Doobie', 'text' => 'hi all']);
 check('chat paper not secure, colours stripped', $chat[1]['text'], 'hello');
 check('chat say from rcon', [$chat[2]['type'], $chat[2]['name'], $chat[2]['text']], ['say', 'Rcon', 'admin: restarting soon']);
