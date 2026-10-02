@@ -11,11 +11,8 @@
     gap: 0.75rem;
     color: var(--us-text);
 }
-@media (min-width: 640px) {
-    .us-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-@media (min-width: 1280px) {
-    .us-stats { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (min-width: 1024px) {
+    .us-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 .dark .us-stats {
     --us-panel: rgba(255, 255, 255, 0.03);

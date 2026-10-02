@@ -86,6 +86,12 @@ class Overview extends Page
             'tileBase' => url("/overseer/servers/{$this->server()->uuid}/map") . '/',
             'headUrl' => 'https://mc-heads.net/avatar/{name}/64',
             'refresh' => (int) config('overseer.map.refresh', 5),
+            'playersUrl' => Players::canAccess() ? Players::getUrl() : null,
+            'labels' => [
+                'day' => trans('overseer::overseer.overview.day'),
+                'phases' => trans('overseer::overseer.overview.phases'),
+                'providers' => trans('overseer::overseer.overview.providers'),
+            ],
         ];
     }
 
@@ -103,14 +109,23 @@ class Overview extends Page
         $server = $this->server();
         abort_unless(Permission::allows(Permission::MAP_VIEW, $server), 403);
 
+        $running = $server->retrieveStatus() === ContainerStatus::Running;
         $players = [];
-        if ($server->retrieveStatus() === ContainerStatus::Running) {
+        $online = [];
+        if ($running) {
             $players = ($this->source['status'] ?? null) === MapService::READY
                 ? app(MapService::class)->players($server)
                 : $this->rconPlayers($server);
+
+            // squaremap leaves out hidden players such as spectators, but "list" has everyone.
+            $list = app(ConsoleService::class)->query($server, 'list');
+            $online = $list !== null ? PlayerService::parseList($list) : array_column($players ?? [], 'name');
         }
 
-        $recent = array_slice(app(PlayerService::class)->roster($server, array_column($players ?? [], 'name')), 0, self::RECENT_PLAYERS);
+        $playerService = app(PlayerService::class);
+        $whitelist = $playerService->whitelist($server);
+        $recent = array_slice($playerService->roster($server, $online), 0, self::RECENT_PLAYERS);
+        $overview = app(OverviewService::class);
 
         return [
             'ok' => $players !== null,
@@ -120,7 +135,10 @@ class Overview extends Page
                 'online' => $player['online'],
                 'last_seen' => $player['last_seen'],
                 'op' => in_array($player['name'], $this->ops, true),
+                'whitelisted' => in_array($player['name'], $whitelist, true),
             ], $recent),
+            'time' => $running ? $overview->gameTime($server) : null,
+            'modpack' => $overview->modpack($server),
         ];
     }
 

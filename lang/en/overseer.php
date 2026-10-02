@@ -50,6 +50,8 @@ return [
         'online' => 'Recent players',
         'online_count' => 'Online now',
         'online_now' => 'Online now',
+        'online_hidden' => 'Online, not on the map',
+        'all_players' => 'All players',
         'never' => 'Never joined',
         'nobody' => 'Nobody has played here yet.',
         'health' => 'health',
@@ -177,7 +179,7 @@ return [
         ],
         'render' => [
             'title' => 'Render the map',
-            'help' => 'squaremap only draws chunks as they change. After generating chunks, render the world so the Overview map shows them.',
+            'help' => 'squaremap draws new chunks on its own, including ones the Generate chunks tool makes. Render the world to draw chunks that existed before squaremap was installed.',
             'start' => 'Render world',
             'start_help' => 'squaremap redraws every generated chunk in this world. Large worlds take a while.',
         ],

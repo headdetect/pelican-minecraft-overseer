@@ -173,6 +173,12 @@
 .us-row.is-offline img { filter: grayscale(1); opacity: 0.6; }
 .us-row-when { font-size: 12px; color: var(--us-muted); }
 .us-dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--us-good); vertical-align: 1px; }
+.us-side { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.us-badge.is-info { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
+.us-more { display: block; margin-top: 10px; font-size: 13px; font-weight: 500; color: var(--us-accent); }
+.us-more:hover { text-decoration: underline; }
+.us-time { display: flex; align-items: center; gap: 0.5rem; }
+.us-time-icon { font-size: 1.5rem; line-height: 1; }
 .us-empty { padding: 12px 10px; font-size: 13px; color: var(--us-muted); }
 .us-note { font-size: 12px; color: var(--us-muted); margin-top: 12px; line-height: 1.5; }
 .us-badge {

@@ -28,10 +28,8 @@ class OverviewService
     /**
      * @return array{
      *     running: bool,
-     *     time: ?array{day: int, clock: string, phase: string},
      *     resources: array{cpu: ?float, cpu_limit: int, memory: ?int, memory_limit: int, disk: ?int, disk_limit: int, uptime: ?int},
      *     version: ?string,
-     *     modpack: ?array{name: string, version: ?string, provider: string, url: ?string},
      * }
      */
     public function stats(Server $server): array
@@ -40,14 +38,12 @@ class OverviewService
 
         return [
             'running' => $running,
-            'time' => $running ? $this->gameTime($server) : null,
             'resources' => $this->resources($server, $running),
             'version' => $this->version($server, $running),
-            'modpack' => $this->modpack($server),
         ];
     }
 
-    private function gameTime(Server $server): ?array
+    public function gameTime(Server $server): ?array
     {
         $day = $this->console->query($server, 'time query day');
         $daytime = $day !== null && str_contains($day, 'The time is')
@@ -91,7 +87,7 @@ class OverviewService
         return $version;
     }
 
-    private function modpack(Server $server): ?array
+    public function modpack(Server $server): ?array
     {
         return Cache::remember("overseer:modpack:$server->uuid", now()->addMinute(), function () use ($server) {
             if (Schema::hasTable(self::MODPACK_TABLE)) {

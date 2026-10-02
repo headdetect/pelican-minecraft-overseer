@@ -24,17 +24,6 @@
 
     <div class="us-stats" wire:poll.15s>
         <div class="us-stat">
-            <div class="us-stat-label">{{ trans('overseer::overseer.overview.game_time') }}</div>
-            @if ($stats['time'])
-                <div class="us-stat-value">{{ $stats['time']['clock'] }}</div>
-                <div class="us-stat-sub">{{ trans('overseer::overseer.overview.day', ['day' => number_format($stats['time']['day'])]) }} · {{ trans('overseer::overseer.overview.phases.' . $stats['time']['phase']) }}</div>
-            @else
-                <div class="us-stat-value is-empty">{{ $none }}</div>
-                <div class="us-stat-sub">{{ $stats['running'] ? trans('overseer::overseer.overview.needs_rcon') : trans('overseer::overseer.overview.offline') }}</div>
-            @endif
-        </div>
-
-        <div class="us-stat">
             <div class="us-stat-label">{{ trans('overseer::overseer.overview.minecraft') }}</div>
             <div class="us-stat-value {{ $stats['version'] ? '' : 'is-empty' }}">{{ $stats['version'] ?? $none }}</div>
             <div class="us-stat-sub">
@@ -44,28 +33,6 @@
                     {{ trans('overseer::overseer.overview.offline') }}
                 @endif
             </div>
-        </div>
-
-        <div class="us-stat">
-            <div class="us-stat-label">{{ trans('overseer::overseer.overview.modpack') }}</div>
-            @if ($stats['modpack'])
-                <div class="us-stat-value us-stat-name" title="{{ $stats['modpack']['name'] }}">
-                    @if ($stats['modpack']['url'])
-                        <a href="{{ $stats['modpack']['url'] }}" target="_blank" rel="noopener noreferrer">{{ $stats['modpack']['name'] }}</a>
-                    @else
-                        {{ $stats['modpack']['name'] }}
-                    @endif
-                </div>
-                <div class="us-stat-sub">
-                    {{ $stats['modpack']['version'] ?? trans('overseer::overseer.overview.unknown_version') }}
-                    @if ($stats['modpack']['url'])
-                        · <a href="{{ $stats['modpack']['url'] }}" target="_blank" rel="noopener noreferrer">{{ trans('overseer::overseer.overview.providers.' . $stats['modpack']['provider']) }}</a>
-                    @endif
-                </div>
-            @else
-                <div class="us-stat-value is-empty">{{ $none }}</div>
-                <div class="us-stat-sub">{{ trans('overseer::overseer.overview.no_modpack') }}</div>
-            @endif
         </div>
 
         <div class="us-stat">
@@ -172,43 +139,88 @@
             </div>
         </div>
 
-        <x-filament::section :heading="trans('overseer::overseer.map.online')" compact>
-            <x-slot name="afterHeader">
-                <x-filament::badge color="success" :tooltip="trans('overseer::overseer.map.online_count')"><span x-text="players.length">0</span></x-filament::badge>
-            </x-slot>
+        <div class="us-side">
+            <x-filament::section :heading="trans('overseer::overseer.map.online')" compact>
+                <x-slot name="afterHeader">
+                    <x-filament::badge color="success" :tooltip="trans('overseer::overseer.map.online_count')"><span x-text="recent.filter((r) => r.online).length">0</span></x-filament::badge>
+                </x-slot>
 
-            <div class="us-list">
-                <template x-for="r in recent" :key="r.name">
+                <div class="us-list">
+                    <template x-for="r in recent" :key="r.name">
+                        <div>
+                            <template x-if="live(r.name)">
+                                <button type="button" class="us-row" :class="{ 'is-selected': selected === r.name }" x-on:click="focus(live(r.name))">
+                                    <img :src="head(r.name)" alt="">
+                                    <div style="min-width: 0">
+                                        <div class="us-row-name"><span class="us-dot" aria-hidden="true"></span><span x-text="r.name"></span><span class="us-badge" x-show="r.op">OP</span></div>
+                                        <div class="us-row-where" x-text="`${worldLabel(live(r.name).world)} · ${live(r.name).x}, ${live(r.name).z}`"></div>
+                                    </div>
+                                </button>
+                            </template>
+                            <template x-if="!live(r.name)">
+                                <div class="us-row" :class="{ 'is-offline': !r.online }">
+                                    <img :src="head(r.name)" alt="">
+                                    <div style="min-width: 0">
+                                        <div class="us-row-name"><span class="us-dot" aria-hidden="true" x-show="r.online"></span><span x-text="r.name"></span><span class="us-badge" x-show="r.op">OP</span><span class="us-badge is-info" x-show="r.whitelisted">{{ trans('overseer::overseer.players.whitelisted') }}</span></div>
+                                        <div class="us-row-when" x-text="r.online ? '{{ trans('overseer::overseer.map.online_hidden') }}' : (r.last_seen ? ago(r.last_seen) : '{{ trans('overseer::overseer.map.never') }}')"></div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    <div class="us-empty" x-show="recent.length === 0 && state === 'live'">{{ trans('overseer::overseer.map.nobody') }}</div>
+                    <div class="us-empty" x-show="state === 'stale'" x-cloak>
+                        {{ $config['mode'] === 'squaremap' ? trans('overseer::overseer.map.no_positions_squaremap') : trans('overseer::overseer.map.no_positions_rcon') }}
+                    </div>
+                </div>
+
+                @if ($config['playersUrl'])
+                    <a href="{{ $config['playersUrl'] }}" wire:navigate class="us-more">{{ trans('overseer::overseer.map.all_players') }} &rarr;</a>
+                @endif
+            </x-filament::section>
+
+            <x-filament::section compact>
+                <div class="us-stat-label">{{ trans('overseer::overseer.overview.game_time') }}</div>
+                <template x-if="time">
                     <div>
-                        <template x-if="live(r.name)">
-                            <button type="button" class="us-row" :class="{ 'is-selected': selected === r.name }" x-on:click="focus(live(r.name))">
-                                <img :src="head(r.name)" alt="">
-                                <div style="min-width: 0">
-                                    <div class="us-row-name"><span class="us-dot" aria-hidden="true"></span><span x-text="r.name"></span><span class="us-badge" x-show="r.op">OP</span></div>
-                                    <div class="us-row-where" x-text="`${worldLabel(live(r.name).world)} · ${live(r.name).x}, ${live(r.name).z}`"></div>
-                                </div>
-                            </button>
-                        </template>
-                        <template x-if="!live(r.name)">
-                            <div class="us-row is-offline">
-                                <img :src="head(r.name)" alt="">
-                                <div style="min-width: 0">
-                                    <div class="us-row-name"><span x-text="r.name"></span><span class="us-badge" x-show="r.op">OP</span></div>
-                                    <div class="us-row-when" x-text="r.online ? '{{ trans('overseer::overseer.map.online_now') }}' : (r.last_seen ? ago(r.last_seen) : '{{ trans('overseer::overseer.map.never') }}')"></div>
-                                </div>
-                            </div>
-                        </template>
+                        <div class="us-time">
+                            <span class="us-time-icon" x-text="phaseIcon(time.phase)" :title="cfg.labels.phases[time.phase]" aria-hidden="true"></span>
+                            <span class="us-stat-value" x-text="time.clock"></span>
+                        </div>
+                        <div class="us-stat-sub" x-text="`${cfg.labels.day.replace(':day', time.day.toLocaleString())} · ${cfg.labels.phases[time.phase]}`"></div>
                     </div>
                 </template>
-                <div class="us-empty" x-show="recent.length === 0 && state === 'live'">{{ trans('overseer::overseer.map.nobody') }}</div>
-                <div class="us-empty" x-show="state === 'stale'" x-cloak>
-                    {{ $config['mode'] === 'squaremap' ? trans('overseer::overseer.map.no_positions_squaremap') : trans('overseer::overseer.map.no_positions_rcon') }}
-                </div>
-            </div>
+                <template x-if="!time">
+                    <div>
+                        <div class="us-stat-value is-empty">{{ trans('overseer::overseer.overview.none') }}</div>
+                        <div class="us-stat-sub">{{ trans('overseer::overseer.overview.needs_rcon') }}</div>
+                    </div>
+                </template>
+            </x-filament::section>
 
-            <p class="us-note">
-                {{ $config['mode'] === 'squaremap' ? trans('overseer::overseer.map.source_squaremap') : trans('overseer::overseer.map.source_rcon') }}
-            </p>
-        </x-filament::section>
+            <x-filament::section compact>
+                <div class="us-stat-label">{{ trans('overseer::overseer.overview.modpack') }}</div>
+                <template x-if="modpack">
+                    <div>
+                        <div class="us-stat-value us-stat-name" :title="modpack.name">
+                            <a x-show="modpack.url" :href="modpack.url" target="_blank" rel="noopener noreferrer" x-text="modpack.name"></a>
+                            <span x-show="!modpack.url" x-text="modpack.name"></span>
+                        </div>
+                        <div class="us-stat-sub">
+                            <span x-text="modpack.version ?? '{{ trans('overseer::overseer.overview.unknown_version') }}'"></span>
+                            <template x-if="modpack.url">
+                                <span>· <a :href="modpack.url" target="_blank" rel="noopener noreferrer" x-text="cfg.labels.providers[modpack.provider] ?? modpack.provider"></a></span>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+                <template x-if="!modpack">
+                    <div>
+                        <div class="us-stat-value is-empty">{{ trans('overseer::overseer.overview.none') }}</div>
+                        <div class="us-stat-sub">{{ trans('overseer::overseer.overview.no_modpack') }}</div>
+                    </div>
+                </template>
+            </x-filament::section>
+        </div>
     </div>
 </x-filament-panels::page>

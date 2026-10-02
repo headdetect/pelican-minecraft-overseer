@@ -24,6 +24,8 @@ window.overseerLiveMap = function (cfg) {
         cz: 0,
         players: [],
         recent: [],
+        time: null,
+        modpack: null,
         selected: null,
         pop: null,
         state: 'loading',
@@ -65,6 +67,8 @@ window.overseerLiveMap = function (cfg) {
                 const result = await this.$wire.positions();
                 this.players = result.players;
                 this.recent = result.recent ?? [];
+                this.time = result.time ?? null;
+                this.modpack = result.modpack ?? null;
                 this.state = result.ok ? 'live' : 'stale';
             } catch (e) {
                 this.state = 'stale';
@@ -85,6 +89,10 @@ window.overseerLiveMap = function (cfg) {
         // The live position of a player in the recent list, or null when they're offline.
         live(name) {
             return this.players.find((p) => p.name === name) ?? null;
+        },
+
+        phaseIcon(phase) {
+            return { day: '\u2600\uFE0F', sunset: '\u{1F307}', night: '\u{1F319}', sunrise: '\u{1F305}' }[phase] ?? '';
         },
 
         // "5 minutes ago", in the browser's language.
