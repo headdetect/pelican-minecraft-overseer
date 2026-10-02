@@ -93,6 +93,9 @@ done
 seed configure
 seed start
 
+echo "up: waiting for the server to boot, then rendering the map around spawn"
+seed render
+
 uuid=$(cat "$DEV_DATA/server-uuid")
 cat <<EOF
 
@@ -100,6 +103,6 @@ Panel   http://localhost:$PANEL_PORT  ($ADMIN_EMAIL / $ADMIN_PASSWORD)
 Server  http://localhost:$PANEL_PORT/server/${uuid:0:8}
 Game    localhost:25565
 
-The server takes a minute or two to boot. Overseer's pages are in the server's
-sidebar. Watch the boot with: docker logs -f $uuid
+Overseer's pages are in the server's sidebar. Watch the server log with:
+docker logs -f $uuid
 EOF

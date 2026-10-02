@@ -8,6 +8,7 @@
 //   php /dev-scripts/seed.php status    print the server's install state
 //   php /dev-scripts/seed.php configure write server.properties, EULA, mods
 //   php /dev-scripts/seed.php start     start the server
+//   php /dev-scripts/seed.php render    render the map around spawn once
 //   php /dev-scripts/seed.php uuid      print the server's uuid
 //
 // Every step is safe to run again. It skips what already exists.
@@ -22,6 +23,8 @@ use App\Repositories\Daemon\DaemonServerRepository;
 use App\Services\Allocations\AssignmentService;
 use App\Services\Eggs\Sharing\EggImporterService;
 use App\Services\Servers\ServerCreationService;
+use Headdetect\Overseer\Services\Map\MapService;
+use Headdetect\Overseer\Services\Rcon\RconConnector;
 use Illuminate\Support\Facades\Http;
 use Symfony\Component\Yaml\Yaml;
 
@@ -233,7 +236,55 @@ switch ($step) {
         (new DaemonServerRepository())->setServer(server())->power('start');
         break;
 
+    case 'render':
+        // A new world only has the chunks around spawn, and squaremap only draws
+        // chunks that exist. Generate 16 by 16 chunks around spawn with forceload,
+        // then have squaremap render them, so the Live Map shows terrain before
+        // anyone joins.
+        $server = server() ?? throw new RuntimeException('Run the server step first.');
+        $files = (new DaemonFileRepository())->setServer($server);
+        if (collect($files->getDirectory('squaremap'))->pluck('name')->contains('.dev-rendered')) {
+            echo "seed: map already rendered, skipping\n";
+            break;
+        }
+
+        // Runs one RCON command. Generating chunks blocks the server thread for
+        // longer than the RCON timeout, so on a timeout wait for the server to
+        // answer again. The command still runs.
+        $rcon = function (string $command) use ($server): void {
+            try {
+                app(RconConnector::class)->connect($server)->command($command);
+            } catch (Throwable) {
+                for ($i = 0; $i < 60; $i++, sleep(2)) {
+                    try {
+                        app(RconConnector::class)->connect($server)->command('list');
+
+                        return;
+                    } catch (Throwable) {
+                    }
+                }
+                throw new RuntimeException("RCON stopped answering after: $command");
+            }
+        };
+
+        // MapService reports ready once the game and squaremap's web server are up.
+        for ($waited = 0; ($source = app(MapService::class)->source($server, true))['status'] !== MapService::READY; $waited += 5) {
+            throw_if($waited >= 300, new RuntimeException("squaremap was not ready after 300s ({$source['status']})."));
+            sleep(5);
+        }
+
+        $world = collect($source['worlds'])->firstWhere('type', 'overworld') ?? $source['worlds'][0];
+        $chunkX = (int) floor($world['spawn']['x'] / 16) * 16;
+        $chunkZ = (int) floor($world['spawn']['z'] / 16) * 16;
+        $rcon(sprintf('forceload add %d %d %d %d', $chunkX - 128, $chunkZ - 128, $chunkX + 127, $chunkZ + 127));
+        $rcon('forceload remove all');
+        $rcon(sprintf('squaremap radiusrender %s 128 %d %d', preg_replace('/_/', ':', $world['name'], 1), $world['spawn']['x'], $world['spawn']['z']));
+
+        $files->putContent('squaremap/.dev-rendered', '');
+        echo "seed: rendered the map around spawn\n";
+        break;
+
     default:
-        fwrite(STDERR, "usage: seed.php node|server|status|configure|start|uuid\n");
+        fwrite(STDERR, "usage: seed.php node|server|status|configure|start|render|uuid\n");
         exit(2);
 }

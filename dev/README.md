@@ -30,6 +30,9 @@ the admin pages do by hand:
 5. Writes `server.properties` with RCON on, accepts the EULA and downloads
    Fabric API and squaremap from Modrinth.
 6. Starts the server.
+7. Waits for the server to boot. Then it generates the 16 by 16 chunks around
+   spawn and has squaremap render them, so the Live Map shows terrain before
+   anyone joins. This happens once per world.
 
 When it finishes, it prints the panel address and the login:
 

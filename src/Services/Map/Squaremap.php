@@ -14,8 +14,11 @@ namespace Headdetect\Overseer\Services\Map;
  */
 final class Squaremap
 {
-    /** Where squaremap keeps its config on Paper, then on Fabric and NeoForge. */
-    public const CONFIG_PATHS = ['plugins/squaremap/config.yml', 'config/squaremap/config.yml'];
+    /**
+     * Where squaremap keeps its config: plugins/ on Paper, the server root on Fabric
+     * and NeoForge, with config/ checked last as a fallback.
+     */
+    public const CONFIG_PATHS = ['plugins/squaremap/config.yml', 'squaremap/config.yml', 'config/squaremap/config.yml'];
 
     public const DEFAULT_PORT = 8080;
 

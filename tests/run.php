@@ -222,6 +222,7 @@ world-settings:
       port: 9999
 YAML;
 check('squaremap config', Squaremap::parseConfig($squaremapConfig), ['enabled' => true, 'port' => 8123]);
+check('squaremap config found on Fabric', in_array('squaremap/config.yml', Squaremap::CONFIG_PATHS, true), true);
 check('squaremap web off', Squaremap::parseConfig("settings:\n  internal-webserver:\n    enabled: false\n"), ['enabled' => false, 'port' => 8080]);
 check('squaremap defaults', Squaremap::parseConfig("settings:\n  ui:\n    port: 1\n"), ['enabled' => true, 'port' => 8080]);
 check('squaremap port outside block ignored', Squaremap::parseConfig("settings:\n  internal-webserver:\n    enabled: true\n  port: 1234\n")['port'], 8080);

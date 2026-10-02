@@ -29,6 +29,8 @@ A [Pelican](https://pelican.dev) panel plugin for running a Minecraft Java serve
 
 Install [squaremap](https://github.com/jpenilla/squaremap) on the Minecraft server (Paper, Fabric or NeoForge). Its built-in web server listens on port 8080 by default (`settings.internal-webserver.port` in squaremap's `config.yml`). Add that port as an allocation on the server in Pelican, like the RCON port.
 
+squaremap draws only the chunks that exist and updates them as players explore. To draw an existing world now, run `squaremap fullrender minecraft:overworld` in the server console.
+
 The browser never connects to squaremap: the panel fetches the tiles and passes them on, so the map works on an HTTPS panel and the port does not need to be open to the internet. The panel only ever connects to the server's own address on one of its own allocated ports.
 
 ## Install
