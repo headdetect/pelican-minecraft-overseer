@@ -1,6 +1,6 @@
 <?php
 
-namespace Headdetect\Underseer\Filament\Server\Pages;
+namespace Headdetect\Overseer\Filament\Server\Pages;
 
 use App\Enums\ContainerStatus;
 use App\Filament\Server\Pages\ServerFormPage;
@@ -17,19 +17,22 @@ use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Headdetect\Underseer\Models\AuditEntry;
-use Headdetect\Underseer\Services\ConsoleService;
-use Headdetect\Underseer\Services\GameRules;
-use Headdetect\Underseer\Support\CommandInput;
-use Headdetect\Underseer\Support\Permission;
+use Headdetect\Overseer\Filament\Server\Clusters\Overseer;
+use Headdetect\Overseer\Models\AuditEntry;
+use Headdetect\Overseer\Services\ConsoleService;
+use Headdetect\Overseer\Services\GameRules;
+use Headdetect\Overseer\Support\CommandInput;
+use Headdetect\Overseer\Support\Permission;
 
 class QuickCommands extends ServerFormPage
 {
     protected static string|\BackedEnum|null $navigationIcon = 'tabler-bolt';
 
-    protected static ?string $slug = 'underseer/commands';
+    protected static ?string $slug = 'commands';
 
-    protected static ?int $navigationSort = 31;
+    protected static ?string $cluster = Overseer::class;
+
+    protected static ?int $navigationSort = 3;
 
     /** Whether game rule values could be read from the server. */
     public bool $rulesKnown = false;
@@ -45,7 +48,7 @@ class QuickCommands extends ServerFormPage
 
     public static function getNavigationLabel(): string
     {
-        return trans('underseer::underseer.commands.title');
+        return trans('overseer::overseer.commands.title');
     }
 
     public function getTitle(): string
@@ -72,8 +75,8 @@ class QuickCommands extends ServerFormPage
 
         return parent::form($schema)->components([
             Grid::make(['default' => 1, 'lg' => 2])->columnSpanFull()->schema([
-                Section::make(trans('underseer::underseer.commands.time.title'))
-                    ->description(trans('underseer::underseer.commands.time.help'))
+                Section::make(trans('overseer::overseer.commands.time.title'))
+                    ->description(trans('overseer::overseer.commands.time.help'))
                     ->icon('tabler-sun')
                     ->visible($world)
                     ->schema([Actions::make([
@@ -82,8 +85,8 @@ class QuickCommands extends ServerFormPage
                         $this->commandButton('sunset', 'time', 'time set 12000', 'tabler-sunset'),
                         $this->commandButton('midnight', 'time', 'time set midnight', 'tabler-moon'),
                     ])]),
-                Section::make(trans('underseer::underseer.commands.weather.title'))
-                    ->description(trans('underseer::underseer.commands.weather.help'))
+                Section::make(trans('overseer::overseer.commands.weather.title'))
+                    ->description(trans('overseer::overseer.commands.weather.help'))
                     ->icon('tabler-cloud')
                     ->visible($world)
                     ->schema([Actions::make([
@@ -91,8 +94,8 @@ class QuickCommands extends ServerFormPage
                         $this->commandButton('rain', 'weather', 'weather rain', 'tabler-cloud-rain'),
                         $this->commandButton('thunder', 'weather', 'weather thunder', 'tabler-cloud-storm'),
                     ])]),
-                Section::make(trans('underseer::underseer.commands.difficulty.title'))
-                    ->description(trans('underseer::underseer.commands.difficulty.help'))
+                Section::make(trans('overseer::overseer.commands.difficulty.title'))
+                    ->description(trans('overseer::overseer.commands.difficulty.help'))
                     ->icon('tabler-sword')
                     ->visible($world)
                     ->schema([Actions::make([
@@ -101,10 +104,10 @@ class QuickCommands extends ServerFormPage
                         $this->commandButton('normal', 'difficulty', 'difficulty normal', 'tabler-mood-neutral'),
                         $this->commandButton('hard', 'difficulty', 'difficulty hard', 'tabler-skull'),
                     ])]),
-                Section::make(trans('underseer::underseer.commands.rules.title'))
+                Section::make(trans('overseer::overseer.commands.rules.title'))
                     ->description(fn () => $this->rulesKnown
-                        ? trans('underseer::underseer.commands.rules.help')
-                        : trans('underseer::underseer.commands.rules.unknown'))
+                        ? trans('overseer::overseer.commands.rules.help')
+                        : trans('overseer::overseer.commands.rules.unknown'))
                     ->icon('tabler-adjustments')
                     ->visible($world)
                     ->schema(array_map(fn (string $key) => Toggle::make("rules.$key")
@@ -113,38 +116,38 @@ class QuickCommands extends ServerFormPage
                         ->live()
                         ->afterStateUpdated(fn (bool $state) => $this->setRule($key, $state)),
                         array_keys(GameRules::RULES))),
-                Section::make(trans('underseer::underseer.commands.server.title'))
-                    ->description(trans('underseer::underseer.commands.server.help'))
+                Section::make(trans('overseer::overseer.commands.server.title'))
+                    ->description(trans('overseer::overseer.commands.server.help'))
                     ->icon('tabler-server')
                     ->schema([Actions::make([
                         $this->commandButton('save', 'save', 'save-all', 'tabler-device-floppy')->visible($world),
                         $this->commandButton('whitelist_on', 'whitelist', 'whitelist on', 'tabler-shield-lock')->visible($ops),
                         $this->commandButton('whitelist_off', 'whitelist', 'whitelist off', 'tabler-shield-off')->visible($ops)->requiresConfirmation(),
                         Action::make('broadcast')
-                            ->label(trans('underseer::underseer.commands.buttons.broadcast'))
+                            ->label(trans('overseer::overseer.commands.buttons.broadcast'))
                             ->icon('tabler-speakerphone')
                             ->visible($ops)
-                            ->schema([Textarea::make('message')->label(trans('underseer::underseer.commands.server.message'))->required()->maxLength(200)->rows(2)])
+                            ->schema([Textarea::make('message')->label(trans('overseer::overseer.commands.server.message'))->required()->maxLength(200)->rows(2)])
                             ->action(fn (array $data) => $this->send('broadcast', 'say ' . CommandInput::text($data['message']))),
                         Action::make('custom')
-                            ->label(trans('underseer::underseer.commands.buttons.custom'))
+                            ->label(trans('overseer::overseer.commands.buttons.custom'))
                             ->icon('tabler-terminal-2')
                             ->color('gray')
                             ->visible($ops)
                             ->schema([TextInput::make('command')
-                                ->label(trans('underseer::underseer.commands.server.command'))
+                                ->label(trans('overseer::overseer.commands.server.command'))
                                 ->placeholder('gamerule players_sleeping_percentage 50')
                                 ->prefix('/')
                                 ->required()])
                             ->action(fn (array $data) => $this->send('custom', CommandInput::command($data['command']))),
                     ])]),
-                Section::make(trans('underseer::underseer.commands.recent.title'))
-                    ->description(trans('underseer::underseer.commands.recent.help'))
+                Section::make(trans('overseer::overseer.commands.recent.title'))
+                    ->description(trans('overseer::overseer.commands.recent.help'))
                     ->icon('tabler-history')
                     ->schema([
                         TextEntry::make('recent')
                             ->hiddenLabel()
-                            ->state(fn () => $this->recentActions() ?: [trans('underseer::underseer.commands.recent.empty')])
+                            ->state(fn () => $this->recentActions() ?: [trans('overseer::overseer.commands.recent.empty')])
                             ->listWithLineBreaks(),
                     ]),
             ]),
@@ -154,7 +157,7 @@ class QuickCommands extends ServerFormPage
     private function commandButton(string $name, string $action, string $command, string $icon): Action
     {
         return Action::make($name)
-            ->label(trans("underseer::underseer.commands.buttons.$name"))
+            ->label(trans("overseer::overseer.commands.buttons.$name"))
             ->tooltip('/' . $command)
             ->icon($icon)
             ->color('gray')
@@ -167,11 +170,11 @@ class QuickCommands extends ServerFormPage
             app(GameRules::class)->set($this->getRecord(), $key, $value);
 
             Notification::make()
-                ->title(trans('underseer::underseer.commands.rules.changed', ['rule' => GameRules::LABELS[$key], 'state' => $value ? 'on' : 'off']))
+                ->title(trans('overseer::overseer.commands.rules.changed', ['rule' => GameRules::LABELS[$key], 'state' => $value ? 'on' : 'off']))
                 ->success()
                 ->send();
         } catch (Exception $exception) {
-            Notification::make()->title(trans('underseer::underseer.commands.failed'))->body($exception->getMessage())->danger()->send();
+            Notification::make()->title(trans('overseer::overseer.commands.failed'))->body($exception->getMessage())->danger()->send();
         }
     }
 
@@ -181,12 +184,12 @@ class QuickCommands extends ServerFormPage
             $reply = app(ConsoleService::class)->run($this->getRecord(), $action, $command);
 
             Notification::make()
-                ->title(trans('underseer::underseer.commands.sent', ['command' => '/' . $command]))
+                ->title(trans('overseer::overseer.commands.sent', ['command' => '/' . $command]))
                 ->body($reply ?: null)
                 ->success()
                 ->send();
         } catch (Exception $exception) {
-            Notification::make()->title(trans('underseer::underseer.commands.failed'))->body($exception->getMessage())->danger()->send();
+            Notification::make()->title(trans('overseer::overseer.commands.failed'))->body($exception->getMessage())->danger()->send();
         }
     }
 
@@ -197,7 +200,7 @@ class QuickCommands extends ServerFormPage
             ->with('user')
             ->where('server_id', $this->getRecord()->id)
             ->latest('created_at')
-            ->limit(config('underseer.recent_actions', 10))
+            ->limit(config('overseer.recent_actions', 10))
             ->get()
             ->map(fn (AuditEntry $entry) => sprintf(
                 '%s · %s · /%s%s',

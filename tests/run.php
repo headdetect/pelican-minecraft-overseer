@@ -1,10 +1,10 @@
 <?php
 
-// Unit tests for the parts of Underseer that don't need a running panel.
+// Unit tests for the parts of Overseer that don't need a running panel.
 // Run with: php tests/run.php
 
 spl_autoload_register(function (string $class) {
-    $prefix = 'Headdetect\\Underseer\\';
+    $prefix = 'Headdetect\\Overseer\\';
     if (str_starts_with($class, $prefix)) {
         $file = __DIR__ . '/../src/' . str_replace('\\', '/', substr($class, strlen($prefix))) . '.php';
         if (is_file($file)) {
@@ -13,15 +13,15 @@ spl_autoload_register(function (string $class) {
     }
 });
 
-use Headdetect\Underseer\Services\GameRules;
-use Headdetect\Underseer\Services\Map\Squaremap;
-use Headdetect\Underseer\Services\PlayerService;
-use Headdetect\Underseer\Services\Rcon\RconClient;
-use Headdetect\Underseer\Services\Rcon\RconException;
-use Headdetect\Underseer\Support\CommandInput;
-use Headdetect\Underseer\Support\ConfigSchema;
-use Headdetect\Underseer\Support\Properties;
-use Headdetect\Underseer\Support\YamlLines;
+use Headdetect\Overseer\Services\GameRules;
+use Headdetect\Overseer\Services\Map\Squaremap;
+use Headdetect\Overseer\Services\PlayerService;
+use Headdetect\Overseer\Services\Rcon\RconClient;
+use Headdetect\Overseer\Services\Rcon\RconException;
+use Headdetect\Overseer\Support\CommandInput;
+use Headdetect\Overseer\Support\ConfigSchema;
+use Headdetect\Overseer\Support\Properties;
+use Headdetect\Overseer\Support\YamlLines;
 
 $failures = 0;
 $count = 0;
@@ -222,6 +222,7 @@ world-settings:
       port: 9999
 YAML;
 check('squaremap config', Squaremap::parseConfig($squaremapConfig), ['enabled' => true, 'port' => 8123]);
+check('squaremap config found on Fabric', in_array('squaremap/config.yml', Squaremap::CONFIG_PATHS, true), true);
 check('squaremap web off', Squaremap::parseConfig("settings:\n  internal-webserver:\n    enabled: false\n"), ['enabled' => false, 'port' => 8080]);
 check('squaremap defaults', Squaremap::parseConfig("settings:\n  ui:\n    port: 1\n"), ['enabled' => true, 'port' => 8080]);
 check('squaremap port outside block ignored', Squaremap::parseConfig("settings:\n  internal-webserver:\n    enabled: true\n  port: 1234\n")['port'], 8080);

@@ -1,6 +1,6 @@
 <?php
 
-namespace Headdetect\Underseer\Models;
+namespace Headdetect\Overseer\Models;
 
 use App\Models\Server;
 use App\Models\User;
@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class AuditEntry extends Model
 {
-    protected $table = 'underseer_audit';
+    protected $table = 'overseer_audit';
 
     public const UPDATED_AT = null;
 

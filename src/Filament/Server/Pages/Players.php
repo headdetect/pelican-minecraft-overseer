@@ -1,6 +1,6 @@
 <?php
 
-namespace Headdetect\Underseer\Filament\Server\Pages;
+namespace Headdetect\Overseer\Filament\Server\Pages;
 
 use App\Enums\ContainerStatus;
 use App\Models\Server;
@@ -23,11 +23,12 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
-use Headdetect\Underseer\Models\TimedBan;
-use Headdetect\Underseer\Services\ConsoleService;
-use Headdetect\Underseer\Services\PlayerService;
-use Headdetect\Underseer\Support\CommandInput;
-use Headdetect\Underseer\Support\Permission;
+use Headdetect\Overseer\Filament\Server\Clusters\Overseer;
+use Headdetect\Overseer\Models\TimedBan;
+use Headdetect\Overseer\Services\ConsoleService;
+use Headdetect\Overseer\Services\PlayerService;
+use Headdetect\Overseer\Support\CommandInput;
+use Headdetect\Overseer\Support\Permission;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Url;
 
@@ -39,9 +40,11 @@ class Players extends Page implements HasTable
 
     protected static string|\BackedEnum|null $navigationIcon = 'tabler-users-group';
 
-    protected static ?string $slug = 'underseer/players';
+    protected static ?string $slug = 'players';
 
-    protected static ?int $navigationSort = 30;
+    protected static ?string $cluster = Overseer::class;
+
+    protected static ?int $navigationSort = 2;
 
     #[Url(as: 'tab')]
     public ?string $activeTab = null;
@@ -71,7 +74,7 @@ class Players extends Page implements HasTable
 
     public static function getNavigationLabel(): string
     {
-        return trans('underseer::underseer.players.title');
+        return trans('overseer::overseer.players.title');
     }
 
     public function getTitle(): string
@@ -101,11 +104,11 @@ class Players extends Page implements HasTable
     public function getTabs(): array
     {
         return [
-            'online' => Tab::make('online')->label(trans('underseer::underseer.players.tabs.online'))->badge(fn () => $this->online === null ? null : count($this->online)),
-            'known' => Tab::make('known')->label(trans('underseer::underseer.players.tabs.known'))->badge(fn () => count($this->known)),
-            'ops' => Tab::make('ops')->label(trans('underseer::underseer.players.tabs.ops'))->badge(fn () => count($this->ops)),
-            'whitelist' => Tab::make('whitelist')->label(trans('underseer::underseer.players.tabs.whitelist'))->badge(fn () => count($this->whitelist)),
-            'banned' => Tab::make('banned')->label(trans('underseer::underseer.players.tabs.banned'))->badge(fn () => count($this->banned) ?: null),
+            'online' => Tab::make('online')->label(trans('overseer::overseer.players.tabs.online'))->badge(fn () => $this->online === null ? null : count($this->online)),
+            'known' => Tab::make('known')->label(trans('overseer::overseer.players.tabs.known'))->badge(fn () => count($this->known)),
+            'ops' => Tab::make('ops')->label(trans('overseer::overseer.players.tabs.ops'))->badge(fn () => count($this->ops)),
+            'whitelist' => Tab::make('whitelist')->label(trans('overseer::overseer.players.tabs.whitelist'))->badge(fn () => count($this->whitelist)),
+            'banned' => Tab::make('banned')->label(trans('overseer::overseer.players.tabs.banned'))->badge(fn () => count($this->banned) ?: null),
         ];
     }
 
@@ -144,38 +147,38 @@ class Players extends Page implements HasTable
                     ->imageSize(32)
                     ->grow(false),
                 TextColumn::make('name')
-                    ->label(trans('underseer::underseer.players.columns.name'))
+                    ->label(trans('overseer::overseer.players.columns.name'))
                     ->searchable()
                     ->weight(FontWeight::Medium),
                 TextColumn::make('roles')
-                    ->label(trans('underseer::underseer.players.columns.role'))
+                    ->label(trans('overseer::overseer.players.columns.role'))
                     ->badge()
                     ->state(fn (array $record) => array_values(array_filter([
                         in_array($record['name'], $this->ops, true) ? 'OP' : null,
-                        in_array($record['name'], $this->whitelist, true) ? trans('underseer::underseer.players.whitelisted') : null,
+                        in_array($record['name'], $this->whitelist, true) ? trans('overseer::overseer.players.whitelisted') : null,
                     ])))
                     ->color(fn (string $state) => $state === 'OP' ? 'warning' : 'info'),
                 TextColumn::make('location')
-                    ->label(trans('underseer::underseer.players.columns.location'))
+                    ->label(trans('overseer::overseer.players.columns.location'))
                     ->fontFamily(FontFamily::Mono)
                     ->visible(fn () => !$this->activeTab || $this->activeTab === 'online')
                     ->state(fn (array $record) => isset($record['x'])
                         ? str($record['dimension'] ?? 'overworld')->headline() . " · {$record['x']}, {$record['y']}, {$record['z']}"
                         : null),
                 TextColumn::make('status')
-                    ->label(trans('underseer::underseer.players.columns.status'))
+                    ->label(trans('overseer::overseer.players.columns.status'))
                     ->visible(fn () => $this->activeTab === 'known')
-                    ->state(fn (array $record) => ($record['is_online'] ?? false) ? trans('underseer::underseer.players.online') : trans('underseer::underseer.players.offline'))
+                    ->state(fn (array $record) => ($record['is_online'] ?? false) ? trans('overseer::overseer.players.online') : trans('overseer::overseer.players.offline'))
                     ->color(fn (array $record) => ($record['is_online'] ?? false) ? 'success' : 'gray'),
                 TextColumn::make('reason')
-                    ->label(trans('underseer::underseer.players.columns.reason'))
+                    ->label(trans('overseer::overseer.players.columns.reason'))
                     ->visible(fn () => $this->activeTab === 'banned')
                     ->description(fn (array $record) => trim(($record['source'] ? 'by ' . $record['source'] : '') . ($record['created'] ? ' · ' . substr($record['created'], 0, 10) : ''), ' ·'))
                     ->wrap(),
                 TextColumn::make('expires')
-                    ->label(trans('underseer::underseer.players.columns.expires'))
+                    ->label(trans('overseer::overseer.players.columns.expires'))
                     ->visible(fn () => $this->activeTab === 'banned')
-                    ->state(fn (array $record) => $this->banExpiry($record['name']) ?? trans('underseer::underseer.players.never')),
+                    ->state(fn (array $record) => $this->banExpiry($record['name']) ?? trans('overseer::overseer.players.never')),
             ])
             ->recordActions([
                 $this->opAction(),
@@ -186,17 +189,17 @@ class Players extends Page implements HasTable
             ])
             ->headerActions([
                 Action::make('refresh')
-                    ->label(trans('underseer::underseer.players.refresh'))
+                    ->label(trans('overseer::overseer.players.refresh'))
                     ->icon('tabler-refresh')
                     ->color('gray')
                     ->action(fn () => $this->loadPlayers()),
                 Action::make('add_to_whitelist')
-                    ->label(trans('underseer::underseer.players.add_to_whitelist'))
+                    ->label(trans('overseer::overseer.players.add_to_whitelist'))
                     ->icon('tabler-user-plus')
                     ->visible(fn () => $this->can(Permission::PLAYERS_WHITELIST))
                     ->schema([
                         TextInput::make('name')
-                            ->label(trans('underseer::underseer.players.columns.name'))
+                            ->label(trans('overseer::overseer.players.columns.name'))
                             ->required()
                             ->regex('/^[.*]?[A-Za-z0-9_]{1,16}$/'),
                     ])
@@ -217,11 +220,11 @@ class Players extends Page implements HasTable
     private function kickAction(): Action
     {
         return Action::make('kick')
-            ->label(trans('underseer::underseer.players.actions.kick'))
+            ->label(trans('overseer::overseer.players.actions.kick'))
             ->icon('tabler-door-exit')
             ->color('warning')
             ->visible(fn (array $record) => ($record['is_online'] ?? false) && $this->can(Permission::PLAYERS_KICK))
-            ->modalHeading(fn (array $record) => trans('underseer::underseer.players.kick_heading', ['name' => $record['name']]))
+            ->modalHeading(fn (array $record) => trans('overseer::overseer.players.kick_heading', ['name' => $record['name']]))
             ->schema([$this->reasonField()])
             ->action(function (array $record, array $data) {
                 $reason = CommandInput::text($data['reason'] ?? '');
@@ -232,21 +235,21 @@ class Players extends Page implements HasTable
     private function banAction(): Action
     {
         return Action::make('ban')
-            ->label(trans('underseer::underseer.players.actions.ban'))
+            ->label(trans('overseer::overseer.players.actions.ban'))
             ->icon('tabler-hammer')
             ->color('danger')
             ->visible(fn () => $this->activeTab !== 'banned' && $this->can(Permission::PLAYERS_BAN))
-            ->modalHeading(fn (array $record) => trans('underseer::underseer.players.ban_heading', ['name' => $record['name']]))
-            ->modalSubmitActionLabel(trans('underseer::underseer.players.actions.ban'))
+            ->modalHeading(fn (array $record) => trans('overseer::overseer.players.ban_heading', ['name' => $record['name']]))
+            ->modalSubmitActionLabel(trans('overseer::overseer.players.actions.ban'))
             ->schema([
                 $this->reasonField(),
                 Select::make('duration')
-                    ->label(trans('underseer::underseer.players.duration'))
+                    ->label(trans('overseer::overseer.players.duration'))
                     ->options([
-                        '1' => trans('underseer::underseer.players.durations.hour'),
-                        '24' => trans('underseer::underseer.players.durations.day'),
-                        '168' => trans('underseer::underseer.players.durations.week'),
-                        'forever' => trans('underseer::underseer.players.durations.forever'),
+                        '1' => trans('overseer::overseer.players.durations.hour'),
+                        '24' => trans('overseer::overseer.players.durations.day'),
+                        '168' => trans('overseer::overseer.players.durations.week'),
+                        'forever' => trans('overseer::overseer.players.durations.forever'),
                     ])
                     ->default('forever')
                     ->selectablePlaceholder(false),
@@ -254,7 +257,7 @@ class Players extends Page implements HasTable
             ->action(function (array $record, array $data) {
                 $reason = CommandInput::text($data['reason'] ?? '');
                 $hours = $data['duration'] === 'forever' ? null : (int) $data['duration'];
-                $shownReason = $hours ? trim($reason . ' (' . trans('underseer::underseer.players.ban_for', ['hours' => $hours]) . ')') : $reason;
+                $shownReason = $hours ? trim($reason . ' (' . trans('overseer::overseer.players.ban_for', ['hours' => $hours]) . ')') : $reason;
 
                 if (!$this->runFor('ban', 'ban', $record['name'], 'banned', $shownReason)) {
                     return;
@@ -275,7 +278,7 @@ class Players extends Page implements HasTable
     private function unbanAction(): Action
     {
         return Action::make('unban')
-            ->label(trans('underseer::underseer.players.actions.unban'))
+            ->label(trans('overseer::overseer.players.actions.unban'))
             ->icon('tabler-rotate')
             ->color('success')
             ->visible(fn () => $this->activeTab === 'banned' && $this->can(Permission::PLAYERS_BAN))
@@ -292,12 +295,12 @@ class Players extends Page implements HasTable
         $isOp = fn (array $record) => in_array($record['name'], $this->ops, true);
 
         return Action::make('op')
-            ->label(fn (array $record) => $isOp($record) ? trans('underseer::underseer.players.actions.deop') : trans('underseer::underseer.players.actions.op'))
+            ->label(fn (array $record) => $isOp($record) ? trans('overseer::overseer.players.actions.deop') : trans('overseer::overseer.players.actions.op'))
             ->icon(fn (array $record) => $isOp($record) ? 'tabler-crown-off' : 'tabler-crown')
             ->color('gray')
             ->visible(fn () => $this->activeTab !== 'banned' && $this->can(Permission::PLAYERS_OP))
             ->requiresConfirmation(fn (array $record) => !$isOp($record))
-            ->modalDescription(trans('underseer::underseer.players.op_warning'))
+            ->modalDescription(trans('overseer::overseer.players.op_warning'))
             ->action(fn (array $record) => $isOp($record)
                 ? $this->runFor('deop', 'deop', $record['name'], 'deopped')
                 : $this->runFor('op', 'op', $record['name'], 'opped'));
@@ -308,7 +311,7 @@ class Players extends Page implements HasTable
         $listed = fn (array $record) => in_array($record['name'], $this->whitelist, true);
 
         return Action::make('whitelist')
-            ->label(fn (array $record) => $listed($record) ? trans('underseer::underseer.players.actions.unwhitelist') : trans('underseer::underseer.players.actions.whitelist'))
+            ->label(fn (array $record) => $listed($record) ? trans('overseer::overseer.players.actions.unwhitelist') : trans('overseer::overseer.players.actions.whitelist'))
             ->icon(fn (array $record) => $listed($record) ? 'tabler-playlist-x' : 'tabler-playlist-add')
             ->color('gray')
             ->visible(fn () => $this->activeTab !== 'banned' && $this->can(Permission::PLAYERS_WHITELIST))
@@ -320,9 +323,9 @@ class Players extends Page implements HasTable
     private function reasonField(): TextInput
     {
         return TextInput::make('reason')
-            ->label(trans('underseer::underseer.players.reason'))
-            ->helperText(trans('underseer::underseer.players.reason_help'))
-            ->datalist(config('underseer.reasons', []))
+            ->label(trans('overseer::overseer.players.reason'))
+            ->helperText(trans('overseer::overseer.players.reason_help'))
+            ->datalist(config('overseer.reasons', []))
             ->maxLength(200);
     }
 
@@ -337,7 +340,7 @@ class Players extends Page implements HasTable
             $reply = app(ConsoleService::class)->run($this->server(), $action, trim("$verb $name $suffix"), $name);
 
             Notification::make()
-                ->title(trans("underseer::underseer.players.notifications.$notification", ['name' => $name]))
+                ->title(trans("overseer::overseer.players.notifications.$notification", ['name' => $name]))
                 ->body($reply ?: null)
                 ->success()
                 ->send();
@@ -347,7 +350,7 @@ class Players extends Page implements HasTable
             return true;
         } catch (Exception $exception) {
             Notification::make()
-                ->title(trans('underseer::underseer.players.notifications.failed'))
+                ->title(trans('overseer::overseer.players.notifications.failed'))
                 ->body($exception->getMessage())
                 ->danger()
                 ->send();
@@ -366,22 +369,22 @@ class Players extends Page implements HasTable
     private function emptyHeading(): string
     {
         if (($this->activeTab ?? 'online') !== 'online') {
-            return trans('underseer::underseer.players.empty.none');
+            return trans('overseer::overseer.players.empty.none');
         }
 
         if ($this->server()->retrieveStatus() !== ContainerStatus::Running) {
-            return trans('underseer::underseer.players.empty.offline');
+            return trans('overseer::overseer.players.empty.offline');
         }
 
         return $this->online === null
-            ? trans('underseer::underseer.players.empty.no_rcon')
-            : trans('underseer::underseer.players.empty.nobody');
+            ? trans('overseer::overseer.players.empty.no_rcon')
+            : trans('overseer::overseer.players.empty.nobody');
     }
 
     private function emptyDescription(): ?string
     {
         if (($this->activeTab ?? 'online') === 'online' && $this->online === null && $this->server()->retrieveStatus() === ContainerStatus::Running) {
-            return trans('underseer::underseer.players.empty.no_rcon_help');
+            return trans('overseer::overseer.players.empty.no_rcon_help');
         }
 
         return null;

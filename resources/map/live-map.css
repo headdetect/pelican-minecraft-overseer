@@ -1,4 +1,4 @@
-/* Underseer Live Map. Plain CSS, because Tailwind doesn't scan plugin views. */
+/* Overseer Live Map. Plain CSS, because Tailwind doesn't scan plugin views. */
 .us-map {
     --us-bg: #e9edf2;
     --us-panel: rgba(255, 255, 255, 0.92);

@@ -1,12 +1,12 @@
 <?php
 
-namespace Headdetect\Underseer\Services\Rcon;
+namespace Headdetect\Overseer\Services\Rcon;
 
 use App\Models\Server;
 use App\Repositories\Daemon\DaemonFileRepository;
 use Exception;
-use Headdetect\Underseer\Support\Properties;
-use Headdetect\Underseer\Support\ServerAddress;
+use Headdetect\Overseer\Support\Properties;
+use Headdetect\Overseer\Support\ServerAddress;
 
 /**
  * Builds an RCON connection for a server from its own server.properties.
@@ -33,10 +33,10 @@ class RconConnector
         $properties = $this->properties($server);
 
         $client = new RconClient(
-            ServerAddress::host($server, config('underseer.rcon.host')),
+            ServerAddress::host($server, config('overseer.rcon.host')),
             (int) ($properties['rcon.port'] ?? 25575),
             $properties['rcon.password'],
-            (float) config('underseer.rcon.timeout', 2.0),
+            (float) config('overseer.rcon.timeout', 2.0),
         );
         $client->connect();
 

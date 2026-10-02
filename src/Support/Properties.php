@@ -1,6 +1,6 @@
 <?php
 
-namespace Headdetect\Underseer\Support;
+namespace Headdetect\Overseer\Support;
 
 /**
  * Reads Java .properties files such as server.properties.

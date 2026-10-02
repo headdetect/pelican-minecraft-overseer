@@ -6,26 +6,26 @@
 
 <x-filament-panels::page>
     @assets
-        <style>{!! file_get_contents(plugin_path('underseer', 'resources/map/live-map.css')) !!}</style>
-        <script>{!! file_get_contents(plugin_path('underseer', 'resources/map/live-map.js')) !!}</script>
+        <style>{!! file_get_contents(plugin_path('overseer', 'resources/map/live-map.css')) !!}</style>
+        <script>{!! file_get_contents(plugin_path('overseer', 'resources/map/live-map.js')) !!}</script>
     @endassets
 
     @if ($setup)
         <x-filament::section icon="tabler-map-off" icon-color="warning" :heading="$setup['title']" :description="$setup['body']" compact>
             <x-filament::button wire:click="checkAgain" color="gray" size="sm" icon="tabler-refresh">
-                {{ trans('underseer::underseer.map.check_again') }}
+                {{ trans('overseer::overseer.map.check_again') }}
             </x-filament::button>
         </x-filament::section>
     @endif
 
-    <div wire:ignore x-data="underseerLiveMap(@js($config))" class="us-map">
+    <div wire:ignore x-data="overseerLiveMap(@js($config))" class="us-map">
         <div>
             <div
                 x-ref="viewport"
                 class="us-viewport"
                 tabindex="0"
                 role="application"
-                aria-label="{{ trans('underseer::underseer.map.aria') }}"
+                aria-label="{{ trans('overseer::overseer.map.aria') }}"
                 x-on:wheel.prevent="onWheel($event)"
                 x-on:pointerdown="onDown($event)"
                 x-on:pointermove="onMove($event)"
@@ -39,22 +39,22 @@
                 <div x-ref="pins" class="us-pins"></div>
 
                 <div class="us-controls">
-                    <div class="us-seg" role="group" aria-label="{{ trans('underseer::underseer.map.world') }}">
+                    <div class="us-seg" role="group" aria-label="{{ trans('overseer::overseer.map.world') }}">
                         <template x-for="w in worlds" :key="w.name">
                             <button type="button" x-text="w.label" :class="{ 'is-on': w.name === world }" :aria-pressed="w.name === world" x-on:click="setWorld(w.name)"></button>
                         </template>
                     </div>
-                    <div class="us-seg" role="group" aria-label="{{ trans('underseer::underseer.map.zoom') }}">
-                        <button type="button" x-on:click="zoomBy(1)" aria-label="{{ trans('underseer::underseer.map.zoom_in') }}">+</button>
-                        <button type="button" x-on:click="zoomBy(-1)" aria-label="{{ trans('underseer::underseer.map.zoom_out') }}">&minus;</button>
+                    <div class="us-seg" role="group" aria-label="{{ trans('overseer::overseer.map.zoom') }}">
+                        <button type="button" x-on:click="zoomBy(1)" aria-label="{{ trans('overseer::overseer.map.zoom_in') }}">+</button>
+                        <button type="button" x-on:click="zoomBy(-1)" aria-label="{{ trans('overseer::overseer.map.zoom_out') }}">&minus;</button>
                     </div>
                 </div>
 
                 <div class="us-chip us-live" aria-live="polite">
                     <span class="us-led" :class="{ 'is-stale': state !== 'live' }"></span>
-                    <span x-show="state === 'live'">{{ trans('underseer::underseer.map.live', ['seconds' => $config['refresh']]) }}</span>
-                    <span x-show="state === 'loading'">{{ trans('underseer::underseer.map.loading') }}</span>
-                    <span x-show="state === 'stale'" x-cloak>{{ trans('underseer::underseer.map.stale') }}</span>
+                    <span x-show="state === 'live'">{{ trans('overseer::overseer.map.live', ['seconds' => $config['refresh']]) }}</span>
+                    <span x-show="state === 'loading'">{{ trans('overseer::overseer.map.loading') }}</span>
+                    <span x-show="state === 'stale'" x-cloak>{{ trans('overseer::overseer.map.stale') }}</span>
                 </div>
                 <div class="us-chip us-coords" x-show="coords" x-text="coords"></div>
 
@@ -65,20 +65,20 @@
                             <div>
                                 <strong x-text="selectedPlayer.name"></strong>
                                 <span class="us-badge" x-show="selectedPlayer.op">OP</span>
-                                <div class="us-row-where" x-show="selectedPlayer.health !== null" x-text="`${selectedPlayer.health} / 20 {{ trans('underseer::underseer.map.health') }}`"></div>
+                                <div class="us-row-where" x-show="selectedPlayer.health !== null" x-text="`${selectedPlayer.health} / 20 {{ trans('overseer::overseer.map.health') }}`"></div>
                             </div>
                         </div>
                         <div class="us-pop-where" x-text="`${worldLabel(selectedPlayer.world)} · ${selectedPlayer.x}, ${selectedPlayer.y ?? '?'}, ${selectedPlayer.z}`"></div>
                         <div class="us-pop-actions">
                             @if ($can['kick'])
-                                <x-filament::button size="xs" color="warning" x-on:click="act('kick', selectedPlayer.name)">{{ trans('underseer::underseer.players.actions.kick') }}</x-filament::button>
+                                <x-filament::button size="xs" color="warning" x-on:click="act('kick', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.kick') }}</x-filament::button>
                             @endif
                             @if ($can['ban'])
-                                <x-filament::button size="xs" color="danger" x-on:click="act('ban', selectedPlayer.name)">{{ trans('underseer::underseer.players.actions.ban') }}</x-filament::button>
+                                <x-filament::button size="xs" color="danger" x-on:click="act('ban', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.ban') }}</x-filament::button>
                             @endif
                             @if ($can['op'])
-                                <x-filament::button size="xs" color="gray" x-show="!selectedPlayer.op" x-on:click="act('op', selectedPlayer.name)">{{ trans('underseer::underseer.players.actions.op') }}</x-filament::button>
-                                <x-filament::button size="xs" color="gray" x-show="selectedPlayer.op" x-on:click="act('deop', selectedPlayer.name)">{{ trans('underseer::underseer.players.actions.deop') }}</x-filament::button>
+                                <x-filament::button size="xs" color="gray" x-show="!selectedPlayer.op" x-on:click="act('op', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.op') }}</x-filament::button>
+                                <x-filament::button size="xs" color="gray" x-show="selectedPlayer.op" x-on:click="act('deop', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.deop') }}</x-filament::button>
                             @endif
                         </div>
                     </div>
@@ -86,7 +86,7 @@
             </div>
         </div>
 
-        <x-filament::section :heading="trans('underseer::underseer.map.online')" compact>
+        <x-filament::section :heading="trans('overseer::overseer.map.online')" compact>
             <x-slot name="afterHeader">
                 <x-filament::badge color="gray"><span x-text="players.length">0</span></x-filament::badge>
             </x-slot>
@@ -101,14 +101,14 @@
                         </div>
                     </button>
                 </template>
-                <div class="us-empty" x-show="players.length === 0 && state === 'live'">{{ trans('underseer::underseer.map.nobody') }}</div>
+                <div class="us-empty" x-show="players.length === 0 && state === 'live'">{{ trans('overseer::overseer.map.nobody') }}</div>
                 <div class="us-empty" x-show="state === 'stale'" x-cloak>
-                    {{ $config['mode'] === 'squaremap' ? trans('underseer::underseer.map.no_positions_squaremap') : trans('underseer::underseer.map.no_positions_rcon') }}
+                    {{ $config['mode'] === 'squaremap' ? trans('overseer::overseer.map.no_positions_squaremap') : trans('overseer::overseer.map.no_positions_rcon') }}
                 </div>
             </div>
 
             <p class="us-note">
-                {{ $config['mode'] === 'squaremap' ? trans('underseer::underseer.map.source_squaremap') : trans('underseer::underseer.map.source_rcon') }}
+                {{ $config['mode'] === 'squaremap' ? trans('overseer::overseer.map.source_squaremap') : trans('overseer::overseer.map.source_rcon') }}
             </p>
         </x-filament::section>
     </div>

@@ -1,6 +1,6 @@
 <?php
 
-namespace Headdetect\Underseer\Filament\Server\Pages;
+namespace Headdetect\Overseer\Filament\Server\Pages;
 
 use App\Enums\SubuserPermission;
 use App\Facades\Activity;
@@ -24,9 +24,10 @@ use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Alignment;
-use Headdetect\Underseer\Services\ConfigFiles;
-use Headdetect\Underseer\Support\ConfigSchema;
-use Headdetect\Underseer\Support\Permission;
+use Headdetect\Overseer\Filament\Server\Clusters\Overseer;
+use Headdetect\Overseer\Services\ConfigFiles;
+use Headdetect\Overseer\Support\ConfigSchema;
+use Headdetect\Overseer\Support\Permission;
 use Illuminate\Support\HtmlString;
 use InvalidArgumentException;
 
@@ -34,9 +35,11 @@ class Config extends ServerFormPage
 {
     protected static string|\BackedEnum|null $navigationIcon = 'tabler-settings-2';
 
-    protected static ?string $slug = 'underseer/config';
+    protected static ?string $slug = 'config';
 
-    protected static ?int $navigationSort = 32;
+    protected static ?string $cluster = Overseer::class;
+
+    protected static ?int $navigationSort = 4;
 
     /** @var array<string, array<string, bool|int|string>> values as loaded, per source and key */
     public array $original = [];
@@ -61,7 +64,7 @@ class Config extends ServerFormPage
 
     public static function getNavigationLabel(): string
     {
-        return trans('underseer::underseer.config.title');
+        return trans('overseer::overseer.config.title');
     }
 
     public function getTitle(): string
@@ -99,14 +102,14 @@ class Config extends ServerFormPage
     {
         return [
             Action::make('restart')
-                ->label(trans('underseer::underseer.config.restart'))
+                ->label(trans('overseer::overseer.config.restart'))
                 ->icon('tabler-reload')
                 ->color('warning')
                 ->visible(fn () => $this->restartNeeded)
                 ->authorize(fn () => user()?->can(SubuserPermission::ControlRestart, $this->getRecord()))
                 ->requiresConfirmation()
-                ->modalHeading(trans('underseer::underseer.config.restart_heading'))
-                ->modalDescription(trans('underseer::underseer.config.restart_help'))
+                ->modalHeading(trans('overseer::overseer.config.restart_heading'))
+                ->modalDescription(trans('overseer::overseer.config.restart_help'))
                 ->action(fn () => $this->restart()),
         ];
     }
@@ -126,13 +129,13 @@ class Config extends ServerFormPage
             Grid::make(['default' => 1, 'sm' => 3])->columnSpanFull()->schema([
                 TextInput::make('_search')
                     ->hiddenLabel()
-                    ->placeholder(trans('underseer::underseer.config.search'))
+                    ->placeholder(trans('overseer::overseer.config.search'))
                     ->prefixIcon('tabler-search')
                     ->live(debounce: 300)
                     ->columnSpan(['default' => 1, 'sm' => 2]),
                 Toggle::make('_advanced')
-                    ->label(trans('underseer::underseer.config.advanced'))
-                    ->helperText(trans('underseer::underseer.config.advanced_help'))
+                    ->label(trans('overseer::overseer.config.advanced'))
+                    ->helperText(trans('overseer::overseer.config.advanced_help'))
                     ->live(),
             ]),
             Tabs::make('sources')
@@ -142,19 +145,19 @@ class Config extends ServerFormPage
                 ->tabs($tabs),
             Actions::make([
                 Action::make('discard')
-                    ->label(trans('underseer::underseer.config.discard'))
+                    ->label(trans('overseer::overseer.config.discard'))
                     ->color('gray')
                     ->action(fn () => $this->discard()),
                 Action::make('review')
-                    ->label(trans('underseer::underseer.config.review'))
+                    ->label(trans('overseer::overseer.config.review'))
                     ->color('gray')
-                    ->modalHeading(trans('underseer::underseer.config.review_heading'))
-                    ->modalDescription(trans('underseer::underseer.config.review_help'))
+                    ->modalHeading(trans('overseer::overseer.config.review_heading'))
+                    ->modalDescription(trans('overseer::overseer.config.review_help'))
                     ->modalContent(fn () => $this->diff())
-                    ->modalSubmitActionLabel(trans('underseer::underseer.config.save_changes'))
+                    ->modalSubmitActionLabel(trans('overseer::overseer.config.save_changes'))
                     ->action(fn () => $this->save()),
                 Action::make('save')
-                    ->label(fn () => trans_choice('underseer::underseer.config.save', $this->changeCount(), ['count' => $this->changeCount()]))
+                    ->label(fn () => trans_choice('overseer::overseer.config.save', $this->changeCount(), ['count' => $this->changeCount()]))
                     ->icon('tabler-device-floppy')
                     ->action(fn () => $this->save()),
             ])
@@ -172,8 +175,8 @@ class Config extends ServerFormPage
 
         if ($reason = $this->unavailable[$source] ?? null) {
             return $tab->schema([
-                Callout::make(trans("underseer::underseer.config.unavailable.$reason"))
-                    ->description(trans("underseer::underseer.config.unavailable.{$reason}_help"))
+                Callout::make(trans("overseer::overseer.config.unavailable.$reason"))
+                    ->description(trans("overseer::overseer.config.unavailable.{$reason}_help"))
                     ->warning(),
             ]);
         }
@@ -192,7 +195,7 @@ class Config extends ServerFormPage
                 ->schema(array_map(fn (string $key) => $this->field($source, $key, $settings[$key]), array_keys($settings)));
         }
 
-        $sections[] = Callout::make(trans('underseer::underseer.config.no_match'))
+        $sections[] = Callout::make(trans('overseer::overseer.config.no_match'))
             ->info()
             ->visible(fn () => !$this->anyVisible($entries));
 
@@ -251,7 +254,7 @@ class Config extends ServerFormPage
                 ->password()
                 ->revealable()
                 ->autocomplete('new-password')
-                ->placeholder(trans('underseer::underseer.config.unchanged'))
+                ->placeholder(trans('overseer::overseer.config.unchanged'))
                 ->live(onBlur: true),
             default => TextInput::make($name)
                 ->maxLength($entry['max'] ?? 1000)
@@ -269,8 +272,8 @@ class Config extends ServerFormPage
             ->label($entry['title'])
             ->helperText($entry['help'])
             ->hint(match (true) {
-                $live => trans('underseer::underseer.config.instant'),
-                $entry['restart'] => trans('underseer::underseer.config.restart_needed'),
+                $live => trans('overseer::overseer.config.instant'),
+                $entry['restart'] => trans('overseer::overseer.config.restart_needed'),
                 default => null,
             })
             ->hintColor($live ? 'success' : 'warning')
@@ -357,7 +360,7 @@ class Config extends ServerFormPage
     public function save(): void
     {
         if (!$this->canEdit()) {
-            Notification::make()->title(trans('underseer::underseer.config.no_permission'))->danger()->send();
+            Notification::make()->title(trans('overseer::overseer.config.no_permission'))->danger()->send();
 
             return;
         }
@@ -367,7 +370,7 @@ class Config extends ServerFormPage
         foreach ($changes as $settings) {
             foreach ($settings as $change) {
                 if ($change['error'] !== null) {
-                    Notification::make()->title(trans('underseer::underseer.config.invalid'))->body($change['error'])->danger()->send();
+                    Notification::make()->title(trans('overseer::overseer.config.invalid'))->body($change['error'])->danger()->send();
 
                     return;
                 }
@@ -392,7 +395,7 @@ class Config extends ServerFormPage
             } catch (Exception $exception) {
                 report($exception);
                 Notification::make()
-                    ->title(trans('underseer::underseer.config.failed', ['source' => ConfigSchema::source($source)['title']]))
+                    ->title(trans('overseer::overseer.config.failed', ['source' => ConfigSchema::source($source)['title']]))
                     ->body($exception->getMessage())
                     ->danger()
                     ->persistent()
@@ -421,10 +424,10 @@ class Config extends ServerFormPage
         $this->restartNeeded = $this->restartNeeded || $restart;
 
         Notification::make()
-            ->title(trans_choice('underseer::underseer.config.saved', $saved, ['count' => $saved]))
+            ->title(trans_choice('overseer::overseer.config.saved', $saved, ['count' => $saved]))
             ->body(implode(' ', array_filter([
-                isset($changes['server']) || isset($changes['paper']) ? trans('underseer::underseer.config.saved_backup', ['dir' => ConfigFiles::BACKUP_DIR]) : null,
-                $restart ? trans('underseer::underseer.config.saved_restart') : null,
+                isset($changes['server']) || isset($changes['paper']) ? trans('overseer::overseer.config.saved_backup', ['dir' => ConfigFiles::BACKUP_DIR]) : null,
+                $restart ? trans('overseer::overseer.config.saved_restart') : null,
             ])) ?: null)
             ->success()
             ->send();
@@ -476,10 +479,10 @@ class Config extends ServerFormPage
             Activity::event('server:power.restart')->log();
             $this->restartNeeded = false;
 
-            Notification::make()->title(trans('underseer::underseer.config.restarting'))->success()->send();
+            Notification::make()->title(trans('overseer::overseer.config.restarting'))->success()->send();
         } catch (Exception $exception) {
             report($exception);
-            Notification::make()->title(trans('underseer::underseer.config.restart_failed'))->body($exception->getMessage())->danger()->send();
+            Notification::make()->title(trans('overseer::overseer.config.restart_failed'))->body($exception->getMessage())->danger()->send();
         }
     }
 }

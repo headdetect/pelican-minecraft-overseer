@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds dist/underseer-<version>.zip in the layout Pelican's "Import from file" expects:
+# Builds dist/overseer-<version>.zip in the layout Pelican's "Import from file" expects:
 # one top-level folder named after the plugin id, with plugin.json inside it.
 # Usage: bin/build-zip.sh [version]   (defaults to the version in plugin.json)
 set -euo pipefail

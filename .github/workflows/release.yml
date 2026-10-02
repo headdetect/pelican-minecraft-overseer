@@ -63,6 +63,6 @@ jobs:
         run: |
           gh release create "$VERSION" "${{ steps.build.outputs.zip }}" \
             --target "$GITHUB_SHA" \
-            --title "Underseer $VERSION" \
+            --title "Overseer $VERSION" \
             --generate-notes \
             $([[ "$VERSION" == *-* ]] && echo --prerelease)

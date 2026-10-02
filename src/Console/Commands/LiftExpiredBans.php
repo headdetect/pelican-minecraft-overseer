@@ -1,18 +1,18 @@
 <?php
 
-namespace Headdetect\Underseer\Console\Commands;
+namespace Headdetect\Overseer\Console\Commands;
 
 use App\Enums\ContainerStatus;
 use Exception;
-use Headdetect\Underseer\Models\TimedBan;
-use Headdetect\Underseer\Services\ConsoleService;
+use Headdetect\Overseer\Models\TimedBan;
+use Headdetect\Overseer\Services\ConsoleService;
 use Illuminate\Console\Command;
 
 class LiftExpiredBans extends Command
 {
-    protected $signature = 'underseer:lift-expired-bans';
+    protected $signature = 'overseer:lift-expired-bans';
 
-    protected $description = 'Unban players whose Underseer timed ban has run out.';
+    protected $description = 'Unban players whose Overseer timed ban has run out.';
 
     public function handle(): int
     {
