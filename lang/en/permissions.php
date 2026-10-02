@@ -4,7 +4,7 @@
 return [
     'overseer_title' => 'Overseer',
     'overseer_desc' => 'Minecraft admin tools: the live map, the player list, quick actions on players, world commands and server settings.',
-    'overseer_map_view' => 'See the Live Map with where everyone online is standing.',
+    'overseer_map_view' => 'See the Overview: server stats and a live map of where everyone online is standing.',
     'overseer_players_view' => 'See the Players page, with who is online, ops, the whitelist and bans.',
     'overseer_players_kick' => 'Kick players from the server.',
     'overseer_players_ban' => 'Ban and unban players.',

@@ -7,8 +7,94 @@
 <x-filament-panels::page>
     @assets
         <style>{!! file_get_contents(plugin_path('overseer', 'resources/map/live-map.css')) !!}</style>
+        <style>{!! file_get_contents(plugin_path('overseer', 'resources/map/overview.css')) !!}</style>
         <script>{!! file_get_contents(plugin_path('overseer', 'resources/map/live-map.js')) !!}</script>
     @endassets
+
+    @php
+        $stats = $this->stats();
+        $r = $stats['resources'];
+        $bytes = fn (?int $value) => $value === null ? null : convert_bytes_to_readable($value, 1);
+        $percent = fn (?float $used, int $limit) => $used !== null && $limit > 0 ? min(100, round($used / $limit * 100)) : null;
+        $cpuPercent = $percent($r['cpu'], $r['cpu_limit']);
+        $memoryPercent = $percent($r['memory'], $r['memory_limit']);
+        $diskPercent = $percent($r['disk'], $r['disk_limit']);
+        $none = trans('overseer::overseer.overview.none');
+    @endphp
+
+    <div class="us-stats" wire:poll.15s>
+        <div class="us-stat">
+            <div class="us-stat-label">{{ trans('overseer::overseer.overview.game_time') }}</div>
+            @if ($stats['time'])
+                <div class="us-stat-value">{{ $stats['time']['clock'] }}</div>
+                <div class="us-stat-sub">{{ trans('overseer::overseer.overview.day', ['day' => number_format($stats['time']['day'])]) }} · {{ trans('overseer::overseer.overview.phases.' . $stats['time']['phase']) }}</div>
+            @else
+                <div class="us-stat-value is-empty">{{ $none }}</div>
+                <div class="us-stat-sub">{{ $stats['running'] ? trans('overseer::overseer.overview.needs_rcon') : trans('overseer::overseer.overview.offline') }}</div>
+            @endif
+        </div>
+
+        <div class="us-stat">
+            <div class="us-stat-label">{{ trans('overseer::overseer.overview.minecraft') }}</div>
+            <div class="us-stat-value {{ $stats['version'] ? '' : 'is-empty' }}">{{ $stats['version'] ?? $none }}</div>
+            <div class="us-stat-sub">
+                @if ($r['uptime'] !== null)
+                    {{ trans('overseer::overseer.overview.uptime', ['time' => \Headdetect\Overseer\Support\ServerStats::uptime($r['uptime'])]) }}
+                @else
+                    {{ trans('overseer::overseer.overview.offline') }}
+                @endif
+            </div>
+        </div>
+
+        <div class="us-stat">
+            <div class="us-stat-label">{{ trans('overseer::overseer.overview.modpack') }}</div>
+            @if ($stats['modpack'])
+                <div class="us-stat-value us-stat-name" title="{{ $stats['modpack']['name'] }}">
+                    @if ($stats['modpack']['url'])
+                        <a href="{{ $stats['modpack']['url'] }}" target="_blank" rel="noopener noreferrer">{{ $stats['modpack']['name'] }}</a>
+                    @else
+                        {{ $stats['modpack']['name'] }}
+                    @endif
+                </div>
+                <div class="us-stat-sub">
+                    {{ $stats['modpack']['version'] ?? trans('overseer::overseer.overview.unknown_version') }}
+                    @if ($stats['modpack']['url'])
+                        · <a href="{{ $stats['modpack']['url'] }}" target="_blank" rel="noopener noreferrer">{{ trans('overseer::overseer.overview.providers.' . $stats['modpack']['provider']) }}</a>
+                    @endif
+                </div>
+            @else
+                <div class="us-stat-value is-empty">{{ $none }}</div>
+                <div class="us-stat-sub">{{ trans('overseer::overseer.overview.no_modpack') }}</div>
+            @endif
+        </div>
+
+        <div class="us-stat">
+            <div class="us-stat-label">{{ trans('overseer::overseer.overview.cpu') }}</div>
+            <div class="us-stat-value {{ $r['cpu'] === null ? 'is-empty' : '' }}">{{ $r['cpu'] === null ? $none : number_format($r['cpu'], 1) . '%' }}</div>
+            <div class="us-stat-sub">{{ $r['cpu_limit'] > 0 ? trans('overseer::overseer.overview.of', ['limit' => $r['cpu_limit'] . '%']) : trans('overseer::overseer.overview.no_limit') }}</div>
+            @if ($cpuPercent !== null)
+                <div class="us-bar"><span style="width: {{ $cpuPercent }}%"></span></div>
+            @endif
+        </div>
+
+        <div class="us-stat">
+            <div class="us-stat-label">{{ trans('overseer::overseer.overview.memory') }}</div>
+            <div class="us-stat-value {{ $r['memory'] === null ? 'is-empty' : '' }}">{{ $bytes($r['memory']) ?? $none }}</div>
+            <div class="us-stat-sub">{{ $r['memory_limit'] > 0 ? trans('overseer::overseer.overview.of', ['limit' => $bytes($r['memory_limit'])]) : trans('overseer::overseer.overview.no_limit') }}</div>
+            @if ($memoryPercent !== null)
+                <div class="us-bar"><span style="width: {{ $memoryPercent }}%"></span></div>
+            @endif
+        </div>
+
+        <div class="us-stat">
+            <div class="us-stat-label">{{ trans('overseer::overseer.overview.disk') }}</div>
+            <div class="us-stat-value {{ $r['disk'] === null ? 'is-empty' : '' }}">{{ $bytes($r['disk']) ?? $none }}</div>
+            <div class="us-stat-sub">{{ $r['disk_limit'] > 0 ? trans('overseer::overseer.overview.of', ['limit' => $bytes($r['disk_limit'])]) : trans('overseer::overseer.overview.no_limit') }}</div>
+            @if ($diskPercent !== null)
+                <div class="us-bar"><span style="width: {{ $diskPercent }}%"></span></div>
+            @endif
+        </div>
+    </div>
 
     @if ($setup)
         <x-filament::section icon="tabler-map-off" icon-color="warning" :heading="$setup['title']" :description="$setup['body']" compact>

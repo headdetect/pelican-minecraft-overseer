@@ -4,7 +4,7 @@
 #
 # Usage: script/screenshot <page> [--click TEXT]... [--wait MS]
 #   <page> is a panel path such as /admin/plugins, or an Overseer page name
-#   (players, map, commands, config) on the dev server.
+#   (overview, players, commands, config) on the dev server.
 #   --click clicks the first visible element with that text, in order, before
 #   the screenshot. --wait sets the pause before the screenshot (default 1500).
 #

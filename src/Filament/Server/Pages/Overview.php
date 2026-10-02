@@ -16,24 +16,25 @@ use Headdetect\Overseer\Filament\Server\Clusters\Overseer;
 use Headdetect\Overseer\Models\TimedBan;
 use Headdetect\Overseer\Services\ConsoleService;
 use Headdetect\Overseer\Services\Map\MapService;
+use Headdetect\Overseer\Services\OverviewService;
 use Headdetect\Overseer\Services\PlayerService;
 use Headdetect\Overseer\Support\CommandInput;
 use Headdetect\Overseer\Support\Permission;
 use Livewire\Attributes\Renderless;
 
-class LiveMap extends Page
+class Overview extends Page
 {
     use BlockAccessInConflict;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'tabler-map-2';
+    protected static string|\BackedEnum|null $navigationIcon = 'tabler-layout-dashboard';
 
-    protected static ?string $slug = 'map';
+    protected static ?string $slug = 'overview';
 
     protected static ?string $cluster = Overseer::class;
 
     protected static ?int $navigationSort = 1;
 
-    protected string $view = 'overseer::live-map';
+    protected string $view = 'overseer::overview';
 
     /** @var array{status: string, port: ?int, worlds: array<int, array<string, mixed>>} */
     public array $source = [];
@@ -51,7 +52,7 @@ class LiveMap extends Page
 
     public static function getNavigationLabel(): string
     {
-        return trans('overseer::overseer.map.title');
+        return trans('overseer::overseer.overview.title');
     }
 
     public function getTitle(): string
@@ -63,6 +64,12 @@ class LiveMap extends Page
     {
         $this->source = app(MapService::class)->source($this->server());
         $this->ops = app(PlayerService::class)->ops($this->server());
+    }
+
+    /** The quick stats above the map. The view polls this. */
+    public function stats(): array
+    {
+        return app(OverviewService::class)->stats($this->server());
     }
 
     /** What the map script needs. Built here so the view stays simple. */

@@ -21,6 +21,7 @@ use Headdetect\Overseer\Services\Rcon\RconException;
 use Headdetect\Overseer\Support\CommandInput;
 use Headdetect\Overseer\Support\ConfigSchema;
 use Headdetect\Overseer\Support\Properties;
+use Headdetect\Overseer\Support\ServerStats;
 use Headdetect\Overseer\Support\YamlLines;
 
 $failures = 0;
@@ -62,6 +63,28 @@ check('reason colour codes removed', CommandInput::text('§cBad §lplayer'), 'Ba
 check('reason length bounded', mb_strlen(CommandInput::text(str_repeat('x', 500))), 200);
 check('command leading slash removed', CommandInput::command('/time set day'), 'time set day');
 check('command one line', CommandInput::command("say hi\nstop"), 'say hi stop');
+
+// --- Overview stats ---
+check('time 26.1 timeline', ServerStats::gameTime('Timeline minecraft:day is at 3153 tick(s)'), ['day' => 1, 'clock' => '09:09', 'phase' => 'day']);
+check('time 26.1 later day', ServerStats::gameTime('Timeline minecraft:day is at 66000 tick(s)'), ['day' => 3, 'clock' => '00:00', 'phase' => 'night']);
+check('time older versions', ServerStats::gameTime('The time is 4', 'The time is 12500'), ['day' => 5, 'clock' => '18:30', 'phase' => 'sunset']);
+check('time older daytime keeps counting', ServerStats::gameTime('The time is 0', 'The time is 47000')['clock'], '05:00');
+check('time unknown reply', ServerStats::gameTime('Unknown or incomplete command'), null);
+check('time no rcon', ServerStats::gameTime(null), null);
+check('clock sunrise', ServerStats::clock(0, 23500)['phase'], 'sunrise');
+check('version vanilla', ServerStats::version('Server version info:id = 26.1.2name = 26.1.2data = 4790series = main'), '26.1.2');
+check('version vanilla lines', ServerStats::version("Server version info:\nid = 1.21.8\nname = 1.21.8\ndata = 4440"), '1.21.8');
+check('version paper', ServerStats::version('This server is running Paper version 1.21.1-130-master@b48403b (2024-10-23T08:39:46Z) (Implementing API version 1.21.1-R0.1-SNAPSHOT) (MC: 1.21.1)'), '1.21.1');
+check('version unknown', ServerStats::version('Unknown or incomplete command'), null);
+check('version from egg', ServerStats::versionFromEnvironment(['MC_VERSION' => '26.1.2']), '26.1.2');
+check('version egg latest ignored', ServerStats::versionFromEnvironment(['MC_VERSION' => 'latest', 'MINECRAFT_VERSION' => '1.20.1']), '1.20.1');
+check('modpack from db row', ServerStats::modpack(['provider' => 'modrinth', 'modpack_id' => '1KVo5zza', 'modpack_name' => 'Fabulously Optimized', 'modpack_version' => '6.4.0']), ['name' => 'Fabulously Optimized', 'version' => '6.4.0', 'provider' => 'modrinth', 'url' => 'https://modrinth.com/modpack/1KVo5zza']);
+check('modpack from metadata file', ServerStats::modpack(['provider' => 'curseforge', 'modpack_id' => '715572', 'name' => 'All the Mods 9', 'version' => null])['url'], 'https://www.curseforge.com/projects/715572');
+check('modpack bad id gets no link', ServerStats::modpack(['provider' => 'modrinth', 'modpack_id' => '../x', 'name' => 'Pack'])['url'], null);
+check('modpack html stripped', ServerStats::modpack(['name' => '<b>Pack</b>'])['name'], 'Pack');
+check('modpack missing name', ServerStats::modpack(['provider' => 'modrinth']), null);
+check('uptime days', ServerStats::uptime(3 * 86400000 + 4 * 3600000), '3d 4h');
+check('uptime minutes', ServerStats::uptime(12 * 60000 + 59000), '12m');
 
 // --- server.properties ---
 $props = Properties::parse(<<<'TXT'

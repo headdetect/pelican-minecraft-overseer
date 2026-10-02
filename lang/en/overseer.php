@@ -3,6 +3,35 @@
 return [
     'cluster' => 'Overseer',
 
+    'overview' => [
+        'title' => 'Overview',
+        'game_time' => 'Game time',
+        'day' => 'Day :day',
+        'phases' => [
+            'day' => 'Daytime',
+            'sunset' => 'Sunset',
+            'night' => 'Night',
+            'sunrise' => 'Sunrise',
+        ],
+        'needs_rcon' => 'Turn on RCON to see the time',
+        'offline' => 'Server offline',
+        'minecraft' => 'Minecraft',
+        'uptime' => 'Up :time',
+        'modpack' => 'Modpack',
+        'unknown_version' => 'Version unknown',
+        'no_modpack' => 'None detected',
+        'providers' => [
+            'modrinth' => 'Modrinth',
+            'curseforge' => 'CurseForge',
+        ],
+        'cpu' => 'CPU',
+        'memory' => 'Memory',
+        'disk' => 'Disk',
+        'of' => 'of :limit',
+        'no_limit' => 'No limit',
+        'none' => '—',
+    ],
+
     'map' => [
         'title' => 'Live Map',
         'aria' => 'World map. Drag to move, scroll or use plus and minus to zoom, arrow keys to pan.',

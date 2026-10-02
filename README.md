@@ -4,7 +4,7 @@ A [Pelican](https://pelican.dev) panel plugin for running a Minecraft Java serve
 
 **Working now**
 
-- **Live Map**: the world map from squaremap with a marker for everyone online, updated every 5 seconds. Switch between Overworld, Nether and End, drag and zoom, and click a player to kick, ban or op them. Without squaremap, players are drawn on a block grid using RCON.
+- **Overview**: quick stats for game time, Minecraft version, modpack (with a link to its Modrinth or CurseForge page), CPU, memory and disk. The modpack comes from the [Modpack Manager](https://hub.pelican.dev/plugins/modpack-manager) plugin's record. Below the stats is a live map: the world map from squaremap with a marker for everyone online, updated every 5 seconds. Switch between Overworld, Nether and End, drag and zoom, and click a player to kick, ban or op them. Without squaremap, players are drawn on a block grid using RCON.
 - **Players**: who is online and where they are, plus everyone the server has seen, ops, the whitelist and bans. Kick (with a reason), ban for 1 hour, 1 day, 7 days or permanently, unban, op or deop, and whitelist from each row.
 - **Quick Commands**: one-click time of day, weather and difficulty; switches for common game rules; save the world, whitelist on or off, broadcast, or run any command. A "Recent actions" list shows who ran what.
 - **Config**: server settings, game rules and Paper settings as a form. Each setting has a plain title, a one-line description and the right control (switch, number, slider, dropdown or text), plus a tag saying whether it applies right away or needs a restart. Search across all settings, review a before-and-after list, then save. See [Config](#config) below.
