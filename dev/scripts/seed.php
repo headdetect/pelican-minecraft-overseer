@@ -243,7 +243,9 @@ switch ($step) {
         // anyone joins.
         $server = server() ?? throw new RuntimeException('Run the server step first.');
         $files = (new DaemonFileRepository())->setServer($server);
-        if (collect($files->getDirectory('squaremap'))->pluck('name')->contains('.dev-rendered')) {
+        // The marker is in the world directory, so a regenerated world renders again.
+        $rendered = fn () => collect($files->getDirectory('world'))->pluck('name')->contains('.dev-rendered');
+        if (rescue($rendered, false, report: false)) {
             echo "seed: map already rendered, skipping\n";
             break;
         }
@@ -280,7 +282,7 @@ switch ($step) {
         $rcon('forceload remove all');
         $rcon(sprintf('squaremap radiusrender %s 128 %d %d', preg_replace('/_/', ':', $world['name'], 1), $world['spawn']['x'], $world['spawn']['z']));
 
-        $files->putContent('squaremap/.dev-rendered', '');
+        $files->putContent('world/.dev-rendered', '');
         echo "seed: rendered the map around spawn\n";
         break;
 

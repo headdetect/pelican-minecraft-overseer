@@ -94,7 +94,7 @@ seed configure
 seed start
 
 echo "up: waiting for the server to boot, then rendering the map around spawn"
-seed render
+seed render || echo "up: the map render failed. The Live Map fills in as players explore."
 
 uuid=$(cat "$DEV_DATA/server-uuid")
 cat <<EOF
