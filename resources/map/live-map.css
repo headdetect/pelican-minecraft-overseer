@@ -12,7 +12,7 @@
     --us-good: #22c55e;
     --us-warn: #f59e0b;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 280px;
+    grid-template-columns: minmax(0, 1fr) 330px;
     gap: 1rem;
     /* The map column stretches to the height of the right column. */
     align-items: stretch;

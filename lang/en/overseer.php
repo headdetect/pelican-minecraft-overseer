@@ -224,7 +224,7 @@ return [
         ],
         'server' => [
             'title' => 'Server',
-            'help' => 'Saving and whitelist control, messages, and any other command.',
+            'help' => 'Save the world, message everyone, or run any command.',
             'message' => 'Message to everyone',
             'command' => 'Command',
         ],
@@ -232,6 +232,11 @@ return [
             'title' => 'Recent actions',
             'help' => 'What admins ran from Overseer on this server. Also in the Activity log.',
             'empty' => 'Nothing yet.',
+        ],
+        'short' => [
+            'save' => 'Save',
+            'broadcast' => 'Broadcast',
+            'custom' => 'Command',
         ],
         'buttons' => [
             'sunrise' => 'Sunrise',
@@ -242,8 +247,6 @@ return [
             'rain' => 'Rain',
             'thunder' => 'Thunder',
             'save' => 'Save world',
-            'whitelist_on' => 'Whitelist on',
-            'whitelist_off' => 'Whitelist off',
             'broadcast' => 'Broadcast',
             'custom' => 'Run a command',
         ],

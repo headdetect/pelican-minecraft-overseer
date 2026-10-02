@@ -16,8 +16,7 @@ use Headdetect\Overseer\Support\Permission;
 /**
  * The one-click commands on the Overview: time of day, weather, and the server
  * panel, plus the list of recent actions. Time and weather need the
- * commands-world permission. Whitelist, broadcast and any command need
- * commands-ops.
+ * commands-world permission. Broadcast and any command need commands-ops.
  */
 trait RunsQuickCommands
 {
@@ -73,16 +72,7 @@ trait RunsQuickCommands
         return $this->commandButton('save', 'save', 'save-all', 'tabler-device-floppy', world: true);
     }
 
-    public function whitelistOnAction(): Action
-    {
-        return $this->commandButton('whitelist_on', 'whitelist', 'whitelist on', 'tabler-shield-lock', world: false, name: 'whitelistOn');
-    }
 
-    public function whitelistOffAction(): Action
-    {
-        return $this->commandButton('whitelist_off', 'whitelist', 'whitelist off', 'tabler-shield-off', world: false, name: 'whitelistOff')
-            ->requiresConfirmation();
-    }
 
     public function broadcastAction(): Action
     {
@@ -161,9 +151,9 @@ trait RunsQuickCommands
             ->all();
     }
 
-    private function commandButton(string $label, string $action, string $command, string $icon, bool $world, ?string $name = null): Action
+    private function commandButton(string $label, string $action, string $command, string $icon, bool $world): Action
     {
-        return Action::make($name ?? $label)
+        return Action::make($label)
             ->button()
             ->color('gray')
             ->label(trans("overseer::overseer.commands.buttons.$label"))
