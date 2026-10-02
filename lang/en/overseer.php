@@ -196,7 +196,6 @@ return [
     ],
 
     'commands' => [
-        'title' => 'Quick Commands',
         'sent' => 'Ran :command',
         'failed' => "That didn't work",
         'time' => [
@@ -206,16 +205,6 @@ return [
         'weather' => [
             'title' => 'Weather',
             'help' => 'Change the sky. It changes back on its own later.',
-        ],
-        'difficulty' => [
-            'title' => 'Difficulty',
-            'help' => 'How tough mobs are, and whether hunger can kill.',
-        ],
-        'rules' => [
-            'title' => 'World rules',
-            'help' => 'Game rules apply instantly, no restart needed.',
-            'unknown' => "Changes apply instantly. Turn on RCON to see each rule's current value; until then the switches may not match the server.",
-            'changed' => ':rule is now :state',
         ],
         'server' => [
             'title' => 'Server',
@@ -236,10 +225,6 @@ return [
             'clear' => 'Clear',
             'rain' => 'Rain',
             'thunder' => 'Thunder',
-            'peaceful' => 'Peaceful',
-            'easy' => 'Easy',
-            'normal' => 'Normal',
-            'hard' => 'Hard',
             'save' => 'Save world',
             'whitelist_on' => 'Whitelist on',
             'whitelist_off' => 'Whitelist off',

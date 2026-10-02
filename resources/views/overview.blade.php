@@ -11,6 +11,7 @@
         <script>{!! file_get_contents(plugin_path('overseer', 'resources/map/live-map.js')) !!}</script>
     @endassets
 
+    @if ($this->canSeeMap())
     @php
         $stats = $this->stats();
         $r = $stats['resources'];
@@ -223,4 +224,41 @@
             </x-filament::section>
         </div>
     </div>
+    @endif
+
+    @if ($this->canRunWorldCommands() || $this->canRunOpsCommands())
+        <div class="us-commands">
+            @if ($this->canRunWorldCommands())
+                <section>
+                    <h3 class="us-h">{{ trans('overseer::overseer.commands.time.title') }}</h3>
+                    <p class="us-help">{{ trans('overseer::overseer.commands.time.help') }}</p>
+                    <div class="us-buttons">{{ $this->sunriseAction }} {{ $this->noonAction }} {{ $this->sunsetAction }} {{ $this->midnightAction }}</div>
+                </section>
+                <section>
+                    <h3 class="us-h">{{ trans('overseer::overseer.commands.weather.title') }}</h3>
+                    <p class="us-help">{{ trans('overseer::overseer.commands.weather.help') }}</p>
+                    <div class="us-buttons">{{ $this->clearAction }} {{ $this->rainAction }} {{ $this->thunderAction }}</div>
+                </section>
+            @endif
+            <section>
+                <h3 class="us-h">{{ trans('overseer::overseer.commands.server.title') }}</h3>
+                <p class="us-help">{{ trans('overseer::overseer.commands.server.help') }}</p>
+                <div class="us-buttons">{{ $this->saveAction }} {{ $this->whitelistOnAction }} {{ $this->whitelistOffAction }} {{ $this->broadcastAction }} {{ $this->customAction }}</div>
+            </section>
+            <section>
+                <h3 class="us-h">{{ trans('overseer::overseer.commands.recent.title') }}</h3>
+                <p class="us-help">{{ trans('overseer::overseer.commands.recent.help') }}</p>
+                @php($recentActions = $this->recentActions())
+                @if ($recentActions)
+                    <ul class="us-log">
+                        @foreach ($recentActions as $line)
+                            <li>{{ $line }}</li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p class="us-help">{{ trans('overseer::overseer.commands.recent.empty') }}</p>
+                @endif
+            </section>
+        </div>
+    @endif
 </x-filament-panels::page>

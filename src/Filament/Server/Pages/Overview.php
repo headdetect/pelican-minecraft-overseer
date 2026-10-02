@@ -13,6 +13,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Headdetect\Overseer\Filament\Server\Clusters\Overseer;
+use Headdetect\Overseer\Filament\Server\Concerns\RunsQuickCommands;
 use Headdetect\Overseer\Models\TimedBan;
 use Headdetect\Overseer\Services\ConsoleService;
 use Headdetect\Overseer\Services\Map\MapService;
@@ -25,6 +26,7 @@ use Livewire\Attributes\Renderless;
 class Overview extends Page
 {
     use BlockAccessInConflict;
+    use RunsQuickCommands;
 
     protected static string|\BackedEnum|null $navigationIcon = 'tabler-layout-dashboard';
 
@@ -50,7 +52,16 @@ class Overview extends Page
         /** @var Server $server */
         $server = Filament::getTenant();
 
-        return Permission::allows(Permission::MAP_VIEW, $server) && parent::canAccess();
+        return (Permission::allows(Permission::MAP_VIEW, $server)
+            || Permission::allows(Permission::COMMANDS_WORLD, $server)
+            || Permission::allows(Permission::COMMANDS_OPS, $server))
+            && parent::canAccess();
+    }
+
+    /** The stats, map and players need overseer.map-view. The command panels have their own permissions. */
+    public function canSeeMap(): bool
+    {
+        return Permission::allows(Permission::MAP_VIEW, $this->server());
     }
 
     public static function getNavigationLabel(): string
@@ -65,6 +76,10 @@ class Overview extends Page
 
     public function mount(): void
     {
+        if (!$this->canSeeMap()) {
+            return;
+        }
+
         $this->source = app(MapService::class)->source($this->server());
         $this->ops = app(PlayerService::class)->ops($this->server());
     }
@@ -343,7 +358,7 @@ class Overview extends Page
         return Permission::allows($permission, $this->server());
     }
 
-    private function server(): Server
+    protected function server(): Server
     {
         /** @var Server $server */
         $server = Filament::getTenant();
