@@ -134,6 +134,37 @@
 
         <div class="us-side">
 
+            <x-filament::section :heading="trans('overseer::overseer.chat.title')" compact>
+                <div class="us-chat" x-ref="chat" aria-live="polite">
+                    <template x-for="(m, i) in chat" :key="i">
+                        <div class="us-chat-line" :class="`is-${m.type}`">
+                            <span class="us-chat-time" x-text="m.time.slice(0, 5)"></span>
+                            <template x-if="m.type === 'chat'">
+                                <span><b x-text="m.name"></b> <span x-text="m.text"></span></span>
+                            </template>
+                            <template x-if="m.type === 'say'">
+                                <span><b x-text="`[${m.name}]`"></b> <span x-text="m.text"></span></span>
+                            </template>
+                            <template x-if="m.type === 'join'">
+                                <span x-text="cfg.labels.joined.replace(':name', m.name)"></span>
+                            </template>
+                            <template x-if="m.type === 'leave'">
+                                <span x-text="cfg.labels.left.replace(':name', m.name)"></span>
+                            </template>
+                        </div>
+                    </template>
+                    <div class="us-empty" x-show="chat.length === 0">{{ trans('overseer::overseer.chat.empty') }}</div>
+                </div>
+                @if ($this->canRunOpsCommands())
+                    <form class="us-chat-send" x-on:submit.prevent="sendChat()">
+                        <input type="text" x-model="draft" maxlength="200" placeholder="{{ trans('overseer::overseer.chat.placeholder') }}" aria-label="{{ trans('overseer::overseer.chat.placeholder') }}" :disabled="sending">
+                        <button type="submit" :disabled="sending || !draft.trim()" aria-label="{{ trans('overseer::overseer.chat.send') }}" title="{{ trans('overseer::overseer.chat.send') }}">
+                            <x-filament::icon icon="tabler-send" />
+                        </button>
+                    </form>
+                @endif
+            </x-filament::section>
+
             <x-filament::section :heading="trans('overseer::overseer.map.online')" compact>
                 <x-slot name="afterHeader">
                     <x-filament::badge color="success"><span x-text="online.length">0</span></x-filament::badge>

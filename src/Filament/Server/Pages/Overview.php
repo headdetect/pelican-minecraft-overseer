@@ -100,6 +100,8 @@ class Overview extends Page
             'headUrl' => 'https://mc-heads.net/avatar/{name}/64',
             'refresh' => (int) config('overseer.map.refresh', 5),
             'labels' => [
+                'joined' => trans('overseer::overseer.chat.joined'),
+                'left' => trans('overseer::overseer.chat.left'),
                 'day' => trans('overseer::overseer.overview.day'),
                 'phases' => trans('overseer::overseer.overview.phases'),
                 'providers' => trans('overseer::overseer.overview.providers'),
@@ -141,6 +143,7 @@ class Overview extends Page
             'players' => array_map(fn (array $player) => [...$player, 'op' => in_array($player['name'], $this->ops, true)], $players ?? []),
             'online' => array_map(fn (string $name) => ['name' => $name, 'op' => in_array($name, $this->ops, true)], $online),
             'time' => $running ? $overview->gameTime($server) : null,
+            'chat' => $running ? ($overview->chat($server) ?? []) : [],
             'server' => $this->serverInfo($overview->stats($server)),
         ];
     }
@@ -155,6 +158,30 @@ class Overview extends Page
             'modpack' => $stats['modpack'],
             'uptime' => $uptime !== null ? trans('overseer::overseer.overview.uptime', ['time' => ServerStats::uptime($uptime)]) : null,
         ];
+    }
+
+    /** Sends a chat message as "[Rcon] <panel user>: message", with say. */
+    public function sendChat(string $message): bool
+    {
+        $server = $this->server();
+        abort_unless($this->canRunOpsCommands(), 403);
+
+        $text = CommandInput::text($message);
+        if ($text === '') {
+            return false;
+        }
+
+        try {
+            $name = CommandInput::text(user()?->username ?? 'admin', 32);
+            app(ConsoleService::class)->run($server, 'chat', "say $name: $text");
+            cache()->forget("overseer:chat:$server->uuid");
+
+            return true;
+        } catch (Exception $exception) {
+            Notification::make()->title(trans('overseer::overseer.chat.failed'))->body($exception->getMessage())->danger()->send();
+
+            return false;
+        }
     }
 
     /** Looks for squaremap again, for after an admin installs or sets it up. */

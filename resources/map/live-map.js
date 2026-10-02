@@ -26,6 +26,9 @@ window.overseerLiveMap = function (cfg) {
         online: [],
         time: null,
         server: null,
+        chat: [],
+        draft: '',
+        sending: false,
         selected: null,
         pop: null,
         state: 'loading',
@@ -69,6 +72,7 @@ window.overseerLiveMap = function (cfg) {
                 this.online = result.online ?? [];
                 this.time = result.time ?? null;
                 this.server = result.server ?? null;
+                this.setChat(result.chat ?? []);
                 this.state = result.ok ? 'live' : 'stale';
             } catch (e) {
                 this.state = 'stale';
@@ -89,6 +93,28 @@ window.overseerLiveMap = function (cfg) {
         // The map position of an online player, or null when squaremap hides them.
         live(name) {
             return this.players.find((p) => p.name === name) ?? null;
+        },
+
+        // Keeps the chat scrolled to the newest line, unless someone scrolled up to read.
+        setChat(lines) {
+            const box = this.$refs.chat;
+            const atBottom = !box || box.scrollHeight - box.scrollTop - box.clientHeight < 24;
+            this.chat = lines;
+            if (atBottom) this.$nextTick(() => box && (box.scrollTop = box.scrollHeight));
+        },
+
+        async sendChat() {
+            const text = this.draft.trim();
+            if (!text || this.sending) return;
+            this.sending = true;
+            try {
+                if (await this.$wire.sendChat(text)) {
+                    this.draft = '';
+                    this.tick();
+                }
+            } finally {
+                this.sending = false;
+            }
         },
 
         phaseIcon(phase) {

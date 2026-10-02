@@ -4,6 +4,16 @@ return [
     'cluster' => 'Overseer',
     'players_online' => 'Players online now',
 
+    'chat' => [
+        'title' => 'Chat',
+        'empty' => 'No chat yet.',
+        'placeholder' => 'Message everyone',
+        'send' => 'Send',
+        'joined' => ':name joined',
+        'left' => ':name left',
+        'failed' => "Couldn't send the message",
+    ],
+
     'rcon' => [
         'off' => [
             'title' => 'RCON is off',

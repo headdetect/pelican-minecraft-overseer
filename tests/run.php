@@ -19,6 +19,7 @@ use Headdetect\Overseer\Services\PlayerService;
 use Headdetect\Overseer\Services\Rcon\RconClient;
 use Headdetect\Overseer\Services\Rcon\RconException;
 use Headdetect\Overseer\Services\Tools\Chunky;
+use Headdetect\Overseer\Support\ChatLog;
 use Headdetect\Overseer\Support\CommandInput;
 use Headdetect\Overseer\Support\ConfigSchema;
 use Headdetect\Overseer\Support\EditableFiles;
@@ -149,6 +150,24 @@ check('not squaremap tiles', EditableFiles::isEditable('squaremap/web/tiles/sett
 check('too deep', EditableFiles::isEditable('config/a/b/c/d.toml'), false);
 check('language toml', EditableFiles::language('config/x.toml'), 'ini');
 check('language yaml', EditableFiles::language('plugins/x/config.yml'), 'yaml');
+
+// --- Chat ---
+$chat = ChatLog::parse([
+    '[12:04:31] [Server thread/INFO]: <Doobie> hi all',
+    '[12:04:32] [Async Chat Thread - #0/INFO]: [Not Secure] <kelp_lord> §ahello',
+    '[12:05:02] [Server thread/INFO]: [Not Secure] [Rcon] admin: restarting soon',
+    '[12:06:10] [Server thread/INFO]: Doobie joined the game',
+    '[12:06:11] [Server thread/INFO]: Doobie left the game',
+    '[12:06:12] [RCON Listener #2/INFO]: Thread RCON Client /172.29.0.1 started',
+    '[12:06:13] [Server thread/WARN]: <Fake> not chat',
+    'garbage',
+]);
+check('chat count', count($chat), 5);
+check('chat message', $chat[0], ['time' => '12:04:31', 'type' => 'chat', 'name' => 'Doobie', 'text' => 'hi all']);
+check('chat paper not secure, colours stripped', $chat[1]['text'], 'hello');
+check('chat say from rcon', [$chat[2]['type'], $chat[2]['name'], $chat[2]['text']], ['say', 'Rcon', 'admin: restarting soon']);
+check('chat join and leave', [$chat[3]['type'], $chat[4]['type']], ['join', 'leave']);
+check('chat limit keeps newest', ChatLog::parse(array_fill(0, 5, '[01:00:00] [Server thread/INFO]: <A> x'), 2), [['time' => '01:00:00', 'type' => 'chat', 'name' => 'A', 'text' => 'x'], ['time' => '01:00:00', 'type' => 'chat', 'name' => 'A', 'text' => 'x']]);
 
 // --- Reset to default ---
 $port = ['type' => 'int', 'default' => 25575, 'title' => 'Port'];

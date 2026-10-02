@@ -5,8 +5,10 @@ namespace Headdetect\Overseer\Services;
 use App\Enums\ContainerStatus;
 use App\Models\Server;
 use App\Repositories\Daemon\DaemonFileRepository;
+use App\Repositories\Daemon\DaemonServerRepository;
 use App\Services\Servers\EnvironmentService;
 use Exception;
+use Headdetect\Overseer\Support\ChatLog;
 use Headdetect\Overseer\Support\ServerStats;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Facades\Cache;
@@ -46,6 +48,33 @@ class OverviewService
             'version' => $this->version($server, $running),
             'modpack' => $this->modpack($server),
         ];
+    }
+
+    /** Console lines to read for chat. Overseer's own RCON connections add two lines per poll. */
+    private const CHAT_LINES = 1000;
+
+    /**
+     * Recent chat, joins and leaves from the last console lines, which Wings
+     * reads from the end of the log. Null when Wings can't answer.
+     *
+     * @return ?array<int, array{time: string, type: string, name: string, text: string}>
+     */
+    public function chat(Server $server): ?array
+    {
+        return Cache::remember("overseer:chat:$server->uuid", now()->addSeconds(3), function () use ($server) {
+            try {
+                $lines = (new DaemonServerRepository())->setServer($server)->getHttpClient()
+                    ->get("/api/servers/$server->uuid/logs", ['size' => self::CHAT_LINES])
+                    ->throw()
+                    ->json('data');
+
+                return ChatLog::parse(is_array($lines) ? $lines : []);
+            } catch (Exception $exception) {
+                report($exception);
+
+                return null;
+            }
+        });
     }
 
     public function gameTime(Server $server): ?array
