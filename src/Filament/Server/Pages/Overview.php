@@ -153,7 +153,6 @@ class Overview extends Page
                 'whitelisted' => in_array($player['name'], $whitelist, true),
             ], $recent),
             'time' => $running ? $overview->gameTime($server) : null,
-            'modpack' => $overview->modpack($server),
         ];
     }
 

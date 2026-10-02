@@ -33,6 +33,7 @@ class OverviewService
      *     running: bool,
      *     resources: array{cpu: ?float, cpu_limit: int, memory: ?int, memory_limit: int, disk: ?int, disk_limit: int, uptime: ?int},
      *     version: ?string,
+     *     modpack: ?array{name: string, version: ?string, provider: string, url: ?string},
      * }
      */
     public function stats(Server $server): array
@@ -43,6 +44,7 @@ class OverviewService
             'running' => $running,
             'resources' => $this->resources($server, $running),
             'version' => $this->version($server, $running),
+            'modpack' => $this->modpack($server),
         ];
     }
 

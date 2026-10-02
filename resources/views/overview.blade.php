@@ -27,12 +27,20 @@
         <div class="us-stat">
             <div class="us-stat-label">{{ trans('overseer::overseer.overview.minecraft') }}</div>
             <div class="us-stat-value {{ $stats['version'] ? '' : 'is-empty' }}">{{ $stats['version'] ?? $none }}</div>
-            <div class="us-stat-sub">
-                @if ($r['uptime'] !== null)
-                    {{ trans('overseer::overseer.overview.uptime', ['time' => \Headdetect\Overseer\Support\ServerStats::uptime($r['uptime'])]) }}
+            <div class="us-stat-sub" @if ($stats['modpack']) title="{{ $stats['modpack']['name'] }} {{ $stats['modpack']['version'] }}" @endif>
+                @if ($stats['modpack'])
+                    @if ($stats['modpack']['url'])
+                        <a href="{{ $stats['modpack']['url'] }}" target="_blank" rel="noopener noreferrer">{{ $stats['modpack']['name'] }}</a>
+                    @else
+                        {{ $stats['modpack']['name'] }}
+                    @endif
+                    {{ $stats['modpack']['version'] }}
                 @else
-                    {{ trans('overseer::overseer.overview.offline') }}
+                    {{ trans('overseer::overseer.overview.no_modpack') }}
                 @endif
+            </div>
+            <div class="us-stat-sub">
+                {{ $r['uptime'] !== null ? trans('overseer::overseer.overview.uptime', ['time' => \Headdetect\Overseer\Support\ServerStats::uptime($r['uptime'])]) : trans('overseer::overseer.overview.offline') }}
             </div>
         </div>
 
@@ -141,6 +149,25 @@
         </div>
 
         <div class="us-side">
+            <x-filament::section compact>
+                <div class="us-stat-label">{{ trans('overseer::overseer.overview.game_time') }}</div>
+                <template x-if="time">
+                    <div>
+                        <div class="us-time">
+                            <span class="us-time-icon" x-text="phaseIcon(time.phase)" :title="cfg.labels.phases[time.phase]" aria-hidden="true"></span>
+                            <span class="us-stat-value" x-text="time.clock"></span>
+                        </div>
+                        <div class="us-stat-sub" x-text="`${cfg.labels.day.replace(':day', time.day.toLocaleString())} · ${cfg.labels.phases[time.phase]}`"></div>
+                    </div>
+                </template>
+                <template x-if="!time">
+                    <div>
+                        <div class="us-stat-value is-empty">{{ trans('overseer::overseer.overview.none') }}</div>
+                        <div class="us-stat-sub">{{ trans('overseer::overseer.overview.needs_rcon') }}</div>
+                    </div>
+                </template>
+            </x-filament::section>
+
             <x-filament::section :heading="trans('overseer::overseer.map.online')" compact>
                 <x-slot name="afterHeader">
                     <x-filament::badge color="success" :tooltip="trans('overseer::overseer.map.online_count')"><span x-text="recent.filter((r) => r.online).length">0</span></x-filament::badge>
@@ -180,48 +207,6 @@
                 @endif
             </x-filament::section>
 
-            <x-filament::section compact>
-                <div class="us-stat-label">{{ trans('overseer::overseer.overview.game_time') }}</div>
-                <template x-if="time">
-                    <div>
-                        <div class="us-time">
-                            <span class="us-time-icon" x-text="phaseIcon(time.phase)" :title="cfg.labels.phases[time.phase]" aria-hidden="true"></span>
-                            <span class="us-stat-value" x-text="time.clock"></span>
-                        </div>
-                        <div class="us-stat-sub" x-text="`${cfg.labels.day.replace(':day', time.day.toLocaleString())} · ${cfg.labels.phases[time.phase]}`"></div>
-                    </div>
-                </template>
-                <template x-if="!time">
-                    <div>
-                        <div class="us-stat-value is-empty">{{ trans('overseer::overseer.overview.none') }}</div>
-                        <div class="us-stat-sub">{{ trans('overseer::overseer.overview.needs_rcon') }}</div>
-                    </div>
-                </template>
-            </x-filament::section>
-
-            <x-filament::section compact>
-                <div class="us-stat-label">{{ trans('overseer::overseer.overview.modpack') }}</div>
-                <template x-if="modpack">
-                    <div>
-                        <div class="us-stat-value us-stat-name" :title="modpack.name">
-                            <a x-show="modpack.url" :href="modpack.url" target="_blank" rel="noopener noreferrer" x-text="modpack.name"></a>
-                            <span x-show="!modpack.url" x-text="modpack.name"></span>
-                        </div>
-                        <div class="us-stat-sub">
-                            <span x-text="modpack.version ?? '{{ trans('overseer::overseer.overview.unknown_version') }}'"></span>
-                            <template x-if="modpack.url">
-                                <span>· <a :href="modpack.url" target="_blank" rel="noopener noreferrer" x-text="cfg.labels.providers[modpack.provider] ?? modpack.provider"></a></span>
-                            </template>
-                        </div>
-                    </div>
-                </template>
-                <template x-if="!modpack">
-                    <div>
-                        <div class="us-stat-value is-empty">{{ trans('overseer::overseer.overview.none') }}</div>
-                        <div class="us-stat-sub">{{ trans('overseer::overseer.overview.no_modpack') }}</div>
-                    </div>
-                </template>
-            </x-filament::section>
         </div>
     </div>
     @endif

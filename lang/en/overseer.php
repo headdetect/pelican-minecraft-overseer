@@ -30,7 +30,7 @@ return [
         'uptime' => 'Up :time',
         'modpack' => 'Modpack',
         'unknown_version' => 'Version unknown',
-        'no_modpack' => 'None detected',
+        'no_modpack' => 'No modpack detected',
         'providers' => [
             'modrinth' => 'Modrinth',
             'curseforge' => 'CurseForge',
