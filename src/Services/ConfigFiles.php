@@ -8,9 +8,13 @@ use App\Models\Server;
 use App\Repositories\Daemon\DaemonFileRepository;
 use Exception;
 use Headdetect\Overseer\Support\ConfigSchema;
+use Headdetect\Overseer\Support\EditableFiles;
 use Headdetect\Overseer\Support\Properties;
 use Headdetect\Overseer\Support\YamlLines;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Cache;
+use InvalidArgumentException;
 use RuntimeException;
 
 /**
@@ -173,6 +177,84 @@ class ConfigFiles
             ->log();
 
         return $running && $restart;
+    }
+
+    /**
+     * Config files the file editor can open: the root and the folders mods and
+     * plugins use, a few levels deep. Cached for a minute, because each folder
+     * is one request to Wings.
+     *
+     * @return string[] paths relative to the server root, sorted
+     */
+    public function editableFiles(Server $server): array
+    {
+        return Cache::remember("overseer:config-files:$server->uuid", now()->addMinute(), function () use ($server) {
+            $found = [];
+            $queue = [['', 0]];
+
+            while ($queue && count($found) < EditableFiles::MAX_FILES) {
+                [$dir, $depth] = array_shift($queue);
+
+                try {
+                    $entries = $this->files($server)->getDirectory($dir === '' ? '/' : $dir);
+                } catch (RequestException $exception) {
+                    if ($exception->response->status() !== 404) {
+                        report($exception);
+                    }
+
+                    continue;
+                }
+
+                foreach ($entries as $entry) {
+                    $name = (string) ($entry['name'] ?? '');
+                    $path = $dir === '' ? $name : "$dir/$name";
+
+                    if ($entry['directory'] ?? false) {
+                        $inFolder = $dir === '' ? in_array($name, EditableFiles::FOLDERS, true) : $depth < EditableFiles::DEPTH;
+                        if ($inFolder && !($entry['symlink'] ?? false) && !in_array($path, EditableFiles::SKIP_FOLDERS, true)) {
+                            $queue[] = [$path, $depth + 1];
+                        }
+                    } elseif (($entry['file'] ?? false) && EditableFiles::isEditable($path)) {
+                        $found[] = $path;
+                    }
+                }
+            }
+
+            sort($found);
+
+            return $found;
+        });
+    }
+
+    /** The contents of a file the editor may open. */
+    public function readEditable(Server $server, string $file): string
+    {
+        $this->checkEditable($server, $file);
+
+        return $this->read($server, $file) ?? '';
+    }
+
+    /** Saves a file the editor opened, after keeping a copy of the old one. Returns the backup path. */
+    public function writeEditable(Server $server, string $file, string $contents): ?string
+    {
+        $this->checkEditable($server, $file);
+
+        $old = $this->read($server, $file);
+        $backup = $old !== null ? $this->backup($server, $file, $old) : null;
+        $this->files($server)->putContent($file, $contents);
+
+        Activity::event('server:overseer.config')
+            ->property(['file' => $file, 'backup' => $backup, 'changes' => ['edited in the file editor']])
+            ->log();
+
+        return $backup;
+    }
+
+    private function checkEditable(Server $server, string $file): void
+    {
+        if (!EditableFiles::isEditable($file) || !in_array($file, $this->editableFiles($server), true)) {
+            throw new InvalidArgumentException("Overseer can't edit \"$file\".");
+        }
     }
 
     /** The file's contents, or null when it doesn't exist. */

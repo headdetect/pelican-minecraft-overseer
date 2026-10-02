@@ -253,6 +253,19 @@ return [
     ],
 
     'config' => [
+        'files' => [
+            'title' => 'Files',
+            'help' => 'Edit any config file directly, for mods and plugins with settings the other tabs don\'t cover. Overseer keeps a copy of the old file in .overseer/backups when you save. Most mods read their config on startup, so restart the server after saving.',
+            'file' => 'File',
+            'pick' => 'Pick a config file',
+            'reload' => 'Reload',
+            'save' => 'Save file',
+            'save_heading' => 'Save :file?',
+            'save_help' => 'Overseer keeps a copy of the current file first. A mistake in the file can stop the mod or the server from starting.',
+            'saved' => 'Saved :file',
+            'backup' => 'The old file is in :path',
+            'failed' => "Couldn't open or save that file",
+        ],
         'title' => 'Config',
         'search' => 'Find a setting',
         'advanced' => 'Show advanced',

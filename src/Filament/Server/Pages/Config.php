@@ -2,8 +2,10 @@
 
 namespace Headdetect\Overseer\Filament\Server\Pages;
 
+use App\Enums\EditorLanguages;
 use App\Enums\SubuserPermission;
 use App\Facades\Activity;
+use App\Filament\Components\Forms\Fields\MonacoEditor;
 use App\Filament\Server\Pages\ServerFormPage;
 use App\Models\Server;
 use App\Repositories\Daemon\DaemonServerRepository;
@@ -22,11 +24,13 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Alignment;
 use Headdetect\Overseer\Filament\Server\Clusters\Overseer;
 use Headdetect\Overseer\Services\ConfigFiles;
 use Headdetect\Overseer\Support\ConfigSchema;
+use Headdetect\Overseer\Support\EditableFiles;
 use Headdetect\Overseer\Support\Permission;
 use Illuminate\Support\HtmlString;
 use InvalidArgumentException;
@@ -49,6 +53,9 @@ class Config extends ServerFormPage
 
     /** @var array<string, string> why a source can't be shown */
     public array $unavailable = [];
+
+    /** The file editor's file as it was loaded, to tell whether it changed. */
+    public ?string $fileOriginal = null;
 
     /** Set after saving settings that only apply on restart. */
     public bool $restartNeeded = false;
@@ -74,7 +81,7 @@ class Config extends ServerFormPage
 
     protected function fillForm(): void
     {
-        $data = ['_search' => '', '_advanced' => false];
+        $data = ['_search' => '', '_advanced' => false, '_file' => ['path' => null, 'content' => '']];
 
         foreach (array_keys(ConfigSchema::SOURCES) as $source) {
             try {
@@ -124,6 +131,7 @@ class Config extends ServerFormPage
             }
             $tabs[] = $this->sourceTab($source);
         }
+        $tabs[] = $this->filesTab();
 
         return parent::form($schema)->components([
             Grid::make(['default' => 1, 'sm' => 3])->columnSpanFull()->schema([
@@ -166,6 +174,87 @@ class Config extends ServerFormPage
                 ->columnSpanFull()
                 ->visible(fn () => $this->canEdit() && $this->changeCount() > 0),
         ]);
+    }
+
+    /** A plain editor for any config file, for mods whose settings the form doesn't know. */
+    private function filesTab(): Tab
+    {
+        return Tab::make(trans('overseer::overseer.config.files.title'))
+            ->id('files')
+            ->icon('tabler-file-code')
+            ->schema([
+                Callout::make(trans('overseer::overseer.config.files.help'))->info(),
+                Select::make('_file.path')
+                    ->label(trans('overseer::overseer.config.files.file'))
+                    ->placeholder(trans('overseer::overseer.config.files.pick'))
+                    ->options(fn () => collect(app(ConfigFiles::class)->editableFiles($this->getRecord()))->mapWithKeys(fn ($path) => [$path => $path])->all())
+                    ->searchable()
+                    ->live()
+                    ->afterStateUpdated(fn (?string $state) => $this->openFile($state)),
+                MonacoEditor::make('_file.content')
+                    ->hiddenLabel()
+                    ->language(fn (Get $get) => EditorLanguages::tryFrom(EditableFiles::language((string) $get('_file.path'))) ?? EditorLanguages::plaintext)
+                    ->disabled(!$this->canEdit())
+                    ->visible(fn (Get $get) => filled($get('_file.path'))),
+                Actions::make([
+                    Action::make('reloadFile')
+                        ->label(trans('overseer::overseer.config.files.reload'))
+                        ->icon('tabler-refresh')
+                        ->color('gray')
+                        ->action(fn () => $this->openFile($this->data['_file']['path'] ?? null)),
+                    Action::make('saveFile')
+                        ->label(trans('overseer::overseer.config.files.save'))
+                        ->icon('tabler-device-floppy')
+                        ->visible(fn () => $this->canEdit())
+                        ->disabled(fn () => ($this->data['_file']['content'] ?? null) === $this->fileOriginal)
+                        ->requiresConfirmation()
+                        ->modalHeading(fn () => trans('overseer::overseer.config.files.save_heading', ['file' => $this->data['_file']['path'] ?? '']))
+                        ->modalDescription(trans('overseer::overseer.config.files.save_help'))
+                        ->action(fn () => $this->saveFile()),
+                ])
+                    ->alignment(Alignment::End)
+                    ->visible(fn (Get $get) => filled($get('_file.path'))),
+            ]);
+    }
+
+    private function openFile(?string $path): void
+    {
+        $this->fileOriginal = null;
+        $this->data['_file']['content'] = '';
+
+        if (blank($path)) {
+            return;
+        }
+
+        try {
+            $contents = app(ConfigFiles::class)->readEditable($this->getRecord(), $path);
+            $this->fileOriginal = $contents;
+            $this->data['_file']['content'] = $contents;
+        } catch (Exception $exception) {
+            $this->data['_file']['path'] = null;
+            Notification::make()->title(trans('overseer::overseer.config.files.failed'))->body($exception->getMessage())->danger()->send();
+        }
+    }
+
+    private function saveFile(): void
+    {
+        abort_unless($this->canEdit(), 403);
+        $path = (string) ($this->data['_file']['path'] ?? '');
+        $contents = (string) ($this->data['_file']['content'] ?? '');
+
+        try {
+            $backup = app(ConfigFiles::class)->writeEditable($this->getRecord(), $path, $contents);
+            $this->fileOriginal = $contents;
+            $this->restartNeeded = $this->getRecord()->retrieveStatus() === \App\Enums\ContainerStatus::Running;
+
+            Notification::make()
+                ->title(trans('overseer::overseer.config.files.saved', ['file' => $path]))
+                ->body($backup ? trans('overseer::overseer.config.files.backup', ['path' => $backup]) : null)
+                ->success()
+                ->send();
+        } catch (Exception $exception) {
+            Notification::make()->title(trans('overseer::overseer.config.files.failed'))->body($exception->getMessage())->danger()->send();
+        }
     }
 
     private function sourceTab(string $source): Tab

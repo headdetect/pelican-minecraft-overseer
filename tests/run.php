@@ -21,6 +21,7 @@ use Headdetect\Overseer\Services\Rcon\RconException;
 use Headdetect\Overseer\Services\Tools\Chunky;
 use Headdetect\Overseer\Support\CommandInput;
 use Headdetect\Overseer\Support\ConfigSchema;
+use Headdetect\Overseer\Support\EditableFiles;
 use Headdetect\Overseer\Support\Properties;
 use Headdetect\Overseer\Support\ServerAddress;
 use Headdetect\Overseer\Support\ServerStats;
@@ -51,6 +52,11 @@ function throws(string $name, callable $fn, string $class = InvalidArgumentExcep
             echo "FAIL $name: threw " . get_class($e) . ' ' . $e->getMessage() . "\n";
         }
     }
+}
+
+// --- Language files load and use the same keys as each other ---
+foreach (glob(__DIR__ . '/../lang/*/*.php') as $file) {
+    check('lang file loads: ' . basename(dirname($file)) . '/' . basename($file), is_array(require $file), true);
 }
 
 // --- CommandInput: nothing typed in the panel may start a second command ---
@@ -127,6 +133,22 @@ check('teleport to coords', CommandInput::teleport('Doobie', ['to' => 'coords', 
 throws('teleport bad target', fn () => CommandInput::teleport('Doobie', ['to' => 'player', 'target' => 'x; stop']));
 throws('teleport bad dimension', fn () => CommandInput::teleport('Doobie', ['to' => 'coords', 'x' => 0, 'y' => 0, 'z' => 0, 'dimension' => 'minecraft:overworld run stop']));
 throws('item id with second command', fn () => CommandInput::itemId('diamond 64\nop Me'));
+
+// --- File editor paths ---
+check('editable mod config', EditableFiles::isEditable('config/sodium-options.json'), true);
+check('editable nested', EditableFiles::isEditable('config/create/server.toml'), true);
+check('editable paper plugin', EditableFiles::isEditable('plugins/Chunky/config.yml'), true);
+check('editable root properties', EditableFiles::isEditable('server.properties'), true);
+check('not ops.json', EditableFiles::isEditable('ops.json'), false);
+check('not a jar', EditableFiles::isEditable('mods/sodium.jar'), false);
+check('not the world', EditableFiles::isEditable('world/level.dat'), false);
+check('not outside folders', EditableFiles::isEditable('logs/latest.txt'), false);
+check('no traversal', EditableFiles::isEditable('config/../ops.json'), false);
+check('no absolute path', EditableFiles::isEditable('/etc/passwd.conf'), false);
+check('not squaremap tiles', EditableFiles::isEditable('squaremap/web/tiles/settings.json'), false);
+check('too deep', EditableFiles::isEditable('config/a/b/c/d.toml'), false);
+check('language toml', EditableFiles::language('config/x.toml'), 'ini');
+check('language yaml', EditableFiles::language('plugins/x/config.yml'), 'yaml');
 
 // --- server.properties ---
 $props = Properties::parse(<<<'TXT'
