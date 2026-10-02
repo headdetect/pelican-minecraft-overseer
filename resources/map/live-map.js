@@ -6,9 +6,14 @@
  * Coordinates follow squaremap: at zoom level `max` one pixel is one block, each
  * level below halves that, and tile (tx, ty) at a level holds blocks starting at
  * tx * 512 * 2^(max - level) on x and ty * the same on z.
+ *
+ * `zoom` can be fractional. The viewer scales the nearest tile level to fit.
  */
 window.overseerLiveMap = function (cfg) {
     const TILE = 512;
+    // Scroll distance, in pixels, for one zoom level (a 2x change in scale).
+    // A mouse wheel notch is about 100px, so one notch zooms about 19%.
+    const WHEEL_PX_PER_LEVEL = 400;
 
     return {
         cfg,
@@ -133,7 +138,7 @@ window.overseerLiveMap = function (cfg) {
 
         renderTiles() {
             const world = this.current;
-            const level = Math.min(this.zoom, world.max);
+            const level = Math.min(Math.round(this.zoom), world.max);
             const blocks = TILE * Math.pow(2, world.max - level);
             const px = blocks * this.ppb;
             const { w, h } = this.size();
@@ -315,7 +320,10 @@ window.overseerLiveMap = function (cfg) {
 
         onWheel(e) {
             const r = this.$refs.viewport.getBoundingClientRect();
-            this.zoomBy(e.deltaY < 0 ? 1 : -1, e.clientX - r.left, e.clientY - r.top);
+            // deltaMode 1 is lines and 2 is pages. Convert both to pixels.
+            const px = e.deltaY * [1, 33, 800][e.deltaMode];
+            const delta = Math.max(-1, Math.min(1, -px / WHEEL_PX_PER_LEVEL));
+            this.zoomBy(delta, e.clientX - r.left, e.clientY - r.top);
         },
 
         onDown(e) {
