@@ -10,6 +10,9 @@ use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Headdetect\Overseer\Filament\Server\Clusters\Overseer;
@@ -111,6 +114,68 @@ class Overview extends Page
                 'providers' => trans('overseer::overseer.overview.providers'),
             ],
         ];
+    }
+
+    /** Teleport any online player to coordinates, from the Quick actions card. */
+    public function teleportCoordsAction(): Action
+    {
+        $axis = fn (string $name) => TextInput::make($name)
+            ->label(strtoupper($name))
+            ->numeric()
+            ->integer()
+            ->minValue($name === 'y' ? -2048 : -29999984)
+            ->maxValue($name === 'y' ? 2048 : 29999984);
+
+        return Action::make('teleportCoords')
+            ->visible(fn () => $this->can(Permission::PLAYERS_CHEAT))
+            ->modalHeading(trans('overseer::overseer.map.teleport.heading'))
+            ->modalSubmitActionLabel(trans('overseer::overseer.map.point.teleport'))
+            ->schema([
+                Select::make('player')
+                    ->label(trans('overseer::overseer.map.point.player'))
+                    ->options(function () {
+                        $reply = app(ConsoleService::class)->query($this->server(), 'list');
+                        $names = $reply !== null ? PlayerService::parseList($reply) : [];
+
+                        return array_combine($names, $names) ?: [];
+                    })
+                    ->required(),
+                Select::make('dimension')
+                    ->label(trans('overseer::overseer.players.dimension'))
+                    ->options([
+                        'minecraft:overworld' => trans('overseer::overseer.map.worlds.overworld'),
+                        'minecraft:the_nether' => trans('overseer::overseer.map.worlds.nether'),
+                        'minecraft:the_end' => trans('overseer::overseer.map.worlds.end'),
+                    ])
+                    ->default('minecraft:overworld')
+                    ->selectablePlaceholder(false)
+                    ->required(),
+                Grid::make(3)->schema([
+                    $axis('x')->required(),
+                    $axis('y')->required(fn (Get $get) => !$get('ground'))->disabled(fn (Get $get) => (bool) $get('ground'))->placeholder(fn (Get $get) => $get('ground') ? trans('overseer::overseer.map.teleport.auto') : null),
+                    $axis('z')->required(),
+                ]),
+                Toggle::make('ground')
+                    ->label(trans('overseer::overseer.map.teleport.ground'))
+                    ->helperText(trans('overseer::overseer.map.teleport.ground_help'))
+                    ->default(true)
+                    ->live(),
+            ])
+            ->action(function (array $data) {
+                $x = (int) $data['x'];
+                $z = (int) $data['z'];
+                $y = ($data['ground'] ?? false)
+                    ? app(Surface::class)->y($this->server(), $data['dimension'], $x, $z)
+                    : (int) $data['y'];
+
+                if ($y === null) {
+                    Notification::make()->title(trans('overseer::overseer.players.notifications.failed'))->body(trans('overseer::overseer.map.point.no_ground'))->danger()->send();
+
+                    return;
+                }
+
+                $this->teleportTo((string) $data['player'], $data['dimension'], $x, $y, $z);
+            });
     }
 
     /** Teleports a player to a point clicked on the map. */

@@ -77,6 +77,12 @@ return [
         'nobody' => 'Nobody is online.',
         'health' => 'health',
         'op_heading' => 'Make :name an operator?',
+        'teleport' => [
+            'heading' => 'Teleport a player',
+            'ground' => 'Land on the ground',
+            'ground_help' => 'Overseer finds the top solid block at x and z. In the Nether, that is usually the bedrock roof.',
+            'auto' => 'Ground level',
+        ],
         'point' => [
             'title' => 'This spot',
             'player' => 'Player to teleport',
@@ -239,6 +245,7 @@ return [
 
     'commands' => [
         'quick' => 'Quick actions',
+        'players' => 'Players',
         'sent' => 'Ran :command',
         'failed' => "That didn't work",
         'time' => [
@@ -273,6 +280,7 @@ return [
             'clear' => 'Clear',
             'rain' => 'Rain',
             'thunder' => 'Thunder',
+            'teleport' => 'Teleport',
             'save' => 'Save world',
             'broadcast' => 'Broadcast',
             'custom' => 'Run a command',

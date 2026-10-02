@@ -129,6 +129,10 @@ trait RunsQuickCommands
                 $tile('rain', 'weather rain', 'tabler-cloud-rain', '#3b82f6'),
                 $tile('thunder', 'weather thunder', 'tabler-bolt', '#a855f7'),
             ],
+            // Opens a form, so it shows its label instead of a command.
+            'players' => Permission::allows(Permission::PLAYERS_CHEAT, $this->server())
+                ? [['action' => 'teleportCoords', 'label' => trans('overseer::overseer.commands.buttons.teleport'), 'command' => '', 'icon' => 'tabler-arrows-move', 'color' => '#10b981']]
+                : [],
         ];
     }
 

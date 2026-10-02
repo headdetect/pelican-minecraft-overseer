@@ -25,6 +25,13 @@
                 <span class="us-stat-label">{{ trans('overseer::overseer.commands.weather.title') }}</span>
             </div>
             @include('overseer::partials.command-tiles', ['tiles' => $tiles['weather']])
+
+            @if (count($tiles['players']))
+                <div class="us-qa-head">
+                    <span class="us-stat-label">{{ trans('overseer::overseer.commands.players') }}</span>
+                </div>
+                @include('overseer::partials.command-tiles', ['tiles' => $tiles['players']])
+            @endif
         </div>
     </x-filament::section>
 @endif
