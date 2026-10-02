@@ -217,12 +217,12 @@
                 <section>
                     <h3 class="us-h">{{ trans('overseer::overseer.commands.time.title') }}</h3>
                     <p class="us-help">{{ trans('overseer::overseer.commands.time.help') }}</p>
-                    <div class="us-buttons">{{ $this->sunriseAction }} {{ $this->noonAction }} {{ $this->sunsetAction }} {{ $this->midnightAction }}</div>
+                    @include('overseer::partials.command-tiles', ['tiles' => $this->commandTiles()['time']])
                 </section>
                 <section>
                     <h3 class="us-h">{{ trans('overseer::overseer.commands.weather.title') }}</h3>
                     <p class="us-help">{{ trans('overseer::overseer.commands.weather.help') }}</p>
-                    <div class="us-buttons">{{ $this->clearAction }} {{ $this->rainAction }} {{ $this->thunderAction }}</div>
+                    @include('overseer::partials.command-tiles', ['tiles' => $this->commandTiles()['weather']])
                 </section>
             @endif
             <section>

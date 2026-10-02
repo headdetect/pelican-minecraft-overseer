@@ -11,6 +11,7 @@ use Headdetect\Overseer\Services\Rcon\RconClient;
 use Headdetect\Overseer\Services\Rcon\RconConnector;
 use Headdetect\Overseer\Services\Rcon\RconException;
 use Headdetect\Overseer\Support\CommandInput;
+use Headdetect\Overseer\Support\ServerAddress;
 use RuntimeException;
 
 /**
@@ -117,6 +118,23 @@ class ConsoleService
         }
 
         return cache()->remember("overseer:rcon:$server->uuid", now()->addSeconds(30), fn () => $this->hasRcon($server) ? self::RCON_OK : self::RCON_UNREACHABLE);
+    }
+
+    /**
+     * The RCON port when one of the server's allocations publishes it on a
+     * public or bind-all address. RCON sends its password in plain text, so
+     * that port must not be reachable from the internet.
+     */
+    public function exposedRconPort(Server $server): ?int
+    {
+        if (!$this->connector->isConfigured($server)) {
+            return null;
+        }
+
+        $port = (int) ($this->connector->properties($server)['rcon.port'] ?? 25575);
+        $public = $server->allocations()->where('port', $port)->get()->contains(fn ($allocation) => ServerAddress::isPublic((string) $allocation->ip));
+
+        return $public ? $port : null;
     }
 
     public function hasRcon(Server $server): bool

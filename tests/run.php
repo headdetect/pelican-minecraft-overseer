@@ -22,6 +22,7 @@ use Headdetect\Overseer\Services\Tools\Chunky;
 use Headdetect\Overseer\Support\CommandInput;
 use Headdetect\Overseer\Support\ConfigSchema;
 use Headdetect\Overseer\Support\Properties;
+use Headdetect\Overseer\Support\ServerAddress;
 use Headdetect\Overseer\Support\ServerStats;
 use Headdetect\Overseer\Support\YamlLines;
 
@@ -85,6 +86,13 @@ check('roster last seen', $roster[1]['last_seen'], 2000);
 check('roster whitelisted never joined', $roster[2]['last_seen'], null);
 check('roster skips usercache lookups', in_array('lookup_only', array_column($roster, 'name'), true), false);
 check('roster online without records', PlayerService::buildRoster([], [], [], ['Stranger'])[0], ['name' => 'Stranger', 'uuid' => null, 'last_seen' => null, 'online' => true]);
+
+// --- RCON exposure ---
+check('bind-all is public', ServerAddress::isPublic('0.0.0.0'), true);
+check('public ip is public', ServerAddress::isPublic('51.75.10.20'), true);
+check('docker bridge is private', ServerAddress::isPublic('172.18.0.1'), false);
+check('loopback is private', ServerAddress::isPublic('127.0.0.1'), false);
+check('lan is private', ServerAddress::isPublic('10.0.0.5'), false);
 
 // --- Overview stats ---
 check('time 26.1 timeline', ServerStats::gameTime('Timeline minecraft:day is at 3153 tick(s)'), ['day' => 1, 'clock' => '09:09', 'phase' => 'day']);

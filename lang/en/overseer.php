@@ -6,11 +6,15 @@ return [
     'rcon' => [
         'off' => [
             'title' => 'RCON is off',
-            'body' => 'Overseer needs RCON for player lists, positions, commands and tools. In server.properties, set enable-rcon=true and an rcon.password, add the rcon.port as an allocation for this server, then restart.',
+            'body' => 'Overseer needs RCON for player lists, positions, commands and tools. In server.properties, set enable-rcon=true and a long random rcon.password, then restart. The panel must be able to reach rcon.port, but the internet must not.',
         ],
         'unreachable' => [
             'title' => "Can't reach RCON",
-            'body' => "RCON is on in server.properties, but the server doesn't answer. Check that the server finished starting, that rcon.port is one of this server's allocations, and that rcon.password is correct.",
+            'body' => "RCON is on in server.properties, but the server doesn't answer. Check that the server finished starting, that the panel can reach rcon.port, and that rcon.password is correct.",
+        ],
+        'exposed' => [
+            'title' => 'RCON port :port may be open to the internet',
+            'body' => 'This server has an allocation that publishes port :port on a public or 0.0.0.0 address. RCON sends its password unencrypted, and anyone who gets in can op themselves or stop the server. Remove that allocation, or bind it to a private IP, and check from outside the VPS with nc -vz <server-ip> :port.',
         ],
     ],
 

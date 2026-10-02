@@ -161,6 +161,9 @@ switch ($step) {
 
     case 'server':
         if (server()) {
+            // Dev stacks seeded before RCON and squaremap moved to loopback
+            // bound every port to 0.0.0.0.
+            Allocation::query()->where('node_id', server()->node_id)->whereIn('port', [RCON_PORT, MAP_PORT])->where('ip', '0.0.0.0')->update(['ip' => '127.0.0.1']);
             break;
         }
 
@@ -168,11 +171,12 @@ switch ($step) {
         $egg = Egg::query()->where('name', 'Fabric')->first()
             ?? app(EggImporterService::class)->fromUrl(EGG_URL);
 
+        // Players connect to the game port from anywhere. RCON and squaremap
+        // only need to reach the panel, so they bind to loopback, as they
+        // would to a private IP in production.
         if (!Allocation::query()->where('node_id', $node->id)->exists()) {
-            app(AssignmentService::class)->handle($node, [
-                'allocation_ip' => '0.0.0.0',
-                'allocation_ports' => [(string) GAME_PORT, (string) RCON_PORT, (string) MAP_PORT],
-            ]);
+            app(AssignmentService::class)->handle($node, ['allocation_ip' => '0.0.0.0', 'allocation_ports' => [(string) GAME_PORT]]);
+            app(AssignmentService::class)->handle($node, ['allocation_ip' => '127.0.0.1', 'allocation_ports' => [(string) RCON_PORT, (string) MAP_PORT]]);
         }
         $allocation = fn (int $port) => Allocation::query()->where('node_id', $node->id)->where('port', $port)->value('id');
 

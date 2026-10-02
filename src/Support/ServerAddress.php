@@ -24,4 +24,17 @@ final class ServerAddress
 
         return is_ipv6($ip) ? "[$ip]" : $ip;
     }
+
+    /**
+     * Whether a port bound to this IP may be reachable from the internet:
+     * a bind-all address, or any address outside the private and reserved ranges.
+     */
+    public static function isPublic(string $ip): bool
+    {
+        if (in_array($ip, ['0.0.0.0', '::'], true)) {
+            return true;
+        }
+
+        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false;
+    }
 }

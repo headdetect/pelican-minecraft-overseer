@@ -23,7 +23,13 @@ A [Pelican](https://pelican.dev) panel plugin for running a Minecraft Java serve
   broadcast-rcon-to-ops=false
   ```
 
-  The panel connects to that port, so it must be reachable from the panel host. Add the port as an extra allocation on the server in Pelican, and don't expose it to the internet: RCON is not encrypted.
+  The panel connects to that port, so it must be reachable from the panel host, but never from the internet. RCON sends its password unencrypted and Minecraft doesn't slow down password guessing, so anyone who reaches the port can try passwords until one works.
+
+  - If the panel can reach the game container directly, set `OVERSEER_RCON_HOST` to that address and don't add an allocation for the port.
+  - Otherwise add the port as an extra allocation bound to a private IP, never `0.0.0.0` or a public IP. Docker writes its own firewall rules for published ports, so a ufw rule on the host may not block them.
+  - Check from a machine outside the VPS: `nc -vz <server-ip> 25575` must fail.
+
+  Overseer shows a warning on its pages when an allocation publishes the RCON port on a public or `0.0.0.0` address.
 
 ### Live Map (optional)
 

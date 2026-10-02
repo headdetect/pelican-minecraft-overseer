@@ -112,6 +112,36 @@ trait RunsQuickCommands
             ->action(fn (array $data) => $this->sendCommand('custom', CommandInput::command($data['command'])));
     }
 
+    /**
+     * The large tiles for time and weather. Each one runs the action of the same name.
+     *
+     * @return array<string, array<int, array{action: string, label: string, command: string, icon: string, color: string}>>
+     */
+    public function commandTiles(): array
+    {
+        $tile = fn (string $action, string $command, string $icon, string $color) => [
+            'action' => $action,
+            'label' => trans("overseer::overseer.commands.buttons.$action"),
+            'command' => $command,
+            'icon' => $icon,
+            'color' => $color,
+        ];
+
+        return [
+            'time' => [
+                $tile('sunrise', 'time set 0', 'tabler-sunrise', '#f97316'),
+                $tile('noon', 'time set noon', 'tabler-sun', '#eab308'),
+                $tile('sunset', 'time set 12000', 'tabler-sunset-2', '#ea580c'),
+                $tile('midnight', 'time set midnight', 'tabler-moon', '#818cf8'),
+            ],
+            'weather' => [
+                $tile('clear', 'weather clear', 'tabler-sun-high', '#38bdf8'),
+                $tile('rain', 'weather rain', 'tabler-cloud-rain', '#3b82f6'),
+                $tile('thunder', 'weather thunder', 'tabler-bolt', '#a855f7'),
+            ],
+        ];
+    }
+
     /** @return string[] */
     public function recentActions(): array
     {
