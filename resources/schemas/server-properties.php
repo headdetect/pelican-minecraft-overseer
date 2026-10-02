@@ -91,7 +91,7 @@ return [
         ],
         'Remote access' => [
             'enable-rcon' => ['title' => 'Remote console (RCON)', 'help' => 'Lets Overseer see who is online and read game rules.', 'type' => 'bool', 'restart' => true],
-            'rcon.port' => ['title' => 'RCON port', 'help' => 'Must be one of this server\'s allocations. Keep it off the internet.', 'type' => 'int', 'min' => 1, 'max' => 65535, 'restart' => true],
+            'rcon.port' => ['title' => 'RCON port', 'help' => 'The panel must reach this port, but the internet must not. Bind it to a private IP, never 0.0.0.0.', 'type' => 'int', 'min' => 1, 'max' => 65535, 'restart' => true],
             'rcon.password' => ['title' => 'RCON password', 'help' => 'Leave empty to keep the current one. Use something long and random.', 'type' => 'password', 'restart' => true],
             'broadcast-rcon-to-ops' => ['title' => 'Show RCON to ops', 'help' => 'Ops in game see every command Overseer runs.', 'type' => 'bool', 'restart' => true],
             'enable-query' => ['title' => 'Query', 'help' => 'Answer status requests from server list sites and tools.', 'type' => 'bool', 'restart' => true],

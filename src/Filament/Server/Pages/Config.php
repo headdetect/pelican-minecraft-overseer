@@ -189,8 +189,10 @@ class Config extends ServerFormPage
 
         $sections = [];
         foreach ($groups as $group => $settings) {
+            // Plain headings with space between groups, so there are no cards inside the tab's card.
             $sections[] = Section::make($group)
-                ->compact()
+                ->contained(false)
+                ->extraAttributes(['class' => 'us-config-group'])
                 ->hidden(fn () => !$this->anyVisible($settings))
                 ->schema(array_map(fn (string $key) => $this->field($source, $key, $settings[$key]), array_keys($settings)));
         }
@@ -268,16 +270,22 @@ class Config extends ServerFormPage
 
         $live = $source === 'rules' || isset($entry['live']);
 
+        $tag = match (true) {
+            $live => ['is-live', trans('overseer::overseer.config.instant')],
+            $entry['restart'] => ['is-restart', trans('overseer::overseer.config.restart_needed')],
+            default => null,
+        };
+
+        // Title, when it applies, and description on the left. The input on the right.
         return $field
-            ->label($entry['title'])
-            ->helperText($entry['help'])
-            ->hint(match (true) {
-                $live => trans('overseer::overseer.config.instant'),
-                $entry['restart'] => trans('overseer::overseer.config.restart_needed'),
-                default => null,
-            })
-            ->hintColor($live ? 'success' : 'warning')
-            ->hintIcon($live ? 'tabler-bolt' : 'tabler-reload', tooltip: $key)
+            ->inlineLabel()
+            ->label(new HtmlString(sprintf(
+                '<span class="us-config-title" title="%s">%s%s</span><span class="us-config-help">%s</span>',
+                e($key),
+                e($entry['title']),
+                $tag ? sprintf(' <span class="us-config-tag %s">%s</span>', $tag[0], e($tag[1])) : '',
+                e($entry['help']),
+            )))
             ->disabled(!$this->canEdit())
             ->hidden(fn () => !$this->isVisible($key, $entry));
     }

@@ -46,6 +46,8 @@ class OverseerPluginProvider extends ServiceProvider
             scopes: [Pages\Overview::class, Pages\Players::class, Pages\Config::class, Pages\Tools::class],
         );
 
+        FilamentView::registerRenderHook(PanelsRenderHook::PAGE_START, fn () => view('overseer::config-styles'), scopes: [Pages\Config::class]);
+
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             $schedule->command(LiftExpiredBans::class)->everyMinute()->withoutOverlapping();
         });
