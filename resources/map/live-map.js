@@ -23,7 +23,7 @@ window.overseerLiveMap = function (cfg) {
         cx: 0,
         cz: 0,
         players: [],
-        recent: [],
+        online: [],
         time: null,
         selected: null,
         pop: null,
@@ -65,7 +65,7 @@ window.overseerLiveMap = function (cfg) {
             try {
                 const result = await this.$wire.positions();
                 this.players = result.players;
-                this.recent = result.recent ?? [];
+                this.online = result.online ?? [];
                 this.time = result.time ?? null;
                 this.state = result.ok ? 'live' : 'stale';
             } catch (e) {
@@ -84,7 +84,7 @@ window.overseerLiveMap = function (cfg) {
             return this.players.filter((p) => p.world === this.world);
         },
 
-        // The live position of a player in the recent list, or null when they're offline.
+        // The map position of an online player, or null when squaremap hides them.
         live(name) {
             return this.players.find((p) => p.name === name) ?? null;
         },
@@ -93,16 +93,6 @@ window.overseerLiveMap = function (cfg) {
             return { day: '\u2600\uFE0F', sunset: '\u{1F307}', night: '\u{1F319}', sunrise: '\u{1F305}' }[phase] ?? '';
         },
 
-        // "5 minutes ago", in the browser's language.
-        ago(unix) {
-            const seconds = Math.round(unix - Date.now() / 1000);
-            const units = [['year', 31536000], ['month', 2592000], ['week', 604800], ['day', 86400], ['hour', 3600], ['minute', 60]];
-            const format = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
-            for (const [unit, size] of units) {
-                if (Math.abs(seconds) >= size) return format.format(Math.round(seconds / size), unit);
-            }
-            return format.format(0, 'minute');
-        },
 
         worldLabel(name) {
             return this.worlds.find((w) => w.name === name)?.label ?? name;

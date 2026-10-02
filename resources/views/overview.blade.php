@@ -170,14 +170,14 @@
 
             <x-filament::section :heading="trans('overseer::overseer.map.online')" compact>
                 <x-slot name="afterHeader">
-                    <x-filament::badge color="success" :tooltip="trans('overseer::overseer.map.online_count')"><span x-text="recent.filter((r) => r.online).length">0</span></x-filament::badge>
+                    <x-filament::badge color="success"><span x-text="online.length">0</span></x-filament::badge>
                 </x-slot>
 
                 <div class="us-list">
-                    <template x-for="r in recent" :key="r.name">
+                    <template x-for="r in online" :key="r.name">
                         <div>
                             <template x-if="live(r.name)">
-                                <button type="button" class="us-row" :class="{ 'is-selected': selected === r.name }" x-on:click="focus(live(r.name))">
+                                <button type="button" class="us-row" :class="{ 'is-selected': selected === r.name }" x-on:click="focus(live(r.name))" :aria-pressed="selected === r.name">
                                     <img :src="head(r.name)" alt="">
                                     <div style="min-width: 0">
                                         <div class="us-row-name"><span class="us-dot" aria-hidden="true"></span><span x-text="r.name"></span><span class="us-badge" x-show="r.op">OP</span></div>
@@ -186,25 +186,21 @@
                                 </button>
                             </template>
                             <template x-if="!live(r.name)">
-                                <div class="us-row" :class="{ 'is-offline': !r.online }">
+                                <div class="us-row is-offline">
                                     <img :src="head(r.name)" alt="">
                                     <div style="min-width: 0">
-                                        <div class="us-row-name"><span class="us-dot" aria-hidden="true" x-show="r.online"></span><span x-text="r.name"></span><span class="us-badge" x-show="r.op">OP</span><span class="us-badge is-info" x-show="r.whitelisted">{{ trans('overseer::overseer.players.whitelisted') }}</span></div>
-                                        <div class="us-row-when" x-text="r.online ? '{{ trans('overseer::overseer.map.online_hidden') }}' : (r.last_seen ? ago(r.last_seen) : '{{ trans('overseer::overseer.map.never') }}')"></div>
+                                        <div class="us-row-name"><span class="us-dot" aria-hidden="true"></span><span x-text="r.name"></span><span class="us-badge" x-show="r.op">OP</span></div>
+                                        <div class="us-row-when">{{ trans('overseer::overseer.map.online_hidden') }}</div>
                                     </div>
                                 </div>
                             </template>
                         </div>
                     </template>
-                    <div class="us-empty" x-show="recent.length === 0 && state === 'live'">{{ trans('overseer::overseer.map.nobody') }}</div>
+                    <div class="us-empty" x-show="online.length === 0 && state === 'live'">{{ trans('overseer::overseer.map.nobody') }}</div>
                     <div class="us-empty" x-show="state === 'stale'" x-cloak>
                         {{ $config['mode'] === 'squaremap' ? trans('overseer::overseer.map.no_positions_squaremap') : trans('overseer::overseer.map.no_positions_rcon') }}
                     </div>
                 </div>
-
-                @if ($config['playersUrl'])
-                    <a href="{{ $config['playersUrl'] }}" wire:navigate class="us-more">{{ trans('overseer::overseer.map.all_players') }} &rarr;</a>
-                @endif
             </x-filament::section>
 
         </div>

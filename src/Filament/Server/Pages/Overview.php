@@ -38,9 +38,6 @@ class Overview extends Page
 
     protected string $view = 'overseer::overview';
 
-    /** How many players the side list shows. */
-    private const RECENT_PLAYERS = 8;
-
     /** @var array{status: string, port: ?int, worlds: array<int, array<string, mixed>>} */
     public array $source = [];
 
@@ -101,7 +98,6 @@ class Overview extends Page
             'tileBase' => url("/overseer/servers/{$this->server()->uuid}/map") . '/',
             'headUrl' => 'https://mc-heads.net/avatar/{name}/64',
             'refresh' => (int) config('overseer.map.refresh', 5),
-            'playersUrl' => Players::canAccess() ? Players::getUrl() : null,
             'labels' => [
                 'day' => trans('overseer::overseer.overview.day'),
                 'phases' => trans('overseer::overseer.overview.phases'),
@@ -113,10 +109,10 @@ class Overview extends Page
     /**
      * Player positions for the map, polled by the browser while the page is open.
      *
-     * Player positions for the map, and the most recent players for the side
-     * list, polled by the browser while the page is open.
+     * Player positions for the map, everyone online for the side list, and the
+     * game time, polled by the browser while the page is open.
      *
-     * @return array{ok: bool, players: array<int, array<string, mixed>>, recent: array<int, array<string, mixed>>}
+     * @return array{ok: bool, players: array<int, array<string, mixed>>, online: array<int, array<string, mixed>>, time: ?array<string, mixed>}
      */
     #[Renderless]
     public function positions(): array
@@ -137,21 +133,12 @@ class Overview extends Page
             $online = $list !== null ? PlayerService::parseList($list) : array_column($players ?? [], 'name');
         }
 
-        $playerService = app(PlayerService::class);
-        $whitelist = $playerService->whitelist($server);
-        $recent = array_slice($playerService->roster($server, $online), 0, self::RECENT_PLAYERS);
         $overview = app(OverviewService::class);
 
         return [
             'ok' => $players !== null,
             'players' => array_map(fn (array $player) => [...$player, 'op' => in_array($player['name'], $this->ops, true)], $players ?? []),
-            'recent' => array_map(fn (array $player) => [
-                'name' => $player['name'],
-                'online' => $player['online'],
-                'last_seen' => $player['last_seen'],
-                'op' => in_array($player['name'], $this->ops, true),
-                'whitelisted' => in_array($player['name'], $whitelist, true),
-            ], $recent),
+            'online' => array_map(fn (string $name) => ['name' => $name, 'op' => in_array($name, $this->ops, true)], $online),
             'time' => $running ? $overview->gameTime($server) : null,
         ];
     }
