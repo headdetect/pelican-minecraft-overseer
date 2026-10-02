@@ -13,5 +13,6 @@ return [
     'overseer_commands_world' => 'Set the time, weather, difficulty and game rules, and save the world.',
     'overseer_commands_ops' => 'Turn the whitelist on or off, broadcast messages, and run any console command.',
     'overseer_config_view' => 'See the Config page with the server settings, game rules and Paper settings.',
+    'overseer_tools' => 'Use the Tools page: generate chunks ahead of time and render the map.',
     'overseer_config_edit' => 'Change server settings, game rules and Paper settings from the Config page.',
 ];

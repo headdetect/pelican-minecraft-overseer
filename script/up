@@ -95,6 +95,7 @@ while :; do
 done
 
 seed configure
+seed mods
 seed start
 
 echo "up: waiting for the server to boot, then rendering the map around spawn"

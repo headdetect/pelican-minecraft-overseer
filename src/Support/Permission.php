@@ -32,6 +32,8 @@ final class Permission
 
     public const CONFIG_EDIT = 'overseer.config-edit';
 
+    public const TOOLS = 'overseer.tools';
+
     /** @return string[] permission names without the group prefix, as Pelican registers them */
     public static function names(): array
     {
@@ -48,6 +50,7 @@ final class Permission
                 self::COMMANDS_OPS,
                 self::CONFIG_VIEW,
                 self::CONFIG_EDIT,
+                self::TOOLS,
             ],
         );
     }

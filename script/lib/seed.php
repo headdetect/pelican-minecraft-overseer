@@ -7,6 +7,7 @@
 //   php /script-lib/seed.php server    create the egg, allocations and server
 //   php /script-lib/seed.php status    print the server's install state
 //   php /script-lib/seed.php configure write server.properties, EULA, mods
+//   php /script-lib/seed.php mods      download any missing mods
 //   php /script-lib/seed.php start     start the server
 //   php /script-lib/seed.php render    render the map around spawn once
 //   php /script-lib/seed.php uuid      print the server's uuid
@@ -88,9 +89,16 @@ function versions(): array
     }
     throw_unless($game, new RuntimeException('No Minecraft version has both squaremap and Fabric API builds.'));
 
+    // Chunky is for the Tools tab. It is optional, so a version without a
+    // Chunky build still works.
     $jars = [];
-    foreach (['fabric-api', 'squaremap'] as $project) {
-        $build = $builds($project, $game)[0] ?? throw new RuntimeException("$project has no Fabric build for $game");
+    foreach (['fabric-api' => true, 'squaremap' => true, 'chunky' => false] as $project => $required) {
+        $build = $builds($project, $game)[0] ?? null;
+        if (!$build) {
+            throw_if($required, new RuntimeException("$project has no Fabric build for $game"));
+            echo "seed: $project has no Fabric build for $game, skipping\n";
+            continue;
+        }
         $file = collect($build['files'])->firstWhere('primary', true) ?? $build['files'][0];
         $jars[$file['filename']] = $file['url'];
     }
@@ -235,6 +243,18 @@ switch ($step) {
         }
         break;
 
+    case 'mods':
+        $files = (new DaemonFileRepository())->setServer(server() ?? throw new RuntimeException('Run the server step first.'));
+        $existing = collect($files->getDirectory('mods'))->pluck('name');
+        [, $jars] = versions();
+        foreach ($jars as $name => $url) {
+            if (!$existing->contains($name)) {
+                $files->pull($url, 'mods', ['filename' => $name, 'foreground' => true]);
+                echo "seed: downloaded mods/$name\n";
+            }
+        }
+        break;
+
     case 'start':
         (new DaemonServerRepository())->setServer(server())->power('start');
         break;
@@ -290,6 +310,6 @@ switch ($step) {
         break;
 
     default:
-        fwrite(STDERR, "usage: seed.php node|server|status|configure|start|render|uuid\n");
+        fwrite(STDERR, "usage: seed.php node|server|status|configure|mods|start|render|uuid\n");
         exit(2);
 }

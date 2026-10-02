@@ -18,6 +18,7 @@ use Headdetect\Overseer\Services\Map\Squaremap;
 use Headdetect\Overseer\Services\PlayerService;
 use Headdetect\Overseer\Services\Rcon\RconClient;
 use Headdetect\Overseer\Services\Rcon\RconException;
+use Headdetect\Overseer\Services\Tools\Chunky;
 use Headdetect\Overseer\Support\CommandInput;
 use Headdetect\Overseer\Support\ConfigSchema;
 use Headdetect\Overseer\Support\Properties;
@@ -63,6 +64,15 @@ check('reason colour codes removed', CommandInput::text('§cBad §lplayer'), 'Ba
 check('reason length bounded', mb_strlen(CommandInput::text(str_repeat('x', 500))), 200);
 check('command leading slash removed', CommandInput::command('/time set day'), 'time set day');
 check('command one line', CommandInput::command("say hi\nstop"), 'say hi stop');
+
+// --- Chunky ---
+check('chunky progress', Chunky::parseProgress('[Chunky] Task running for minecraft:overworld. Processed: 1040 chunks (68.38%), ETA: 0:00:12, Rate: 38.1 cps, Current: -4, -7'), [['world' => 'minecraft:overworld', 'chunks' => 1040, 'percent' => 68.38, 'eta' => '0:00:12', 'rate' => 38.1]]);
+check('chunky two tasks', array_column(Chunky::parseProgress("[Chunky] Task running for minecraft:overworld. Processed: 5 chunks (1.00%), ETA: 1:00:00, Rate: 2.0 cps, Current: 0, 0\n[Chunky] Task running for minecraft:the_nether. Processed: 9 chunks (2.00%), ETA: 0:30:00, Rate: 3.0 cps, Current: 0, 0"), 'world'), ['minecraft:overworld', 'minecraft:the_nether']);
+check('chunky idle', Chunky::parseProgress('[Chunky] No tasks running.'), []);
+check('chunky square count', Chunky::chunkCount(300, 'square'), 1444);
+check('chunky circle smaller', Chunky::chunkCount(300, 'circle') < 1444, true);
+check('chunky world name', Chunky::isWorld('minecraft:the_nether'), true);
+check('chunky world injection', Chunky::isWorld('minecraft:overworld; stop'), false);
 
 // --- Player roster ---
 $cache = [['name' => 'Doobie', 'uuid' => 'AAAAAAAA-0000-0000-0000-000000000001'], ['name' => 'kelp_lord', 'uuid' => 'aaaaaaaa-0000-0000-0000-000000000002'], ['name' => 'lookup_only', 'uuid' => 'aaaaaaaa-0000-0000-0000-000000000009']];
