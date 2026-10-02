@@ -1,7 +1,7 @@
 <?php
 
 // Seeds the local dev panel with what the web installer and the admin pages
-// would create by hand. dev/up.sh runs each step inside the panel container:
+// would create by hand. script/up runs each step inside the panel container:
 //
 //   php /dev-scripts/seed.php node      create the node, print the wings config
 //   php /dev-scripts/seed.php server    create the egg, allocations and server
@@ -44,7 +44,7 @@ $wingsPort = (int) (getenv('WINGS_PORT') ?: 8891);
 $step = $argv[1] ?? '';
 
 // Laravel's handler prints an uncaught exception but exits 0, which hides the
-// failure from up.sh. Print it and exit 1 instead.
+// failure from script/up. Print it and exit 1 instead.
 set_exception_handler(function (Throwable $e) {
     fwrite(STDERR, 'seed: ' . $e::class . ': ' . $e->getMessage() . "\n");
     exit(1);

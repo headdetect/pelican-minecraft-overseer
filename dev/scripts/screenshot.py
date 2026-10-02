@@ -1,4 +1,4 @@
-# Logs in to the dev panel and screenshots one page. dev/shot runs this inside
+# Logs in to the dev panel and screenshots one page. script/screenshot runs this inside
 # the Playwright container.
 import argparse
 import os
@@ -44,7 +44,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(args.wait)
     page.screenshot(path=args.out, full_page=True)
 
-    print(f"shot: {response.status if response else '?'} {page.url}")
+    print(f"screenshot: {response.status if response else '?'} {page.url}")
     for line in problems:
         print(line)
     browser.close()

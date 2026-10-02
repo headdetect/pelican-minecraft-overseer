@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Stops the local dev stack, including the game server that wings started.
-# Usage: dev/down.sh [--wipe]
+# Usage: script/down [--wipe]
 #   --wipe  also delete the panel database, the plugin state and the world
 set -euo pipefail
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/../dev"
 export DEV_DATA="$PWD/.data"
 
 # Wings names a game container after its server's uuid. compose does not manage
@@ -21,5 +21,5 @@ if [ "${1:-}" = --wipe ]; then
 else
   [ -n "$uuid" ] && docker stop "$uuid" >/dev/null 2>&1 || true
   docker compose down
-  echo "down: stopped. dev/up.sh starts it again with the same world."
+  echo "down: stopped. script/up starts it again with the same world."
 fi

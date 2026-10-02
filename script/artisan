@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs php artisan in the dev panel. Example: dev/artisan filament:cache-components
+# Runs php artisan in the dev panel. Example: script/artisan filament:cache-components
 set -euo pipefail
 tty=()
 [ -t 0 ] && tty=(-it)

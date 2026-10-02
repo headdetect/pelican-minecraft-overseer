@@ -2,9 +2,13 @@
 # Starts a local Pelican panel, wings and a Fabric server with squaremap, and
 # installs Overseer from this checkout. Safe to re-run: each step skips what
 # already exists. See dev/README.md.
+#
+# Usage: script/up
 set -euo pipefail
 
-cd "$(dirname "$0")"
+"$(dirname "$0")/bootstrap"
+
+cd "$(dirname "$0")/../dev"
 export DEV_DATA="$PWD/.data"
 export PANEL_PORT="${PANEL_PORT:-8890}"
 export WINGS_PORT="${WINGS_PORT:-8891}"

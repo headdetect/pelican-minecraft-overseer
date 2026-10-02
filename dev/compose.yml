@@ -1,5 +1,5 @@
 # Local Pelican panel and wings for developing Overseer. Start it with
-# dev/up.sh, which sets DEV_DATA and seeds the panel. See dev/README.md.
+# script/up, which sets DEV_DATA and seeds the panel. See dev/README.md.
 #
 # Both services use the host network, so localhost means the same machine for
 # the browser, the panel, wings and the game server's RCON and map ports.
@@ -26,7 +26,7 @@ services:
       - plugins:/var/www/html/plugins
       # The plugin source, read-only. Edits show up on the next page load
       # because opcache checks file timestamps. plugin.json is a copy that
-      # up.sh writes, because the panel stores install state in it.
+      # script/up writes, because the panel stores install state in it.
       - ../src:/var/www/html/plugins/overseer/src:ro
       - ../resources:/var/www/html/plugins/overseer/resources:ro
       - ../routes:/var/www/html/plugins/overseer/routes:ro
@@ -52,7 +52,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/lib/docker/containers/:/var/lib/docker/containers/
-      - "${DEV_DATA:?run dev/up.sh}/wings/config.yml:/etc/pelican/config.yml"
+      - "${DEV_DATA:?run script/up}/wings/config.yml:/etc/pelican/config.yml"
       # Wings creates game containers on the host daemon and bind-mounts their
       # files by path, so the path must be the same inside and outside.
       - "${DEV_DATA}/wings:${DEV_DATA}/wings"
