@@ -64,6 +64,18 @@ check('reason length bounded', mb_strlen(CommandInput::text(str_repeat('x', 500)
 check('command leading slash removed', CommandInput::command('/time set day'), 'time set day');
 check('command one line', CommandInput::command("say hi\nstop"), 'say hi stop');
 
+// --- Player roster ---
+$cache = [['name' => 'Doobie', 'uuid' => 'AAAAAAAA-0000-0000-0000-000000000001'], ['name' => 'kelp_lord', 'uuid' => 'aaaaaaaa-0000-0000-0000-000000000002'], ['name' => 'lookup_only', 'uuid' => 'aaaaaaaa-0000-0000-0000-000000000009']];
+$list = [['name' => 'NewFriend', 'uuid' => 'aaaaaaaa-0000-0000-0000-000000000003'], ['name' => 'kelp_lord', 'uuid' => 'aaaaaaaa-0000-0000-0000-000000000002']];
+$seen = ['aaaaaaaa-0000-0000-0000-000000000001' => 1000, 'aaaaaaaa-0000-0000-0000-000000000002' => 2000];
+$roster = PlayerService::buildRoster($cache, $list, $seen, ['Doobie']);
+check('roster order', array_column($roster, 'name'), ['Doobie', 'kelp_lord', 'NewFriend']);
+check('roster online first', $roster[0]['online'], true);
+check('roster last seen', $roster[1]['last_seen'], 2000);
+check('roster whitelisted never joined', $roster[2]['last_seen'], null);
+check('roster skips usercache lookups', in_array('lookup_only', array_column($roster, 'name'), true), false);
+check('roster online without records', PlayerService::buildRoster([], [], [], ['Stranger'])[0], ['name' => 'Stranger', 'uuid' => null, 'last_seen' => null, 'online' => true]);
+
 // --- Overview stats ---
 check('time 26.1 timeline', ServerStats::gameTime('Timeline minecraft:day is at 3153 tick(s)'), ['day' => 1, 'clock' => '09:09', 'phase' => 'day']);
 check('time 26.1 later day', ServerStats::gameTime('Timeline minecraft:day is at 66000 tick(s)'), ['day' => 3, 'clock' => '00:00', 'phase' => 'night']);

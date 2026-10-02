@@ -23,6 +23,7 @@ window.overseerLiveMap = function (cfg) {
         cx: 0,
         cz: 0,
         players: [],
+        recent: [],
         selected: null,
         pop: null,
         state: 'loading',
@@ -63,6 +64,7 @@ window.overseerLiveMap = function (cfg) {
             try {
                 const result = await this.$wire.positions();
                 this.players = result.players;
+                this.recent = result.recent ?? [];
                 this.state = result.ok ? 'live' : 'stale';
             } catch (e) {
                 this.state = 'stale';
@@ -78,6 +80,22 @@ window.overseerLiveMap = function (cfg) {
 
         get here() {
             return this.players.filter((p) => p.world === this.world);
+        },
+
+        // The live position of a player in the recent list, or null when they're offline.
+        live(name) {
+            return this.players.find((p) => p.name === name) ?? null;
+        },
+
+        // "5 minutes ago", in the browser's language.
+        ago(unix) {
+            const seconds = Math.round(unix - Date.now() / 1000);
+            const units = [['year', 31536000], ['month', 2592000], ['week', 604800], ['day', 86400], ['hour', 3600], ['minute', 60]];
+            const format = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+            for (const [unit, size] of units) {
+                if (Math.abs(seconds) >= size) return format.format(Math.round(seconds / size), unit);
+            }
+            return format.format(0, 'minute');
         },
 
         worldLabel(name) {

@@ -61,8 +61,8 @@ class Players extends Page implements HasTable
     /** @var array<int, array<string, mixed>> */
     public array $banned = [];
 
-    /** @var string[] */
-    public array $known = [];
+    /** @var array<int, array<string, mixed>> everyone who has played, plus the whitelist */
+    public array $roster = [];
 
     public static function canAccess(): bool
     {
@@ -84,6 +84,11 @@ class Players extends Page implements HasTable
 
     public function mount(): void
     {
+        // The Online and All known tabs became one All players tab.
+        if (in_array($this->activeTab, ['online', 'known'], true)) {
+            $this->activeTab = null;
+        }
+
         $this->loadPlayers();
         $this->loadDefaultActiveTab();
     }
@@ -97,15 +102,14 @@ class Players extends Page implements HasTable
         $this->ops = $players->ops($server);
         $this->whitelist = $players->whitelist($server);
         $this->banned = $players->banned($server);
-        $this->known = $players->known($server);
+        $this->roster = $players->roster($server, array_column($this->online ?? [], 'name'));
     }
 
     /** @return array<string, Tab> */
     public function getTabs(): array
     {
         return [
-            'online' => Tab::make('online')->label(trans('overseer::overseer.players.tabs.online'))->badge(fn () => $this->online === null ? null : count($this->online)),
-            'known' => Tab::make('known')->label(trans('overseer::overseer.players.tabs.known'))->badge(fn () => count($this->known)),
+            'all' => Tab::make('all')->label(trans('overseer::overseer.players.tabs.all'))->badge(fn () => count($this->roster)),
             'ops' => Tab::make('ops')->label(trans('overseer::overseer.players.tabs.ops'))->badge(fn () => count($this->ops)),
             'whitelist' => Tab::make('whitelist')->label(trans('overseer::overseer.players.tabs.whitelist'))->badge(fn () => count($this->whitelist)),
             'banned' => Tab::make('banned')->label(trans('overseer::overseer.players.tabs.banned'))->badge(fn () => count($this->banned) ?: null),
@@ -115,15 +119,20 @@ class Players extends Page implements HasTable
     /** @return array<int, array<string, mixed>> */
     protected function rows(): array
     {
-        $byName = fn (array $names) => array_map(fn ($name) => ['name' => $name], $names);
-        $onlineNames = array_column($this->online ?? [], 'name');
+        $positions = array_column($this->online ?? [], null, 'name');
+        $roster = array_column($this->roster, null, 'name');
+        $row = fn (string $name) => [
+            ...($positions[$name] ?? []),
+            'name' => $name,
+            'is_online' => $roster[$name]['online'] ?? isset($positions[$name]),
+            'last_seen' => $roster[$name]['last_seen'] ?? null,
+        ];
 
         return match ($this->activeTab) {
-            'known' => array_map(fn ($name) => ['name' => $name, 'is_online' => in_array($name, $onlineNames, true)], $this->known),
-            'ops' => $byName($this->ops),
-            'whitelist' => $byName($this->whitelist),
+            'ops' => array_map($row, $this->ops),
+            'whitelist' => array_map($row, $this->whitelist),
             'banned' => $this->banned,
-            default => array_map(fn ($player) => [...$player, 'is_online' => true], $this->online ?? []),
+            default => array_map($row, array_column($this->roster, 'name')),
         };
     }
 
@@ -161,14 +170,22 @@ class Players extends Page implements HasTable
                 TextColumn::make('location')
                     ->label(trans('overseer::overseer.players.columns.location'))
                     ->fontFamily(FontFamily::Mono)
-                    ->visible(fn () => !$this->activeTab || $this->activeTab === 'online')
+                    ->visible(fn () => $this->activeTab !== 'banned')
+                    ->placeholder('')
                     ->state(fn (array $record) => isset($record['x'])
                         ? str($record['dimension'] ?? 'overworld')->headline() . " · {$record['x']}, {$record['y']}, {$record['z']}"
                         : null),
-                TextColumn::make('status')
-                    ->label(trans('overseer::overseer.players.columns.status'))
-                    ->visible(fn () => $this->activeTab === 'known')
-                    ->state(fn (array $record) => ($record['is_online'] ?? false) ? trans('overseer::overseer.players.online') : trans('overseer::overseer.players.offline'))
+                TextColumn::make('last_seen')
+                    ->label(trans('overseer::overseer.players.columns.last_online'))
+                    ->visible(fn () => $this->activeTab !== 'banned')
+                    ->state(fn (array $record) => match (true) {
+                        $record['is_online'] ?? false => trans('overseer::overseer.players.online_now'),
+                        isset($record['last_seen']) => \Illuminate\Support\Carbon::createFromTimestamp($record['last_seen'])->diffForHumans(),
+                        default => trans('overseer::overseer.players.never'),
+                    })
+                    ->tooltip(fn (array $record) => isset($record['last_seen']) && !($record['is_online'] ?? false)
+                        ? \Illuminate\Support\Carbon::createFromTimestamp($record['last_seen'])->timezone(user()?->timezone ?? config('app.timezone'))->toDayDateTimeString()
+                        : null)
                     ->color(fn (array $record) => ($record['is_online'] ?? false) ? 'success' : 'gray'),
                 TextColumn::make('reason')
                     ->label(trans('overseer::overseer.players.columns.reason'))
@@ -368,22 +385,14 @@ class Players extends Page implements HasTable
 
     private function emptyHeading(): string
     {
-        if (($this->activeTab ?? 'online') !== 'online') {
-            return trans('overseer::overseer.players.empty.none');
-        }
-
-        if ($this->server()->retrieveStatus() !== ContainerStatus::Running) {
-            return trans('overseer::overseer.players.empty.offline');
-        }
-
-        return $this->online === null
-            ? trans('overseer::overseer.players.empty.no_rcon')
-            : trans('overseer::overseer.players.empty.nobody');
+        return in_array($this->activeTab, [null, 'all'], true)
+            ? trans('overseer::overseer.players.empty.nobody')
+            : trans('overseer::overseer.players.empty.none');
     }
 
     private function emptyDescription(): ?string
     {
-        if (($this->activeTab ?? 'online') === 'online' && $this->online === null && $this->server()->retrieveStatus() === ContainerStatus::Running) {
+        if (in_array($this->activeTab, [null, 'all'], true) && $this->online === null && $this->server()->retrieveStatus() === ContainerStatus::Running) {
             return trans('overseer::overseer.players.empty.no_rcon_help');
         }
 

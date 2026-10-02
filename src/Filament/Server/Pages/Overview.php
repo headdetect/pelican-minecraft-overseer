@@ -36,6 +36,9 @@ class Overview extends Page
 
     protected string $view = 'overseer::overview';
 
+    /** How many players the side list shows. */
+    private const RECENT_PLAYERS = 8;
+
     /** @var array{status: string, port: ?int, worlds: array<int, array<string, mixed>>} */
     public array $source = [];
 
@@ -89,7 +92,10 @@ class Overview extends Page
     /**
      * Player positions for the map, polled by the browser while the page is open.
      *
-     * @return array{ok: bool, players: array<int, array<string, mixed>>}
+     * Player positions for the map, and the most recent players for the side
+     * list, polled by the browser while the page is open.
+     *
+     * @return array{ok: bool, players: array<int, array<string, mixed>>, recent: array<int, array<string, mixed>>}
      */
     #[Renderless]
     public function positions(): array
@@ -97,17 +103,24 @@ class Overview extends Page
         $server = $this->server();
         abort_unless(Permission::allows(Permission::MAP_VIEW, $server), 403);
 
-        if ($server->retrieveStatus() !== ContainerStatus::Running) {
-            return ['ok' => true, 'players' => []];
+        $players = [];
+        if ($server->retrieveStatus() === ContainerStatus::Running) {
+            $players = ($this->source['status'] ?? null) === MapService::READY
+                ? app(MapService::class)->players($server)
+                : $this->rconPlayers($server);
         }
 
-        $players = ($this->source['status'] ?? null) === MapService::READY
-            ? app(MapService::class)->players($server)
-            : $this->rconPlayers($server);
+        $recent = array_slice(app(PlayerService::class)->roster($server, array_column($players ?? [], 'name')), 0, self::RECENT_PLAYERS);
 
         return [
             'ok' => $players !== null,
             'players' => array_map(fn (array $player) => [...$player, 'op' => in_array($player['name'], $this->ops, true)], $players ?? []),
+            'recent' => array_map(fn (array $player) => [
+                'name' => $player['name'],
+                'online' => $player['online'],
+                'last_seen' => $player['last_seen'],
+                'op' => in_array($player['name'], $this->ops, true),
+            ], $recent),
         ];
     }
 
