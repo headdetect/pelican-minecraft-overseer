@@ -7,13 +7,17 @@ use App\Models\Server;
 use App\Traits\Filament\BlockAccessInConflict;
 use Exception;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Resources\Concerns\HasTabs;
 use Filament\Schemas\Components\EmbeddedTable;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\FontFamily;
@@ -198,11 +202,22 @@ class Players extends Page implements HasTable
                     ->state(fn (array $record) => $this->banExpiry($record['name']) ?? trans('overseer::overseer.players.never')),
             ])
             ->recordActions([
-                $this->opAction(),
-                $this->whitelistAction(),
-                $this->kickAction(),
-                $this->banAction(),
-                $this->unbanAction(),
+                // grouped() keeps labels in the menu. Pelican's "icon buttons"
+                // preference otherwise turns every action into a bare icon.
+                ActionGroup::make(array_map(fn (Action $action) => $action->grouped(), [
+                    $this->opAction(),
+                    $this->whitelistAction(),
+                    $this->giveAction(),
+                    $this->teleportAction(),
+                    $this->kickAction(),
+                    $this->banAction(),
+                    $this->unbanAction(),
+                ]))
+                    ->label(trans('overseer::overseer.players.actions.menu'))
+                    ->icon('tabler-dots-vertical')
+                    ->button()
+                    ->color('gray')
+                    ->size('sm'),
             ])
             ->headerActions([
                 Action::make('refresh')
@@ -289,6 +304,121 @@ class Players extends Page implements HasTable
                     ]);
                 }
             });
+    }
+
+    private function giveAction(): Action
+    {
+        return Action::make('give')
+            ->label(trans('overseer::overseer.players.actions.give'))
+            ->icon('tabler-gift')
+            ->color('gray')
+            ->visible(fn (array $record) => ($record['is_online'] ?? false) && $this->can(Permission::PLAYERS_CHEAT))
+            ->modalHeading(fn (array $record) => trans('overseer::overseer.players.give_heading', ['name' => $record['name']]))
+            ->modalSubmitActionLabel(trans('overseer::overseer.players.actions.give'))
+            ->schema([
+                Grid::make(3)->schema([
+                    TextInput::make('item')
+                        ->label(trans('overseer::overseer.players.item'))
+                        ->helperText(trans('overseer::overseer.players.item_help'))
+                        ->placeholder('minecraft:diamond')
+                        ->datalist(['minecraft:diamond', 'minecraft:iron_ingot', 'minecraft:golden_apple', 'minecraft:ender_pearl', 'minecraft:cooked_beef', 'minecraft:torch', 'minecraft:oak_log', 'minecraft:elytra', 'minecraft:totem_of_undying'])
+                        ->regex('/^(?:[a-z0-9_.-]+:)?[a-z0-9_.\/-]{1,100}$/')
+                        ->required()
+                        ->columnSpan(2),
+                    TextInput::make('count')
+                        ->label(trans('overseer::overseer.players.count'))
+                        ->numeric()
+                        ->integer()
+                        ->minValue(1)
+                        ->maxValue(6400)
+                        ->default(1)
+                        ->required(),
+                ]),
+            ])
+            ->action(fn (array $record, array $data) => $this->runCommand(
+                'give',
+                $record['name'],
+                fn (string $name) => sprintf('give %s %s %d', $name, CommandInput::itemId($data['item']), max(1, min(6400, (int) $data['count']))),
+                'given',
+            ));
+    }
+
+    private function teleportAction(): Action
+    {
+        return Action::make('teleport')
+            ->label(trans('overseer::overseer.players.actions.teleport'))
+            ->icon('tabler-arrows-move')
+            ->color('gray')
+            ->visible(fn (array $record) => ($record['is_online'] ?? false) && $this->can(Permission::PLAYERS_CHEAT))
+            ->modalHeading(fn (array $record) => trans('overseer::overseer.players.teleport_heading', ['name' => $record['name']]))
+            ->modalSubmitActionLabel(trans('overseer::overseer.players.actions.teleport'))
+            ->schema(fn (array $record) => [
+                Radio::make('to')
+                    ->label(trans('overseer::overseer.players.teleport_to'))
+                    ->options([
+                        'player' => trans('overseer::overseer.players.teleport_player'),
+                        'coords' => trans('overseer::overseer.players.teleport_coords'),
+                    ])
+                    ->default('player')
+                    ->inline()
+                    ->live(),
+                Select::make('target')
+                    ->label(trans('overseer::overseer.players.columns.name'))
+                    ->options(fn () => collect($this->online ?? [])->pluck('name')->reject(fn ($name) => $name === $record['name'])->mapWithKeys(fn ($name) => [$name => $name])->all())
+                    ->visible(fn (Get $get) => $get('to') === 'player')
+                    ->required(fn (Get $get) => $get('to') === 'player'),
+                Grid::make(3)
+                    ->visible(fn (Get $get) => $get('to') === 'coords')
+                    ->schema(array_map(fn (string $axis) => TextInput::make($axis)
+                        ->label(strtoupper($axis))
+                        ->numeric()
+                        ->integer()
+                        ->minValue($axis === 'y' ? -2048 : -29999984)
+                        ->maxValue($axis === 'y' ? 2048 : 29999984)
+                        ->default($record[$axis] ?? 0)
+                        ->required(fn (Get $get) => $get('to') === 'coords'), ['x', 'y', 'z'])),
+                Select::make('dimension')
+                    ->label(trans('overseer::overseer.players.dimension'))
+                    ->options([
+                        'minecraft:overworld' => trans('overseer::overseer.map.worlds.overworld'),
+                        'minecraft:the_nether' => trans('overseer::overseer.map.worlds.nether'),
+                        'minecraft:the_end' => trans('overseer::overseer.map.worlds.end'),
+                    ])
+                    ->default('minecraft:' . ($record['dimension'] ?? 'overworld'))
+                    ->selectablePlaceholder(false)
+                    ->visible(fn (Get $get) => $get('to') === 'coords'),
+            ])
+            ->action(fn (array $record, array $data) => $this->runCommand(
+                'teleport',
+                $record['name'],
+                fn (string $name) => CommandInput::teleport($name, $data),
+                'teleported',
+            ));
+    }
+
+    /** Builds a command for one player after checking the name, runs it, and reports the result. */
+    private function runCommand(string $action, string $player, callable $command, string $notification): bool
+    {
+        try {
+            $name = CommandInput::playerName($player);
+            $reply = app(ConsoleService::class)->run($this->server(), $action, $command($name), $name);
+
+            Notification::make()
+                ->title(trans("overseer::overseer.players.notifications.$notification", ['name' => $name]))
+                ->body($reply ?: null)
+                ->success()
+                ->send();
+
+            return true;
+        } catch (Exception $exception) {
+            Notification::make()
+                ->title(trans('overseer::overseer.players.notifications.failed'))
+                ->body($exception->getMessage())
+                ->danger()
+                ->send();
+
+            return false;
+        }
     }
 
     private function unbanAction(): Action

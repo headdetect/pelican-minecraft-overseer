@@ -24,6 +24,8 @@ final class Permission
 
     public const PLAYERS_WHITELIST = 'overseer.players-whitelist';
 
+    public const PLAYERS_CHEAT = 'overseer.players-cheat';
+
     public const COMMANDS_WORLD = 'overseer.commands-world';
 
     public const COMMANDS_OPS = 'overseer.commands-ops';
@@ -46,6 +48,7 @@ final class Permission
                 self::PLAYERS_BAN,
                 self::PLAYERS_OP,
                 self::PLAYERS_WHITELIST,
+                self::PLAYERS_CHEAT,
                 self::COMMANDS_WORLD,
                 self::COMMANDS_OPS,
                 self::CONFIG_VIEW,

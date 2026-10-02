@@ -26,6 +26,51 @@ final class CommandInput
     }
 
     /** Free text such as a kick reason or broadcast: one line, no § formatting codes, bounded length. */
+    /**
+     * An item id such as "diamond" or "minecraft:diamond_sword", or a modded one
+     * like "create:wrench". No NBT or components, so nothing else can follow it.
+     */
+    public static function itemId(string $item): string
+    {
+        $item = strtolower(trim($item));
+
+        if (!preg_match('/^(?:[a-z0-9_.-]+:)?[a-z0-9_.\/-]{1,100}$/', $item)) {
+            throw new InvalidArgumentException("\"$item\" is not an item id, like minecraft:diamond.");
+        }
+
+        return $item;
+    }
+
+    public const DIMENSIONS = ['minecraft:overworld', 'minecraft:the_nether', 'minecraft:the_end'];
+
+    /**
+     * "tp Doobie kelp_lord" to send a player to another player, or
+     * "execute in minecraft:the_nether run tp Doobie 10 64 -20" for coordinates.
+     *
+     * @param  array{to?: string, target?: string, x?: mixed, y?: mixed, z?: mixed, dimension?: string}  $data
+     */
+    public static function teleport(string $player, array $data): string
+    {
+        $player = self::playerName($player);
+
+        if (($data['to'] ?? 'player') === 'player') {
+            return sprintf('tp %s %s', $player, self::playerName((string) ($data['target'] ?? '')));
+        }
+
+        $dimension = (string) ($data['dimension'] ?? self::DIMENSIONS[0]);
+        if (!in_array($dimension, self::DIMENSIONS, true)) {
+            throw new InvalidArgumentException("\"$dimension\" isn't a dimension Overseer offers.");
+        }
+
+        foreach (['x', 'y', 'z'] as $axis) {
+            if (!is_numeric($data[$axis] ?? null)) {
+                throw new InvalidArgumentException(strtoupper($axis) . ' must be a number.');
+            }
+        }
+
+        return sprintf('execute in %s run tp %s %d %d %d', $dimension, $player, (int) $data['x'], (int) $data['y'], (int) $data['z']);
+    }
+
     public static function text(?string $text, int $max = 200): string
     {
         $text = (string) $text;

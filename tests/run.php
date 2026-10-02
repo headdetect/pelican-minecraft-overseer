@@ -118,6 +118,16 @@ check('modpack missing name', ServerStats::modpack(['provider' => 'modrinth']), 
 check('uptime days', ServerStats::uptime(3 * 86400000 + 4 * 3600000), '3d 4h');
 check('uptime minutes', ServerStats::uptime(12 * 60000 + 59000), '12m');
 
+// --- Give and teleport ---
+check('item id plain', CommandInput::itemId(' Diamond '), 'diamond');
+check('item id modded', CommandInput::itemId('create:wrench'), 'create:wrench');
+throws('item id with nbt', fn () => CommandInput::itemId('diamond_sword{Enchantments:[]}'));
+check('teleport to player', CommandInput::teleport('Doobie', ['to' => 'player', 'target' => 'kelp_lord']), 'tp Doobie kelp_lord');
+check('teleport to coords', CommandInput::teleport('Doobie', ['to' => 'coords', 'x' => '10', 'y' => 64, 'z' => '-20.7', 'dimension' => 'minecraft:the_nether']), 'execute in minecraft:the_nether run tp Doobie 10 64 -20');
+throws('teleport bad target', fn () => CommandInput::teleport('Doobie', ['to' => 'player', 'target' => 'x; stop']));
+throws('teleport bad dimension', fn () => CommandInput::teleport('Doobie', ['to' => 'coords', 'x' => 0, 'y' => 0, 'z' => 0, 'dimension' => 'minecraft:overworld run stop']));
+throws('item id with second command', fn () => CommandInput::itemId('diamond 64\nop Me'));
+
 // --- server.properties ---
 $props = Properties::parse(<<<'TXT'
 #Minecraft server properties
