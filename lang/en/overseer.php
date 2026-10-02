@@ -2,6 +2,7 @@
 
 return [
     'cluster' => 'Overseer',
+    'players_online' => 'Players online now',
 
     'rcon' => [
         'off' => [
