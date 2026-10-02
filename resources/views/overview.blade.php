@@ -25,26 +25,6 @@
 
     <div class="us-stats" wire:poll.15s>
         <div class="us-stat">
-            <div class="us-stat-label">{{ trans('overseer::overseer.overview.minecraft') }}</div>
-            <div class="us-stat-value {{ $stats['version'] ? '' : 'is-empty' }}">{{ $stats['version'] ?? $none }}</div>
-            <div class="us-stat-sub" @if ($stats['modpack']) title="{{ $stats['modpack']['name'] }} {{ $stats['modpack']['version'] }}" @endif>
-                @if ($stats['modpack'])
-                    @if ($stats['modpack']['url'])
-                        <a href="{{ $stats['modpack']['url'] }}" target="_blank" rel="noopener noreferrer">{{ $stats['modpack']['name'] }}</a>
-                    @else
-                        {{ $stats['modpack']['name'] }}
-                    @endif
-                    {{ $stats['modpack']['version'] }}
-                @else
-                    {{ trans('overseer::overseer.overview.no_modpack') }}
-                @endif
-            </div>
-            <div class="us-stat-sub">
-                {{ $r['uptime'] !== null ? trans('overseer::overseer.overview.uptime', ['time' => \Headdetect\Overseer\Support\ServerStats::uptime($r['uptime'])]) : trans('overseer::overseer.overview.offline') }}
-            </div>
-        </div>
-
-        <div class="us-stat">
             <div class="us-stat-label">{{ trans('overseer::overseer.overview.cpu') }}</div>
             <div class="us-stat-value {{ $r['cpu'] === null ? 'is-empty' : '' }}">{{ $r['cpu'] === null ? $none : number_format($r['cpu'], 1) . '%' }}</div>
             <div class="us-stat-sub">{{ $r['cpu_limit'] > 0 ? trans('overseer::overseer.overview.of', ['limit' => $r['cpu_limit'] . '%']) : trans('overseer::overseer.overview.no_limit') }}</div>
@@ -70,6 +50,10 @@
                 <div class="us-bar"><span style="width: {{ $diskPercent }}%"></span></div>
             @endif
         </div>
+
+        @if ($this->canRunWorldCommands() || $this->canRunOpsCommands())
+            @include('overseer::partials.server-card')
+        @endif
     </div>
 
     @if ($setup)
@@ -149,24 +133,6 @@
         </div>
 
         <div class="us-side">
-            <x-filament::section compact>
-                <div class="us-stat-label">{{ trans('overseer::overseer.overview.game_time') }}</div>
-                <template x-if="time">
-                    <div>
-                        <div class="us-time">
-                            <span class="us-time-icon" x-text="phaseIcon(time.phase)" :title="cfg.labels.phases[time.phase]" aria-hidden="true"></span>
-                            <span class="us-stat-value" x-text="time.clock"></span>
-                        </div>
-                        <div class="us-stat-sub" x-text="`${cfg.labels.day.replace(':day', time.day.toLocaleString())} · ${cfg.labels.phases[time.phase]}`"></div>
-                    </div>
-                </template>
-                <template x-if="!time">
-                    <div>
-                        <div class="us-stat-value is-empty">{{ trans('overseer::overseer.overview.none') }}</div>
-                        <div class="us-stat-sub">{{ trans('overseer::overseer.overview.needs_rcon') }}</div>
-                    </div>
-                </template>
-            </x-filament::section>
 
             <x-filament::section :heading="trans('overseer::overseer.map.online')" compact>
                 <x-slot name="afterHeader">
@@ -203,43 +169,48 @@
                 </div>
             </x-filament::section>
 
+            @include('overseer::partials.quick-actions', ['withClock' => true])
+
+            <x-filament::section compact>
+                <div class="us-stat-label">{{ trans('overseer::overseer.overview.minecraft') }}</div>
+                <div class="us-stat-value" :class="{ 'is-empty': !server?.version }" x-text="server?.version ?? '{{ trans('overseer::overseer.overview.none') }}'"></div>
+                <div class="us-stat-sub">
+                    <template x-if="server?.modpack">
+                        <span :title="`${server.modpack.name} ${server.modpack.version ?? ''}`">
+                            <a x-show="server.modpack.url" :href="server.modpack.url" target="_blank" rel="noopener noreferrer" x-text="server.modpack.name"></a>
+                            <span x-show="!server.modpack.url" x-text="server.modpack.name"></span>
+                            <span x-text="server.modpack.version ?? ''"></span>
+                        </span>
+                    </template>
+                    <template x-if="!server?.modpack">
+                        <span>{{ trans('overseer::overseer.overview.no_modpack') }}</span>
+                    </template>
+                </div>
+                <div class="us-stat-sub" x-text="server?.uptime ?? '{{ trans('overseer::overseer.overview.offline') }}'"></div>
+            </x-filament::section>
         </div>
     </div>
     @endif
 
-    @if ($this->canRunWorldCommands() || $this->canRunOpsCommands())
-        <div class="us-commands">
-            @if ($this->canRunWorldCommands())
-                <section>
-                    <h3 class="us-h">{{ trans('overseer::overseer.commands.time.title') }}</h3>
-                    <p class="us-help">{{ trans('overseer::overseer.commands.time.help') }}</p>
-                    @include('overseer::partials.command-tiles', ['tiles' => $this->commandTiles()['time']])
-                </section>
-                <section>
-                    <h3 class="us-h">{{ trans('overseer::overseer.commands.weather.title') }}</h3>
-                    <p class="us-help">{{ trans('overseer::overseer.commands.weather.help') }}</p>
-                    @include('overseer::partials.command-tiles', ['tiles' => $this->commandTiles()['weather']])
-                </section>
-            @endif
-            <section>
-                <h3 class="us-h">{{ trans('overseer::overseer.commands.server.title') }}</h3>
-                <p class="us-help">{{ trans('overseer::overseer.commands.server.help') }}</p>
-                <div class="us-buttons">{{ $this->saveAction }} {{ $this->whitelistOnAction }} {{ $this->whitelistOffAction }} {{ $this->broadcastAction }} {{ $this->customAction }}</div>
-            </section>
-            <section>
-                <h3 class="us-h">{{ trans('overseer::overseer.commands.recent.title') }}</h3>
-                <p class="us-help">{{ trans('overseer::overseer.commands.recent.help') }}</p>
-                @php($recentActions = $this->recentActions())
-                @if ($recentActions)
-                    <ul class="us-log">
-                        @foreach ($recentActions as $line)
-                            <li>{{ $line }}</li>
-                        @endforeach
-                    </ul>
-                @else
-                    <p class="us-help">{{ trans('overseer::overseer.commands.recent.empty') }}</p>
-                @endif
-            </section>
+    @if (!$this->canSeeMap() && ($this->canRunWorldCommands() || $this->canRunOpsCommands()))
+        <div class="us-side us-side-alone">
+            @include('overseer::partials.server-card')
+            @include('overseer::partials.quick-actions', ['withClock' => false])
         </div>
+    @endif
+
+    @if ($this->canRunWorldCommands() || $this->canRunOpsCommands())
+        <x-filament::section :heading="trans('overseer::overseer.commands.recent.title')" :description="trans('overseer::overseer.commands.recent.help')" compact>
+            @php($recentActions = $this->recentActions())
+            @if ($recentActions)
+                <ul class="us-log">
+                    @foreach ($recentActions as $line)
+                        <li>{{ $line }}</li>
+                    @endforeach
+                </ul>
+            @else
+                <p class="us-help">{{ trans('overseer::overseer.commands.recent.empty') }}</p>
+            @endif
+        </x-filament::section>
     @endif
 </x-filament-panels::page>

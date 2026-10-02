@@ -25,6 +25,7 @@ window.overseerLiveMap = function (cfg) {
         players: [],
         online: [],
         time: null,
+        server: null,
         selected: null,
         pop: null,
         state: 'loading',
@@ -67,6 +68,7 @@ window.overseerLiveMap = function (cfg) {
                 this.players = result.players;
                 this.online = result.online ?? [];
                 this.time = result.time ?? null;
+                this.server = result.server ?? null;
                 this.state = result.ok ? 'live' : 'stale';
             } catch (e) {
                 this.state = 'stale';

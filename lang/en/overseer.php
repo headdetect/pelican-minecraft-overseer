@@ -211,6 +211,7 @@ return [
     ],
 
     'commands' => [
+        'quick' => 'Quick actions',
         'sent' => 'Ran :command',
         'failed' => "That didn't work",
         'time' => [

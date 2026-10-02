@@ -21,6 +21,7 @@ use Headdetect\Overseer\Services\OverviewService;
 use Headdetect\Overseer\Services\PlayerService;
 use Headdetect\Overseer\Support\CommandInput;
 use Headdetect\Overseer\Support\Permission;
+use Headdetect\Overseer\Support\ServerStats;
 use Livewire\Attributes\Renderless;
 
 class Overview extends Page
@@ -140,6 +141,19 @@ class Overview extends Page
             'players' => array_map(fn (array $player) => [...$player, 'op' => in_array($player['name'], $this->ops, true)], $players ?? []),
             'online' => array_map(fn (string $name) => ['name' => $name, 'op' => in_array($name, $this->ops, true)], $online),
             'time' => $running ? $overview->gameTime($server) : null,
+            'server' => $this->serverInfo($overview->stats($server)),
+        ];
+    }
+
+    /** @return array{version: ?string, modpack: ?array<string, mixed>, uptime: ?string} */
+    private function serverInfo(array $stats): array
+    {
+        $uptime = $stats['resources']['uptime'];
+
+        return [
+            'version' => $stats['version'],
+            'modpack' => $stats['modpack'],
+            'uptime' => $uptime !== null ? trans('overseer::overseer.overview.uptime', ['time' => ServerStats::uptime($uptime)]) : null,
         ];
     }
 
