@@ -129,6 +129,8 @@ check('uptime minutes', ServerStats::uptime(12 * 60000 + 59000), '12m');
 check('item id plain', CommandInput::itemId(' Diamond '), 'diamond');
 check('item id modded', CommandInput::itemId('create:wrench'), 'create:wrench');
 throws('item id with nbt', fn () => CommandInput::itemId('diamond_sword{Enchantments:[]}'));
+check('game mode', CommandInput::gameMode(' Creative '), 'creative');
+throws('game mode injection', fn () => CommandInput::gameMode('creative @a'));
 check('teleport to player', CommandInput::teleport('Doobie', ['to' => 'player', 'target' => 'kelp_lord']), 'tp Doobie kelp_lord');
 check('teleport to coords', CommandInput::teleport('Doobie', ['to' => 'coords', 'x' => '10', 'y' => 64, 'z' => '-20.7', 'dimension' => 'minecraft:the_nether']), 'execute in minecraft:the_nether run tp Doobie 10 64 -20');
 throws('teleport bad target', fn () => CommandInput::teleport('Doobie', ['to' => 'player', 'target' => 'x; stop']));

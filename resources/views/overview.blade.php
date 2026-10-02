@@ -122,6 +122,9 @@
                             @if ($can['ban'])
                                 <x-filament::button size="xs" color="danger" x-on:click="act('ban', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.ban') }}</x-filament::button>
                             @endif
+                            @if ($can['gamemode'])
+                                <x-filament::button size="xs" color="gray" x-on:click="act('gamemode', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.gamemode') }}</x-filament::button>
+                            @endif
                             @if ($can['op'])
                                 <x-filament::button size="xs" color="gray" x-show="!selectedPlayer.op" x-on:click="act('op', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.op') }}</x-filament::button>
                                 <x-filament::button size="xs" color="gray" x-show="selectedPlayer.op" x-on:click="act('deop', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.deop') }}</x-filament::button>

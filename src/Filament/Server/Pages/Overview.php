@@ -211,6 +211,7 @@ class Overview extends Page
             'kick' => $this->can(Permission::PLAYERS_KICK),
             'ban' => $this->can(Permission::PLAYERS_BAN),
             'op' => $this->can(Permission::PLAYERS_OP),
+            'gamemode' => $this->can(Permission::PLAYERS_CHEAT),
         ];
     }
 
@@ -275,6 +276,21 @@ class Overview extends Page
             ->modalDescription(trans('overseer::overseer.players.op_warning'))
             ->modalSubmitActionLabel(trans('overseer::overseer.players.actions.op'))
             ->action(fn (array $arguments) => $this->runFor('op', 'op', $arguments['name'] ?? '', 'opped'));
+    }
+
+    public function gamemodeAction(): Action
+    {
+        return Action::make('gamemode')
+            ->visible(fn () => $this->can(Permission::PLAYERS_CHEAT))
+            ->modalHeading(fn (array $arguments) => trans('overseer::overseer.players.gamemode_heading', ['name' => $arguments['name'] ?? '']))
+            ->modalSubmitActionLabel(trans('overseer::overseer.players.actions.gamemode'))
+            ->schema([Select::make('mode')
+                    ->label(trans('overseer::overseer.players.game_mode'))
+                    ->options(collect(CommandInput::GAME_MODES)->mapWithKeys(fn ($mode) => [$mode => trans("overseer::overseer.players.game_modes.$mode")])->all())
+                    ->default('survival')
+                    ->selectablePlaceholder(false)
+                    ->required()])
+            ->action(fn (array $arguments, array $data) => $this->runFor('gamemode', 'gamemode ' . CommandInput::gameMode($data['mode']), $arguments['name'] ?? '', 'gamemode_changed'));
     }
 
     public function deopAction(): Action

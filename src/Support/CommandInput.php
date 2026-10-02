@@ -41,6 +41,18 @@ final class CommandInput
         return $item;
     }
 
+    public const GAME_MODES = ['survival', 'creative', 'adventure', 'spectator'];
+
+    public static function gameMode(string $mode): string
+    {
+        $mode = strtolower(trim($mode));
+        if (!in_array($mode, self::GAME_MODES, true)) {
+            throw new InvalidArgumentException("\"$mode\" isn't a game mode.");
+        }
+
+        return $mode;
+    }
+
     public const DIMENSIONS = ['minecraft:overworld', 'minecraft:the_nether', 'minecraft:the_end'];
 
     /**

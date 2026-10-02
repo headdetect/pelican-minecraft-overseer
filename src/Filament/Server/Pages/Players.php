@@ -207,6 +207,7 @@ class Players extends Page implements HasTable
                 ActionGroup::make(array_map(fn (Action $action) => $action->grouped(), [
                     $this->opAction(),
                     $this->whitelistAction(),
+                    $this->gamemodeAction(),
                     $this->giveAction(),
                     $this->teleportAction(),
                     $this->kickAction(),
@@ -304,6 +305,29 @@ class Players extends Page implements HasTable
                     ]);
                 }
             });
+    }
+
+    private function gamemodeAction(): Action
+    {
+        return Action::make('gamemode')
+            ->label(trans('overseer::overseer.players.actions.gamemode'))
+            ->icon('tabler-device-gamepad-2')
+            ->color('gray')
+            ->visible(fn (array $record) => ($record['is_online'] ?? false) && $this->can(Permission::PLAYERS_CHEAT))
+            ->modalHeading(fn (array $record) => trans('overseer::overseer.players.gamemode_heading', ['name' => $record['name']]))
+            ->modalSubmitActionLabel(trans('overseer::overseer.players.actions.gamemode'))
+            ->schema([Select::make('mode')
+                    ->label(trans('overseer::overseer.players.game_mode'))
+                    ->options(collect(CommandInput::GAME_MODES)->mapWithKeys(fn ($mode) => [$mode => trans("overseer::overseer.players.game_modes.$mode")])->all())
+                    ->default('survival')
+                    ->selectablePlaceholder(false)
+                    ->required()])
+            ->action(fn (array $record, array $data) => $this->runCommand(
+                'gamemode',
+                $record['name'],
+                fn (string $name) => sprintf('gamemode %s %s', CommandInput::gameMode($data['mode']), $name),
+                'gamemode_changed',
+            ));
     }
 
     private function giveAction(): Action

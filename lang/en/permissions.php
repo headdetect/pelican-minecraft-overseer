@@ -10,7 +10,7 @@ return [
     'overseer_players_ban' => 'Ban and unban players.',
     'overseer_players_op' => 'Make players operators or remove operator status.',
     'overseer_players_whitelist' => 'Add players to or remove them from the whitelist.',
-    'overseer_players_cheat' => 'Give items to and teleport online players.',
+    'overseer_players_cheat' => 'Change the game mode of, give items to and teleport online players.',
     'overseer_commands_world' => 'Set the time and weather, and save the world, from the Overview.',
     'overseer_commands_ops' => 'Broadcast messages and run any console command from the Overview.',
     'overseer_config_view' => 'See the Config page with the server settings, game rules and Paper settings.',
