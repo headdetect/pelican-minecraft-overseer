@@ -69,7 +69,10 @@ window.overseerLiveMap = function (cfg) {
             if (this.busy) return;
             this.busy = true;
             try {
-                const result = await this.$wire.positions();
+                // A plain fetch, so a slow poll never holds up a Livewire button click.
+                const response = await fetch(cfg.feedUrl, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const result = await response.json();
                 this.players = result.players;
                 this.time = result.time ?? null;
                 this.server = result.server ?? null;

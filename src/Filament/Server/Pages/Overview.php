@@ -102,6 +102,7 @@ class Overview extends Page
             'refresh' => (int) config('overseer.map.refresh', 5),
             'canTeleport' => $this->can(Permission::PLAYERS_CHEAT),
             'surfaceUrl' => route('overseer.map.surface', ['server' => $this->server()->uuid]),
+            'feedUrl' => route('overseer.map.feed', ['server' => $this->server()->uuid]),
             'labels' => [
                 'joined' => trans('overseer::overseer.chat.joined'),
                 'left' => trans('overseer::overseer.chat.left'),
@@ -109,51 +110,6 @@ class Overview extends Page
                 'phases' => trans('overseer::overseer.overview.phases'),
                 'providers' => trans('overseer::overseer.overview.providers'),
             ],
-        ];
-    }
-
-    /**
-     * Player positions for the map, polled by the browser while the page is open.
-     *
-     * Player positions for the map and the Online now list, the game time,
-     * chat and server info, polled by the browser while the page is open.
-     *
-     * @return array{ok: bool, players: array<int, array<string, mixed>>, time: ?array<string, mixed>}
-     */
-    #[Renderless]
-    public function positions(): array
-    {
-        $server = $this->server();
-        abort_unless(Permission::allows(Permission::MAP_VIEW, $server), 403);
-
-        $running = $server->retrieveStatus() === ContainerStatus::Running;
-        $players = [];
-        if ($running) {
-            $players = ($this->source['status'] ?? null) === MapService::READY
-                ? app(MapService::class)->players($server)
-                : $this->rconPlayers($server);
-        }
-
-        $overview = app(OverviewService::class);
-
-        return [
-            'ok' => $players !== null,
-            'players' => array_map(fn (array $player) => [...$player, 'op' => in_array($player['name'], $this->ops, true)], $players ?? []),
-            'time' => $running ? $overview->gameTime($server) : null,
-            'chat' => $running ? ($overview->chat($server) ?? []) : [],
-            'server' => $this->serverInfo($overview->stats($server)),
-        ];
-    }
-
-    /** @return array{version: ?string, modpack: ?array<string, mixed>, uptime: ?string} */
-    private function serverInfo(array $stats): array
-    {
-        $uptime = $stats['resources']['uptime'];
-
-        return [
-            'version' => $stats['version'],
-            'modpack' => $stats['modpack'],
-            'uptime' => $uptime !== null ? trans('overseer::overseer.overview.uptime', ['time' => ServerStats::uptime($uptime)]) : null,
         ];
     }
 
@@ -367,34 +323,6 @@ class Overview extends Page
 
             return false;
         }
-    }
-
-    /** @return ?array<int, array<string, mixed>> */
-    private function rconPlayers(Server $server): ?array
-    {
-        $online = app(PlayerService::class)->online($server);
-        if ($online === null) {
-            return null;
-        }
-
-        $players = [];
-        foreach ($online as $player) {
-            if ($player['x'] === null) {
-                continue;
-            }
-
-            $players[] = [
-                'name' => $player['name'],
-                'world' => in_array($player['dimension'], ['the_nether', 'the_end'], true) ? $player['dimension'] : 'overworld',
-                'x' => $player['x'],
-                'y' => $player['y'],
-                'z' => $player['z'],
-                'yaw' => null,
-                'health' => null,
-            ];
-        }
-
-        return $players;
     }
 
     /**

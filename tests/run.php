@@ -24,6 +24,7 @@ use Headdetect\Overseer\Support\ChatLog;
 use Headdetect\Overseer\Support\CommandInput;
 use Headdetect\Overseer\Support\ConfigSchema;
 use Headdetect\Overseer\Support\EditableFiles;
+use Headdetect\Overseer\Support\PlayerNbt;
 use Headdetect\Overseer\Support\Properties;
 use Headdetect\Overseer\Support\ServerAddress;
 use Headdetect\Overseer\Support\ServerStats;
@@ -162,6 +163,22 @@ check('dimension from squaremap', Surface::dimension('minecraft_the_nether'), 'm
 check('dimension from grid', Surface::dimension('overworld'), 'minecraft:overworld');
 throws('dimension modded', fn () => Surface::dimension('twilightforest_twilight_forest'));
 
+// --- Player .dat files ---
+$tag = fn (int $type, string $name, string $payload) => chr($type) . pack('n', strlen($name)) . $name . $payload;
+$nbtString = fn (string $value) => pack('n', strlen($value)) . $value;
+$dat = gzencode($tag(10, '', implode('', [
+    $tag(9, 'Pos', chr(6) . pack('N', 3) . str_repeat(pack('E', 1.5), 3)),
+    $tag(10, 'abilities', $tag(1, 'flying', chr(0)) . chr(0)),
+    $tag(3, 'playerGameType', pack('N', 1)),
+    $tag(7, 'Bytes', pack('N', 3) . 'abc'),
+    $tag(3, 'XpLevel', pack('N', 30)),
+    $tag(8, 'Dimension', $nbtString('minecraft:the_nether')),
+    $tag(12, 'Longs', pack('N', 1) . pack('J', 5)),
+]) . chr(0)));
+check('nbt summary', PlayerNbt::summary($dat), ['gamemode' => 'creative', 'xp_level' => 30, 'dimension' => 'minecraft:the_nether']);
+check('nbt not gzip', PlayerNbt::summary('not nbt'), null);
+check('nbt truncated', PlayerNbt::summary(gzencode(substr(gzdecode($dat), 0, 40))), null);
+
 // --- Chat ---
 $chat = ChatLog::parse([
     '[12:04:31] [Server thread/INFO]: <Doobie> hi all',
@@ -174,6 +191,11 @@ $chat = ChatLog::parse([
     'garbage',
 ]);
 check('chat count', count($chat), 5);
+$m = fn (string $t, string $text) => ['time' => $t, 'type' => 'chat', 'name' => 'A', 'text' => $text];
+check('chat merge appends new', array_column(ChatLog::merge([$m('1', 'a'), $m('2', 'b')], [$m('2', 'b'), $m('3', 'c')]), 'text'), ['a', 'b', 'c']);
+check('chat merge no change', array_column(ChatLog::merge([$m('1', 'a'), $m('2', 'b')], [$m('1', 'a'), $m('2', 'b')]), 'text'), ['a', 'b']);
+check('chat merge keeps a repeated message', array_column(ChatLog::merge([$m('1', 'hi')], [$m('1', 'hi'), $m('1', 'hi')]), 'text'), ['hi', 'hi']);
+check('chat merge limit', count(ChatLog::merge([$m('1', 'a'), $m('2', 'b')], [$m('3', 'c')], 2)), 2);
 check('chat skips mod status lines', ChatLog::parse(['[23:53:00] [Server thread/INFO]: [Chunky] Task running for minecraft:overworld.']), []);
 check('chat message', $chat[0], ['time' => '12:04:31', 'type' => 'chat', 'name' => 'Doobie', 'text' => 'hi all']);
 check('chat paper not secure, colours stripped', $chat[1]['text'], 'hello');

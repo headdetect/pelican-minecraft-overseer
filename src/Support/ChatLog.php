@@ -21,6 +21,36 @@ final class ChatLog
     private const NOT_SAY = ['Chunky', 'squaremap', 'LuckPerms', 'WorldEdit', 'Essentials'];
 
     /**
+     * Adds newly read messages to a history, skipping ones it already has.
+     * The newest lines read overlap the end of the history, so a message is
+     * new when it comes after the last run of messages the two share.
+     *
+     * @param  array<int, array<string, string>>  $history  oldest first
+     * @param  array<int, array<string, string>>  $latest  oldest first
+     * @return array<int, array<string, string>>
+     */
+    public static function merge(array $history, array $latest, int $limit = 100): array
+    {
+        $key = fn (array $m) => implode("\0", [$m['time'], $m['type'], $m['name'], $m['text']]);
+        $known = array_map($key, $history);
+
+        // Find the longest end of the history that the latest read starts with.
+        $skip = 0;
+        for ($n = min(count($history), count($latest)); $n > 0; $n--) {
+            if (array_slice($known, -$n) === array_map($key, array_slice($latest, 0, $n))) {
+                $skip = $n;
+                break;
+            }
+        }
+        // No overlap: keep the latest messages that aren't already in the history.
+        $new = $skip > 0
+            ? array_slice($latest, $skip)
+            : array_values(array_filter($latest, fn ($m) => !in_array($key($m), $known, true)));
+
+        return array_slice([...$history, ...$new], -$limit);
+    }
+
+    /**
      * @param  string[]  $lines  console lines, oldest first
      * @return array<int, array{time: string, type: string, name: string, text: string}> oldest first
      */

@@ -18,9 +18,9 @@
             <button
                 type="button"
                 title="{{ $title }}"
-                wire:click="mountAction('{{ $action }}')"
-                wire:loading.attr="disabled"
-                wire:target="mountAction('{{ $action }}')"
+                x-data="{ busy: false }"
+                x-on:click="busy = true; $wire.mountAction('{{ $action }}').finally(() => (busy = false))"
+                x-bind:disabled="busy"
             >
                 <x-filament::icon :icon="$icon" />
                 <span>{{ $label }}</span>

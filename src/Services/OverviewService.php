@@ -50,12 +50,17 @@ class OverviewService
         ];
     }
 
-    /** Console lines to read for chat. Each RCON connection, Overseer's polls included, logs two lines, so 5000 lines is about an hour. */
-    private const CHAT_LINES = 5000;
+    /**
+     * Wings returns at most the last 100 console lines, and busy servers (or
+     * Chunky's progress lines) push chat out of those quickly. So each poll
+     * adds new chat to a history kept here, which outlasts the console.
+     */
+    private const CHAT_LINES = 100;
+
+    private const CHAT_HISTORY = 100;
 
     /**
-     * Recent chat, joins and leaves from the last console lines, which Wings
-     * reads from the end of the log. Null when Wings can't answer.
+     * Recent chat, joins and leaves. Null when Wings can't answer.
      *
      * @return ?array<int, array{time: string, type: string, name: string, text: string}>
      */
@@ -67,13 +72,17 @@ class OverviewService
                     ->get("/api/servers/$server->uuid/logs", ['size' => self::CHAT_LINES])
                     ->throw()
                     ->json('data');
-
-                return ChatLog::parse(is_array($lines) ? $lines : []);
             } catch (Exception $exception) {
                 report($exception);
 
                 return null;
             }
+
+            $key = "overseer:chat-history:$server->uuid";
+            $history = ChatLog::merge(Cache::get($key, []), ChatLog::parse(is_array($lines) ? $lines : []), self::CHAT_HISTORY);
+            Cache::put($key, $history, now()->addDay());
+
+            return $history;
         });
     }
 
