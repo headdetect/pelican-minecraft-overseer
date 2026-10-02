@@ -112,10 +112,10 @@ class Overview extends Page
     /**
      * Player positions for the map, polled by the browser while the page is open.
      *
-     * Player positions for the map, everyone online for the side list, and the
-     * game time, polled by the browser while the page is open.
+     * Player positions for the map and the Online now list, the game time,
+     * chat and server info, polled by the browser while the page is open.
      *
-     * @return array{ok: bool, players: array<int, array<string, mixed>>, online: array<int, array<string, mixed>>, time: ?array<string, mixed>}
+     * @return array{ok: bool, players: array<int, array<string, mixed>>, time: ?array<string, mixed>}
      */
     #[Renderless]
     public function positions(): array
@@ -125,15 +125,10 @@ class Overview extends Page
 
         $running = $server->retrieveStatus() === ContainerStatus::Running;
         $players = [];
-        $online = [];
         if ($running) {
             $players = ($this->source['status'] ?? null) === MapService::READY
                 ? app(MapService::class)->players($server)
                 : $this->rconPlayers($server);
-
-            // squaremap leaves out hidden players such as spectators, but "list" has everyone.
-            $list = app(ConsoleService::class)->query($server, 'list');
-            $online = $list !== null ? PlayerService::parseList($list) : array_column($players ?? [], 'name');
         }
 
         $overview = app(OverviewService::class);
@@ -141,7 +136,6 @@ class Overview extends Page
         return [
             'ok' => $players !== null,
             'players' => array_map(fn (array $player) => [...$player, 'op' => in_array($player['name'], $this->ops, true)], $players ?? []),
-            'online' => array_map(fn (string $name) => ['name' => $name, 'op' => in_array($name, $this->ops, true)], $online),
             'time' => $running ? $overview->gameTime($server) : null,
             'chat' => $running ? ($overview->chat($server) ?? []) : [],
             'server' => $this->serverInfo($overview->stats($server)),

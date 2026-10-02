@@ -167,33 +167,20 @@
 
             <x-filament::section :heading="trans('overseer::overseer.map.online')" compact>
                 <x-slot name="afterHeader">
-                    <x-filament::badge color="success"><span x-text="online.length">0</span></x-filament::badge>
+                    <x-filament::badge color="success"><span x-text="players.length">0</span></x-filament::badge>
                 </x-slot>
 
                 <div class="us-list">
-                    <template x-for="r in online" :key="r.name">
-                        <div>
-                            <template x-if="live(r.name)">
-                                <button type="button" class="us-row" :class="{ 'is-selected': selected === r.name }" x-on:click="focus(live(r.name))" :aria-pressed="selected === r.name">
-                                    <img :src="head(r.name)" alt="">
-                                    <div style="min-width: 0">
-                                        <div class="us-row-name"><span class="us-dot" aria-hidden="true"></span><span x-text="r.name"></span><span class="us-badge" x-show="r.op">OP</span></div>
-                                        <div class="us-row-where" x-text="`${worldLabel(live(r.name).world)} · ${live(r.name).x}, ${live(r.name).z}`"></div>
-                                    </div>
-                                </button>
-                            </template>
-                            <template x-if="!live(r.name)">
-                                <div class="us-row is-offline">
-                                    <img :src="head(r.name)" alt="">
-                                    <div style="min-width: 0">
-                                        <div class="us-row-name"><span class="us-dot" aria-hidden="true"></span><span x-text="r.name"></span><span class="us-badge" x-show="r.op">OP</span></div>
-                                        <div class="us-row-when">{{ trans('overseer::overseer.map.online_hidden') }}</div>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
+                    <template x-for="p in players" :key="p.name">
+                        <button type="button" class="us-row" :class="{ 'is-selected': selected === p.name }" x-on:click="focus(p)" :aria-pressed="selected === p.name">
+                            <img :src="head(p.name)" alt="">
+                            <div style="min-width: 0">
+                                <div class="us-row-name"><span class="us-dot" aria-hidden="true"></span><span x-text="p.name"></span><span class="us-badge" x-show="p.op">OP</span></div>
+                                <div class="us-row-where" x-text="`${worldLabel(p.world)} · ${p.x}, ${p.z}`"></div>
+                            </div>
+                        </button>
                     </template>
-                    <div class="us-empty" x-show="online.length === 0 && state === 'live'">{{ trans('overseer::overseer.map.nobody') }}</div>
+                    <div class="us-empty" x-show="players.length === 0 && state === 'live'">{{ trans('overseer::overseer.map.nobody') }}</div>
                     <div class="us-empty" x-show="state === 'stale'" x-cloak>
                         {{ $config['mode'] === 'squaremap' ? trans('overseer::overseer.map.no_positions_squaremap') : trans('overseer::overseer.map.no_positions_rcon') }}
                     </div>

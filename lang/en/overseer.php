@@ -74,7 +74,6 @@ return [
         'loading' => 'Loading players',
         'stale' => 'Positions unavailable',
         'online' => 'Online now',
-        'online_hidden' => 'Not on the map, for example a spectator',
         'nobody' => 'Nobody is online.',
         'health' => 'health',
         'op_heading' => 'Make :name an operator?',

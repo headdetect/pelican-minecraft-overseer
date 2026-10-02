@@ -23,7 +23,6 @@ window.overseerLiveMap = function (cfg) {
         cx: 0,
         cz: 0,
         players: [],
-        online: [],
         time: null,
         server: null,
         chat: [],
@@ -70,7 +69,6 @@ window.overseerLiveMap = function (cfg) {
             try {
                 const result = await this.$wire.positions();
                 this.players = result.players;
-                this.online = result.online ?? [];
                 this.time = result.time ?? null;
                 this.server = result.server ?? null;
                 this.setChat(result.chat ?? []);
@@ -91,10 +89,6 @@ window.overseerLiveMap = function (cfg) {
             return this.players.filter((p) => p.world === this.world);
         },
 
-        // The map position of an online player, or null when squaremap hides them.
-        live(name) {
-            return this.players.find((p) => p.name === name) ?? null;
-        },
 
         // Keeps the chat scrolled to the newest line, unless someone scrolled up to read.
         // The chat box is inside a Filament section, which has its own x-data,
