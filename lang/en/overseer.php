@@ -3,6 +3,17 @@
 return [
     'cluster' => 'Overseer',
 
+    'rcon' => [
+        'off' => [
+            'title' => 'RCON is off',
+            'body' => 'Overseer needs RCON for player lists, positions, commands and tools. In server.properties, set enable-rcon=true and an rcon.password, add the rcon.port as an allocation for this server, then restart.',
+        ],
+        'unreachable' => [
+            'title' => "Can't reach RCON",
+            'body' => "RCON is on in server.properties, but the server doesn't answer. Check that the server finished starting, that rcon.port is one of this server's allocations, and that rcon.password is correct.",
+        ],
+    ],
+
     'overview' => [
         'title' => 'Overview',
         'game_time' => 'Game time',
@@ -131,7 +142,6 @@ return [
         'empty' => [
             'none' => 'No players here',
             'nobody' => 'Nobody has played here yet',
-            'no_rcon_help' => 'Turn on RCON in server.properties (enable-rcon=true and an rcon.password) so Overseer can see who is online.',
         ],
         'notifications' => [
             'kicked' => 'Kicked :name',

@@ -222,8 +222,7 @@ class Players extends Page implements HasTable
                     ])
                     ->action(fn (array $data) => $this->runFor('whitelist', 'whitelist add', $data['name'], 'whitelist_added')),
             ])
-            ->emptyStateHeading(fn () => $this->emptyHeading())
-            ->emptyStateDescription(fn () => $this->emptyDescription());
+            ->emptyStateHeading(fn () => $this->emptyHeading());
     }
 
     public function content(Schema $schema): Schema
@@ -388,15 +387,6 @@ class Players extends Page implements HasTable
         return in_array($this->activeTab, [null, 'all'], true)
             ? trans('overseer::overseer.players.empty.nobody')
             : trans('overseer::overseer.players.empty.none');
-    }
-
-    private function emptyDescription(): ?string
-    {
-        if (in_array($this->activeTab, [null, 'all'], true) && $this->online === null && $this->server()->retrieveStatus() === ContainerStatus::Running) {
-            return trans('overseer::overseer.players.empty.no_rcon_help');
-        }
-
-        return null;
     }
 
     private function can(string $permission): bool

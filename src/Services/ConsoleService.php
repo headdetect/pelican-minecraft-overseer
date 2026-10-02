@@ -94,6 +94,31 @@ class ConsoleService
         }
     }
 
+    public const RCON_OK = 'ok';
+
+    public const RCON_OFF = 'off';
+
+    public const RCON_UNREACHABLE = 'unreachable';
+
+    /**
+     * Whether Overseer can use RCON on this server: ok, off (not turned on in
+     * server.properties), or unreachable (turned on, but the server running
+     * doesn't answer). Null when the server isn't running, so it can't tell.
+     * Cached briefly, because every Overseer page checks it.
+     */
+    public function rconState(Server $server): ?string
+    {
+        if (!$this->connector->isConfigured($server)) {
+            return self::RCON_OFF;
+        }
+
+        if ($server->retrieveStatus() !== ContainerStatus::Running) {
+            return null;
+        }
+
+        return cache()->remember("overseer:rcon:$server->uuid", now()->addSeconds(30), fn () => $this->hasRcon($server) ? self::RCON_OK : self::RCON_UNREACHABLE);
+    }
+
     public function hasRcon(Server $server): bool
     {
         return $this->rcon($server) !== null;
