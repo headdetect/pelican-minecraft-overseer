@@ -88,6 +88,22 @@ final class ConfigSchema
      *
      * @throws InvalidArgumentException with a message an admin can act on
      */
+    /** Whether a form value equals the entry's default. Lenient about types, since forms send numbers as text. */
+    public static function isDefault(array $entry, mixed $value): bool
+    {
+        if (!array_key_exists('default', $entry)) {
+            return true;
+        }
+
+        $default = $entry['default'];
+
+        return match ($entry['type']) {
+            'bool' => filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) === $default,
+            'int', 'range' => is_numeric($value) && (int) $value == $value && (int) $value === (int) $default,
+            default => trim((string) $value) === trim((string) $default),
+        };
+    }
+
     public static function toFile(array $entry, mixed $value): string
     {
         $title = $entry['title'];

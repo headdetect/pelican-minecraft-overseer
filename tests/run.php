@@ -150,6 +150,18 @@ check('too deep', EditableFiles::isEditable('config/a/b/c/d.toml'), false);
 check('language toml', EditableFiles::language('config/x.toml'), 'ini');
 check('language yaml', EditableFiles::language('plugins/x/config.yml'), 'yaml');
 
+// --- Reset to default ---
+$port = ['type' => 'int', 'default' => 25575, 'title' => 'Port'];
+check('default int as text', ConfigSchema::isDefault($port, '25575'), true);
+check('default int', ConfigSchema::isDefault($port, 25575), true);
+check('default int float', ConfigSchema::isDefault($port, 25575.0), true);
+check('changed int', ConfigSchema::isDefault($port, '25576'), false);
+check('blank int not default', ConfigSchema::isDefault($port, ''), false);
+check('default bool', ConfigSchema::isDefault(['type' => 'bool', 'default' => true], true), true);
+check('changed bool', ConfigSchema::isDefault(['type' => 'bool', 'default' => true], false), false);
+check('default text', ConfigSchema::isDefault(['type' => 'string', 'default' => 'world'], ' world '), true);
+check('no default never shows reset', ConfigSchema::isDefault(['type' => 'string'], 'x'), true);
+
 // --- server.properties ---
 $props = Properties::parse(<<<'TXT'
 #Minecraft server properties
