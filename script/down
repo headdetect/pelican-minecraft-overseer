@@ -4,7 +4,7 @@
 #   --wipe  also delete the panel database, the plugin state and the world
 set -euo pipefail
 
-cd "$(dirname "$0")/../dev"
+cd "$(dirname "$0")/.."
 export DEV_DATA="$PWD/.data"
 
 # Wings names a game container after its server's uuid. compose does not manage

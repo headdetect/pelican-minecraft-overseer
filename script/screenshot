@@ -8,10 +8,10 @@
 #   --click clicks the first visible element with that text, in order, before
 #   the screenshot. --wait sets the pause before the screenshot (default 1500).
 #
-# The PNG goes to dev/.data/shots/<page>.png.
+# The PNG goes to .data/shots/<page>.png.
 set -euo pipefail
 
-cd "$(dirname "$0")/../dev"
+cd "$(dirname "$0")/.."
 [ $# -gt 0 ] || { sed -n '5,10p' "$0" >&2; exit 2; }
 page=$1
 shift
@@ -34,7 +34,7 @@ PW=1.63.0
 mkdir -p .data/playwright
 docker run --rm --network host --user "$(id -u):$(id -g)" -e HOME=/tmp \
   -e PYTHONPATH=/pw \
-  -v "$PWD/scripts:/scripts:ro" -v "$PWD/.data/shots:/shots" -v "$PWD/.data/playwright:/pw" \
+  -v "$PWD/script/lib:/scripts:ro" -v "$PWD/.data/shots:/shots" -v "$PWD/.data/playwright:/pw" \
   "mcr.microsoft.com/playwright/python:v$PW-noble" sh -c '
     [ -d /pw/playwright ] || pip install -q --target /pw "playwright==$0" >&2
     exec python3 /scripts/screenshot.py "$@"' \
@@ -45,4 +45,4 @@ if [ "$after" -gt "$before" ]; then
   echo "--- laravel.log ($((after - before)) new lines)"
   docker exec overseer-dev-panel sh -c "cat storage/logs/*.log | tail -n $((after - before))" | cut -c1-400
 fi
-echo "screenshot: dev/.data/shots/$name.png"
+echo "screenshot: .data/shots/$name.png"

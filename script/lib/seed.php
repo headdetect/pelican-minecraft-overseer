@@ -3,13 +3,13 @@
 // Seeds the local dev panel with what the web installer and the admin pages
 // would create by hand. script/up runs each step inside the panel container:
 //
-//   php /dev-scripts/seed.php node      create the node, print the wings config
-//   php /dev-scripts/seed.php server    create the egg, allocations and server
-//   php /dev-scripts/seed.php status    print the server's install state
-//   php /dev-scripts/seed.php configure write server.properties, EULA, mods
-//   php /dev-scripts/seed.php start     start the server
-//   php /dev-scripts/seed.php render    render the map around spawn once
-//   php /dev-scripts/seed.php uuid      print the server's uuid
+//   php /script-lib/seed.php node      create the node, print the wings config
+//   php /script-lib/seed.php server    create the egg, allocations and server
+//   php /script-lib/seed.php status    print the server's install state
+//   php /script-lib/seed.php configure write server.properties, EULA, mods
+//   php /script-lib/seed.php start     start the server
+//   php /script-lib/seed.php render    render the map around spawn once
+//   php /script-lib/seed.php uuid      print the server's uuid
 //
 // Every step is safe to run again. It skips what already exists.
 
@@ -121,6 +121,9 @@ switch ($step) {
             'daemon_sftp_alias' => '',
             'daemon_base' => "$dataDir/wings/volumes",
         ]);
+        // Keep the data path current, so the stack still starts after the
+        // checkout or the data directory moves.
+        $node->update(['daemon_base' => "$dataDir/wings/volumes"]);
 
         // The panel's config only sets the server data path. Every other wings
         // path defaults to a system directory, so point them all at DEV_DATA.

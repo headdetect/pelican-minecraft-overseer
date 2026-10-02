@@ -93,8 +93,10 @@ To add a setting, add one entry to the right file in `resources/schemas/`.
 
 ## Development
 
+`script/up` starts a local panel, wings and a Fabric server with Overseer and squaremap installed. [DEVELOPMENT.md](DEVELOPMENT.md) covers the dev stack and every command in `script/`.
+
 ```bash
-php tests/run.php
+php tests/run.php   # or script/test, with the PHP in the dev panel
 ```
 
 To build the plugin zip locally, run `bin/build-zip.sh`; it lands in `dist/`. Every merge to `main` publishes a GitHub Release with the zip attached. The version is the newest release with its last number bumped (0.1.0, then 0.1.1, and so on). To start a new minor or major version, raise `version` in `plugin.json` and the next merge uses it. Pushing a tag such as `v0.2.0`, or running the **Release** workflow from the Actions tab with a version, releases that exact version.

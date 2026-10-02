@@ -1,6 +1,6 @@
 # Local development
 
-This folder runs a Pelican panel, wings and a Fabric Minecraft server on your
+The dev stack runs a Pelican panel, wings and a Fabric Minecraft server on your
 machine. The panel loads Overseer straight from this checkout. After you
 change a PHP or Blade file, reload the page to see the change.
 
@@ -78,7 +78,7 @@ panel does not quietly mark the plugin as errored.
 - `script/screenshot <page>` saves a screenshot of a panel page.
 
 `script/screenshot` logs in as the admin with headless Chromium and saves a PNG in
-`dev/.data/shots/`. It also prints the HTTP status, browser console errors and
+`.data/shots/`. It also prints the HTTP status, browser console errors and
 new lines from the Laravel log. The page is a panel path, or the name of an
 Overseer page on the dev server:
 

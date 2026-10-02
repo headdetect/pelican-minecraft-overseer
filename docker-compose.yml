@@ -1,5 +1,5 @@
 # Local Pelican panel and wings for developing Overseer. Start it with
-# script/up, which sets DEV_DATA and seeds the panel. See dev/README.md.
+# script/up, which sets DEV_DATA and seeds the panel. See DEVELOPMENT.md.
 #
 # Both services use the host network, so localhost means the same machine for
 # the browser, the panel, wings and the game server's RCON and map ports.
@@ -27,14 +27,14 @@ services:
       # The plugin source, read-only. Edits show up on the next page load
       # because opcache checks file timestamps. plugin.json is a copy that
       # script/up writes, because the panel stores install state in it.
-      - ../src:/var/www/html/plugins/overseer/src:ro
-      - ../resources:/var/www/html/plugins/overseer/resources:ro
-      - ../routes:/var/www/html/plugins/overseer/routes:ro
-      - ../config:/var/www/html/plugins/overseer/config:ro
-      - ../database:/var/www/html/plugins/overseer/database:ro
-      - ../lang:/var/www/html/plugins/overseer/lang:ro
-      - ../tests:/var/www/html/plugins/overseer/tests:ro
-      - ./scripts:/dev-scripts:ro
+      - ./src:/var/www/html/plugins/overseer/src:ro
+      - ./resources:/var/www/html/plugins/overseer/resources:ro
+      - ./routes:/var/www/html/plugins/overseer/routes:ro
+      - ./config:/var/www/html/plugins/overseer/config:ro
+      - ./database:/var/www/html/plugins/overseer/database:ro
+      - ./lang:/var/www/html/plugins/overseer/lang:ro
+      - ./tests:/var/www/html/plugins/overseer/tests:ro
+      - ./script/lib:/script-lib:ro
     # The image's check calls port 80, but Caddy listens on PANEL_PORT here.
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:${PANEL_PORT:-8890}/up && cgi-fcgi -bind -connect 127.0.0.1:9000"]

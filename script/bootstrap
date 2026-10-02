@@ -18,7 +18,7 @@ command -v curl >/dev/null || fail "curl is not installed."
 # script/screenshot pins its Playwright version, so read it from there.
 playwright=$(sed -n 's/^PW=//p' script/screenshot)
 images=(
-  $(DEV_DATA="$PWD/dev/.data" docker compose -f dev/compose.yml config --images)
+  $(DEV_DATA="$PWD/.data" docker compose config --images)
   "mcr.microsoft.com/playwright/python:v$playwright-noble"
   alpine:3
 )
@@ -35,7 +35,7 @@ done
 if [ -z "$(docker ps -q -f name=^overseer-dev-panel$)" ] && command -v ss >/dev/null; then
   for port in "${PANEL_PORT:-8890}" "${WINGS_PORT:-8891}" 2023 25565 25575 8100; do
     if ss -Htln "sport = :$port" | grep -q .; then
-      fail "port $port is in use. Stop what is using it, or see dev/README.md for the ports."
+      fail "port $port is in use. Stop what is using it, or see DEVELOPMENT.md for the ports."
     fi
   done
 fi

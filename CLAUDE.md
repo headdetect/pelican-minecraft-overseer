@@ -12,9 +12,9 @@ script/test                # tests/run.php, with the PHP in the dev panel
 script/screenshot players  # screenshot of an Overseer page, plus errors
 ```
 
-Read the PNG that `script/screenshot` saves in `dev/.data/shots/`. It prints console
+Read the PNG that `script/screenshot` saves in `.data/shots/`. It prints console
 errors and new Laravel log lines too. If the dev stack is not running, start it
-with `script/up`. `dev/README.md` lists every tool.
+with `script/up`. `DEVELOPMENT.md` lists every tool.
 
 The panel loads the source from this checkout, so there is no build or upload
 step. If you add or remove a Filament page, run
