@@ -104,6 +104,8 @@ check('modpack from db row', ServerStats::modpack(['provider' => 'modrinth', 'mo
 check('modpack from metadata file', ServerStats::modpack(['provider' => 'curseforge', 'modpack_id' => '715572', 'name' => 'All the Mods 9', 'version' => null])['url'], 'https://www.curseforge.com/projects/715572');
 check('modpack bad id gets no link', ServerStats::modpack(['provider' => 'modrinth', 'modpack_id' => '../x', 'name' => 'Pack'])['url'], null);
 check('modpack html stripped', ServerStats::modpack(['name' => '<b>Pack</b>'])['name'], 'Pack');
+check('modpack from modrinth egg', ServerStats::modpackFromIndex(['formatVersion' => 1, 'game' => 'minecraft', 'versionId' => '2.3.0', 'name' => 'Nurps SMP', 'dependencies' => ['minecraft' => '26.1.2']], 'nurps-smp'), ['name' => 'Nurps SMP', 'version' => '2.3.0', 'provider' => 'modrinth', 'url' => 'https://modrinth.com/modpack/nurps-smp']);
+check('modpack from zip upload has no link', ServerStats::modpackFromIndex(['name' => 'Pack', 'versionId' => '1'], 'zip')['url'], null);
 check('modpack missing name', ServerStats::modpack(['provider' => 'modrinth']), null);
 check('uptime days', ServerStats::uptime(3 * 86400000 + 4 * 3600000), '3d 4h');
 check('uptime minutes', ServerStats::uptime(12 * 60000 + 59000), '12m');

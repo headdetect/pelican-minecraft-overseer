@@ -23,6 +23,9 @@ class OverviewService
 
     private const MODPACK_FILE = '.modpack-manager.json';
 
+    /** The pack manifest the Modrinth generic egg leaves in the server root. */
+    private const MODRINTH_INDEX = 'modrinth.index.json';
+
     public function __construct(private readonly ConsoleService $console) {}
 
     /**
@@ -102,17 +105,37 @@ class OverviewService
                 }
             }
 
-            try {
-                $json = json_decode((new DaemonFileRepository())->setServer($server)->getContent(self::MODPACK_FILE), true);
+            $files = (new DaemonFileRepository())->setServer($server);
 
-                return is_array($json) ? ServerStats::modpack($json) : null;
-            } catch (FileNotFoundException) {
-                return null;
-            } catch (Exception $exception) {
-                report($exception);
-
-                return null;
+            $manager = $this->readJson($files, self::MODPACK_FILE);
+            if ($manager && ($pack = ServerStats::modpack($manager))) {
+                return $pack;
             }
+
+            $index = $this->readJson($files, self::MODRINTH_INDEX);
+            if ($index) {
+                $projectId = app(EnvironmentService::class)->handle($server)['PROJECT_ID'] ?? null;
+
+                return ServerStats::modpackFromIndex($index, is_string($projectId) ? $projectId : null);
+            }
+
+            return null;
         });
+    }
+
+    /** @return ?array<string, mixed> null when the file is missing or isn't JSON */
+    private function readJson(DaemonFileRepository $files, string $path): ?array
+    {
+        try {
+            $json = json_decode($files->getContent($path), true);
+
+            return is_array($json) ? $json : null;
+        } catch (FileNotFoundException) {
+            return null;
+        } catch (Exception $exception) {
+            report($exception);
+
+            return null;
+        }
     }
 }

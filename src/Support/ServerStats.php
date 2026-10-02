@@ -124,6 +124,26 @@ final class ServerStats
         ];
     }
 
+    /**
+     * The installed modpack from modrinth.index.json, which the Modrinth generic
+     * egg leaves in the server root. The egg's PROJECT_ID variable is the
+     * project, so it gives the link. PROJECT_ID "zip" means a pack from a file.
+     *
+     * @param  array<string, mixed>  $index
+     * @return ?array{name: string, version: ?string, provider: string, url: ?string}
+     */
+    public static function modpackFromIndex(array $index, ?string $projectId): ?array
+    {
+        $projectId = $projectId !== null && $projectId !== 'zip' ? $projectId : '';
+
+        return self::modpack([
+            'provider' => 'modrinth',
+            'modpack_id' => $projectId,
+            'name' => $index['name'] ?? null,
+            'version' => $index['versionId'] ?? null,
+        ]);
+    }
+
     public static function modpackUrl(string $provider, string $id): ?string
     {
         if (!preg_match('/^[A-Za-z0-9_-]{1,64}$/', $id)) {
