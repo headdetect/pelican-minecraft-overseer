@@ -324,14 +324,16 @@ window.overseerLiveMap = function (cfg) {
         openPoint(e) {
             const r = this.$refs.viewport.getBoundingClientRect();
             const b = this.toBlock(e.clientX - r.left, e.clientY - r.top);
-            const point = { world: this.world, x: Math.floor(b.x), z: Math.floor(b.z), y: null, loading: true, failed: false, player: this.players[0]?.name ?? '', sending: false };
-            this.point = point;
+            this.point = { world: this.world, x: Math.floor(b.x), z: Math.floor(b.z), y: null, loading: true, failed: false, player: this.players[0]?.name ?? '', sending: false };
+            // Change it through Alpine's reactive copy, so the menu updates when the height arrives.
+            const point = this.point;
             this.placePoint();
             // A plain fetch, so it doesn't wait behind the Livewire position poll.
             const url = `${cfg.surfaceUrl}?${new URLSearchParams({ world: point.world, x: point.x, z: point.z })}`;
             fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
                 .then((r) => (r.ok ? r.json() : { y: null }))
                 .then(({ y }) => {
+                    if (this.point !== point) return;
                     point.y = y;
                     point.loading = false;
                     point.failed = y === null;

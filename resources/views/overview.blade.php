@@ -123,7 +123,7 @@
                                             <option :value="pl.name" x-text="pl.name"></option>
                                         </template>
                                     </select>
-                                    <x-filament::button size="xs" x-on:click="teleportHere()" x-bind:disabled="point.loading || point.y === null || point.sending">{{ trans('overseer::overseer.map.point.teleport') }}</x-filament::button>
+                                    <button type="button" class="us-pop-btn is-primary" x-on:click="teleportHere()" x-bind:disabled="point.loading || point.y === null || point.sending">{{ trans('overseer::overseer.map.point.teleport') }}</button>
                                 </div>
                             </template>
                             <div class="us-point-note" x-show="!players.length">{{ trans('overseer::overseer.map.point.nobody') }}</div>
@@ -144,17 +144,17 @@
                         <div class="us-pop-where" x-text="`${worldLabel(selectedPlayer.world)} · ${selectedPlayer.x}, ${selectedPlayer.y ?? '?'}, ${selectedPlayer.z}`"></div>
                         <div class="us-pop-actions">
                             @if ($can['kick'])
-                                <x-filament::button size="xs" color="warning" x-on:click="act('kick', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.kick') }}</x-filament::button>
+                                <button type="button" class="us-pop-btn is-warning" x-on:click="act('kick', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.kick') }}</button>
                             @endif
                             @if ($can['ban'])
-                                <x-filament::button size="xs" color="danger" x-on:click="act('ban', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.ban') }}</x-filament::button>
+                                <button type="button" class="us-pop-btn is-danger" x-on:click="act('ban', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.ban') }}</button>
                             @endif
                             @if ($can['gamemode'])
-                                <x-filament::button size="xs" color="gray" x-on:click="act('gamemode', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.gamemode') }}</x-filament::button>
+                                <button type="button" class="us-pop-btn is-gray" x-on:click="act('gamemode', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.gamemode') }}</button>
                             @endif
                             @if ($can['op'])
-                                <x-filament::button size="xs" color="gray" x-show="!selectedPlayer.op" x-on:click="act('op', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.op') }}</x-filament::button>
-                                <x-filament::button size="xs" color="gray" x-show="selectedPlayer.op" x-on:click="act('deop', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.deop') }}</x-filament::button>
+                                <button type="button" class="us-pop-btn is-gray" x-show="!selectedPlayer.op" x-on:click="act('op', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.op') }}</button>
+                                <button type="button" class="us-pop-btn is-gray" x-show="selectedPlayer.op" x-on:click="act('deop', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.deop') }}</button>
                             @endif
                         </div>
                     </div>
