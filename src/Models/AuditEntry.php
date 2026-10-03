@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $server_id
  * @property ?int $user_id
+ * @property ?string $discord_user_id
+ * @property ?string $discord_name
  * @property string $action
  * @property ?string $target
  * @property string $command
@@ -24,7 +26,7 @@ class AuditEntry extends Model
 
     public const UPDATED_AT = null;
 
-    protected $fillable = ['server_id', 'user_id', 'action', 'target', 'command', 'response'];
+    protected $fillable = ['server_id', 'user_id', 'discord_user_id', 'discord_name', 'action', 'target', 'command', 'response'];
 
     public function server(): BelongsTo
     {

@@ -97,7 +97,9 @@ class QuickCommands
             ->map(fn (AuditEntry $entry) => sprintf(
                 '%s · %s · /%s%s',
                 $entry->created_at->diffForHumans(short: true),
-                $entry->user->username ?? trans('overseer::overseer.commands.recent.system'),
+                $entry->user->username
+                    ?? ($entry->discord_name ? trans('overseer::overseer.commands.recent.discord', ['name' => $entry->discord_name]) : null)
+                    ?? trans('overseer::overseer.commands.recent.system'),
                 $entry->command,
                 $entry->response ? ' → ' . str($entry->response)->limit(80) : '',
             ))
