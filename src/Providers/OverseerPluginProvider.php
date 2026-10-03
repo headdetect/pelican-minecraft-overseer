@@ -5,6 +5,7 @@ namespace Headdetect\Overseer\Providers;
 use App\Models\Subuser;
 use Headdetect\Overseer\Console\Commands\LiftExpiredBans;
 use Headdetect\Overseer\Services\ConsoleService;
+use Headdetect\Overseer\Services\Discord\DiscordApi;
 use Headdetect\Overseer\Services\GameRules;
 use Headdetect\Overseer\Services\Map\MapService;
 use Headdetect\Overseer\Services\PlayerService;
@@ -23,6 +24,7 @@ class OverseerPluginProvider extends ServiceProvider
         $this->app->scoped(PlayerService::class);
         $this->app->scoped(GameRules::class);
         $this->app->scoped(MapService::class);
+        $this->app->scoped(DiscordApi::class);
 
         Subuser::registerCustomPermissions(
             name: Permission::GROUP,

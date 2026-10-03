@@ -26,6 +26,7 @@ use Headdetect\Overseer\Services\Tools\Chunky;
 use Headdetect\Overseer\Support\ChatLog;
 use Headdetect\Overseer\Support\CommandInput;
 use Headdetect\Overseer\Support\ConfigSchema;
+use Headdetect\Overseer\Support\DiscordCommands;
 use Headdetect\Overseer\Support\EditableFiles;
 use Headdetect\Overseer\Support\PlayerNbt;
 use Headdetect\Overseer\Support\Properties;
@@ -80,6 +81,25 @@ check('command leading slash removed', CommandInput::command('/time set day'), '
 check('reply lines separated', CommandInput::readableReply('Saving the game (this may take a moment!)Saved the game'), 'Saving the game (this may take a moment!) Saved the game');
 check('reply version untouched', CommandInput::readableReply('id = 1.21.8name = 1.21.8'), 'id = 1.21.8name = 1.21.8');
 check('command one line', CommandInput::command("say hi\nstop"), 'say hi stop');
+
+// --- Discord: a /whitelist name must look like a Java name, or the player gets the Bedrock notice ---
+check('java name', CommandInput::isJavaName('Doobie'), true);
+check('java name with underscore', CommandInput::isJavaName('kelp_lord'), true);
+check('old short java name', CommandInput::isJavaName('ab'), true);
+check('floodgate prefix is bedrock', CommandInput::isJavaName('.Doobie'), false);
+check('space is bedrock', CommandInput::isJavaName('Cool Gamer'), false);
+check('gamertag suffix is bedrock', CommandInput::isJavaName('Gamer#1234'), false);
+check('17 characters is too long', CommandInput::isJavaName(str_repeat('a', 17)), false);
+check('empty is not a name', CommandInput::isJavaName(''), false);
+
+$discordText = (require __DIR__ . '/../lang/en/overseer.php')['discord']['commands'];
+$commands = DiscordCommands::definitions($discordText);
+check('discord command names', array_column($commands, 'name'), ['status', 'info', 'whitelist']);
+check('discord commands are guild only', array_unique(array_merge(...array_column($commands, 'contexts'))), [0]);
+check('discord descriptions fit', max(array_map(fn ($c) => mb_strlen($c['description']), $commands)) <= 100, true);
+check('discord whitelist takes a name', $commands[2]['options'][0]['name'] ?? null, 'name');
+check('discord whitelist name is required', $commands[2]['options'][0]['required'] ?? null, true);
+check('discord status has no options', array_key_exists('options', $commands[0]), false);
 check('command keeps selectors', CommandInput::command('kill @e[type=item]'), 'kill @e[type=item]');
 check('custom quick command keeps selectors', QuickCommands::build('custom', ['command' => 'tp @a 0 64 0']), ['custom', 'tp @a 0 64 0']);
 
