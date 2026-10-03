@@ -18,6 +18,7 @@ A [Pelican](https://pelican.dev) panel plugin for running a Minecraft Java serve
 - **Tools**: generate chunks ahead of time with [Chunky](https://modrinth.com/plugin/chunky), with progress, pause, continue and cancel. squaremap draws new chunks on its own, and Redraw the map draws a whole world again when its map is missing areas.
 - The Overseer item in the sidebar shows how many players are online. Every Overseer page warns when RCON is off, can't be reached, or is published on a public address.
 - Every action is checked against its own subuser permission and written to the server's Activity log.
+- The pages are one React app inside the panel. Switching tabs doesn't reload the page, and each button shows a spinner and stays disabled until its command finishes.
 
 ## Requirements
 
@@ -118,8 +119,11 @@ To add a setting, add one entry to the right file in `resources/schemas/`.
 
 ```bash
 php tests/run.php   # or script/test, with the PHP in the dev panel
+cd frontend && npm ci && npm test   # the React app's unit tests
 ```
 
 To build the plugin zip locally, run `bin/build-zip.sh`; it lands in `dist/`. Every merge to `main` publishes a GitHub Release with the zip attached. The version is the newest release with its last number bumped (0.1.0, then 0.1.1, and so on). To start a new minor or major version, raise `version` in `plugin.json` and the next merge uses it. Pushing a tag such as `v0.2.0`, or running the **Release** workflow from the Actions tab with a version, releases that exact version.
 
-The tests cover input checking, `server.properties` reading and writing, Paper YAML edits, the config schemas, reply parsing, reading squaremap's config and JSON, and the RCON client (against a small fake RCON server). The Filament pages need a running Pelican panel to try. The map script (`resources/map/live-map.js`) has no dependencies and is inlined into the page, so nothing needs building.
+The tests cover input checking, `server.properties` reading and writing, Paper YAML edits, the config schemas, reply parsing, reading squaremap's config and JSON, and the RCON client (against a small fake RCON server). The pages need a running Pelican panel to try.
+
+The UI is a React and TypeScript app in `frontend/`. It talks to a JSON API under `/overseer/servers/{uuid}/api`, and each route checks the same subuser permission as the action it runs. Vite builds the app into `resources/dist/`, and that build is committed, so installing the plugin needs no Node and no `yarn build`. After you change `frontend/`, run `npm run build` there and commit `resources/dist/` with the change. If the committed build doesn't match the source, the CI check fails.

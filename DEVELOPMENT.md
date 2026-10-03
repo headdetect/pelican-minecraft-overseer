@@ -66,6 +66,22 @@ Some changes need one more step:
 - If you change `plugin.json`, run `script/up` again. The panel uses a copy of
   that file, because it stores the install state of the plugin in it.
 
+## Changing the frontend
+
+The pages are a React app in `frontend/`. The panel loads the built files from
+`resources/dist/`. Build after each change, then reload the page:
+
+```bash
+cd frontend
+npm ci              # once
+npm run build       # type check, then build into resources/dist/
+npm run watch       # build again each time you save a file
+npm test            # unit tests for the config checks
+```
+
+Commit `resources/dist/` with the source change. CI builds the app again.
+If the result differs from what you committed, the check fails.
+
 The panel runs with `APP_DEBUG` on, so an error page shows the stack trace.
 Plugin dev mode is also on. An error in Overseer then stops the page, and the
 panel does not quietly mark the plugin as errored.

@@ -2,6 +2,21 @@
 
 return [
     'cluster' => 'Overseer',
+
+    'ui' => [
+        'cancel' => 'Cancel',
+        'loading' => 'Loading',
+        'close' => 'Close',
+        'search' => 'Search',
+        'per_page' => 'Per page',
+        'one_result' => 'Showing 1 result',
+        'results' => 'Showing :from to :to of :total results',
+        'previous' => 'Previous',
+        'next' => 'Next',
+        'page_of' => 'Page :page of :pages',
+        'show_password' => 'Show password',
+        'hide_password' => 'Hide password',
+    ],
     'players_online' => 'Players online now',
 
     'chat' => [
@@ -92,6 +107,12 @@ return [
         'op_heading' => 'Make :name an operator?',
         'deop_heading' => 'Remove :name as an operator?',
         'op' => 'OP',
+        'follow' => 'Follow',
+        'unfollow' => 'Stop following',
+        'following' => 'Following',
+        'stop_following' => 'Stop following',
+        'fullscreen' => 'Full screen',
+        'exit_fullscreen' => 'Exit full screen',
         'teleport' => [
             'heading' => 'Teleport a player',
             'ground' => 'Land on the ground',
@@ -173,6 +194,7 @@ return [
         ],
         'kick_heading' => 'Kick :name?',
         'ban_heading' => 'Ban :name?',
+        'unban_heading' => 'Unban :name?',
         'reason' => 'Reason',
         'reason_help' => 'The player sees this. Leave it empty to give no reason.',
         'duration' => 'How long',

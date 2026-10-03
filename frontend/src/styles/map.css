@@ -1,4 +1,4 @@
-/* Overseer Live Map. Plain CSS, because Tailwind doesn't scan plugin views. */
+/* Overseer Live Map and the Overview cards. Moved from resources/map/. */
 .us-map {
     --us-bg: #e9edf2;
     --us-panel: rgba(255, 255, 255, 0.92);
@@ -51,7 +51,7 @@
 }
 .us-viewport:focus-visible { box-shadow: 0 0 0 2px var(--us-accent); }
 .us-viewport.is-dragging { cursor: grabbing; }
-.us-viewport.is-dragging .us-pin { transition: none; }
+.us-viewport.is-dragging .us-pin, .us-viewport.is-moving .us-pin { transition: none; }
 .us-tiles, .us-pins, .us-grid { position: absolute; inset: 0; }
 .us-grid { width: 100%; height: 100%; }
 .us-tile { position: absolute; max-width: none; image-rendering: pixelated; pointer-events: none; }
@@ -95,6 +95,34 @@
 }
 .us-live { left: 12px; bottom: 12px; }
 .us-coords { right: 12px; bottom: 12px; font-family: ui-monospace, monospace; }
+/* The player being followed, top center, with a button to stop. */
+.us-follow { position: absolute; z-index: 3; top: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 24px); padding: 4px 4px 4px 6px; background: var(--us-panel); border: 1px solid var(--us-border); border-radius: 10px; font-size: 13px; color: var(--us-text); backdrop-filter: blur(6px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12); }
+.us-follow img { width: 22px; height: 22px; border-radius: 4px; image-rendering: pixelated; flex: none; }
+.us-follow-label { color: var(--us-muted); }
+.us-follow strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.us-follow-stop { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-left: 4px; border-radius: 7px; color: var(--us-muted); }
+.us-follow-stop:hover { background: var(--us-line); color: var(--us-text); }
+.us-follow-stop:focus-visible { outline: 2px solid var(--us-accent); }
+.us-follow-icon { width: 16px; height: 16px; }
+/* The follow toggle in the top right of the player popover. */
+.us-pop-follow { position: absolute; top: 8px; right: 8px; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 7px; color: var(--us-muted); }
+.us-pop-follow:hover { background: var(--us-line); color: var(--us-text); }
+.us-pop-follow.is-on { color: var(--us-accent); background: color-mix(in srgb, var(--us-accent) 14%, transparent); }
+.us-pop-follow:focus-visible { outline: 2px solid var(--us-accent); }
+.us-pop-follow-icon { width: 18px; height: 18px; }
+.us-pop-head { padding-right: 28px; }
+
+/* Full screen: the map in a lightbox over the page. Filament's modals (z-index 40) still open on top. */
+.us-fullscreen-btn { position: absolute; z-index: 3; top: 12px; right: 12px; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: var(--us-panel); border: 1px solid var(--us-border); border-radius: 8px; color: var(--us-muted); backdrop-filter: blur(6px); }
+.us-fullscreen-btn:hover { color: var(--us-text); }
+.us-fullscreen-btn:focus-visible { outline: 2px solid var(--us-accent); }
+.us-viewport.is-fullscreen { position: fixed; inset: 24px; z-index: 35; width: auto; height: auto; min-height: 0; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45); }
+.us-map-backdrop { position: fixed; inset: 0; z-index: 34; background: rgb(3 7 18 / 0.6); backdrop-filter: blur(2px); }
+@media (max-width: 640px) { .us-viewport.is-fullscreen { inset: 8px; } }
+
+/* On a narrow map the chip would cover the world and zoom buttons, so it goes below them. */
+.us-viewport { container-type: inline-size; }
+@container (max-width: 800px) { .us-follow { top: 52px; } }
 .us-led { width: 7px; height: 7px; border-radius: 50%; background: var(--us-good); }
 .us-led.is-stale { background: var(--us-warn); animation: none; }
 /* Gray while automatic refresh is off. */
@@ -163,8 +191,7 @@
 .us-point-tp { display: flex; gap: 6px; align-items: center; margin-top: 10px; }
 .us-point-tp select { flex: 1; min-width: 0; padding: 4px 8px; font-size: 13px; border: 1px solid var(--us-border); border-radius: 6px; background: var(--us-panel); color: inherit; }
 .us-point-dot { position: absolute; z-index: 4; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; border: 2px solid #fff; background: var(--us-accent); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25); pointer-events: none; }
-/* Plain buttons inside the map. Filament's button adds wire:loading, which
-   Livewire never clears inside the map's wire:ignore block. */
+/* Small buttons inside the map popovers. */
 .us-pop-btn { padding: 3px 10px; font-size: 12px; font-weight: 600; border-radius: 6px; border: 1px solid var(--us-border); background: var(--us-panel); color: var(--us-text); }
 .us-pop-btn:hover:not(:disabled) { filter: brightness(0.95); }
 .us-pop-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -227,3 +254,95 @@
     color: var(--us-warn);
     vertical-align: middle;
 }
+.us-stats {
+    --us-panel: #fff;
+    --us-border: rgba(15, 23, 42, 0.1);
+    --us-text: #0f172a;
+    --us-muted: #64748b;
+    --us-track: rgba(15, 23, 42, 0.08);
+    --us-accent: var(--primary-500, #3b82f6);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    color: var(--us-text);
+}
+@media (min-width: 1024px) {
+    .us-stats { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+}
+.dark .us-stats {
+    --us-panel: rgba(255, 255, 255, 0.03);
+    --us-border: rgba(255, 255, 255, 0.1);
+    --us-text: #f4f4f5;
+    --us-muted: #a1a1aa;
+    --us-track: rgba(255, 255, 255, 0.08);
+}
+.us-stat {
+    min-width: 0;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--us-border);
+    border-radius: 0.75rem;
+    background: var(--us-panel);
+}
+.us-stat-label { font-size: 0.75rem; color: var(--us-muted); }
+.us-stat-value {
+    margin-top: 0.15rem;
+    font-size: 1.35rem;
+    font-weight: 600;
+    line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.us-stat-value.is-empty { color: var(--us-muted); font-weight: 400; }
+.us-stat-name { font-size: 1rem; line-height: 1.95rem; }
+.us-stat-sub { margin-top: 0.1rem; font-size: 0.75rem; color: var(--us-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.us-stat a { color: inherit; text-decoration: none; }
+.us-stat a:hover { color: var(--us-accent); text-decoration: underline; }
+.us-stat-sub a { color: var(--us-accent); }
+.us-bar { margin-top: 0.5rem; height: 4px; border-radius: 2px; background: var(--us-track); overflow: hidden; }
+.us-bar span { display: block; height: 100%; border-radius: 2px; background: var(--us-accent); }
+
+
+/* Quick actions in the right column. */
+.us-side-alone { max-width: 360px; }
+.us-qa { display: flex; flex-direction: column; gap: 0.5rem; }
+.us-qa-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-height: 1.75rem; }
+.us-qa-head:not(:first-child) { margin-top: 0.5rem; }
+.us-qa-clock { font-size: 1.1rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.us-time { display: inline-flex; align-items: center; gap: 0.4rem; }
+.us-time-icon { font-size: 1.1rem; line-height: 1; }
+.us-tiles-grid { display: grid; grid-template-columns: repeat(var(--us-tile-count, 4), minmax(0, 1fr)); gap: 0.4rem; }
+.us-tile-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.55rem 0.25rem;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 0.6rem;
+    background: #fff;
+    transition: border-color 0.15s, background 0.15s;
+}
+.dark .us-tile-btn { border-color: rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.03); }
+.us-tile-btn:hover { border-color: var(--primary-500, #3b82f6); background: color-mix(in srgb, var(--primary-500, #3b82f6) 6%, transparent); }
+.us-tile-btn:focus-visible { outline: 2px solid var(--primary-500, #3b82f6); outline-offset: 2px; }
+.us-tile-btn:disabled { opacity: 0.6; cursor: progress; }
+.us-tile-icon { width: 1.25rem; height: 1.25rem; }
+.us-tile-title { font-size: 0.75rem; font-weight: 500; }
+.us-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.us-help { font-size: 0.85rem; color: rgb(107 114 128); }
+.dark .us-help { color: rgb(161 161 170); }
+.us-log { font-size: 0.8rem; font-family: ui-monospace, monospace; display: flex; flex-direction: column; gap: 0.35rem; overflow-wrap: anywhere; }
+
+/* Server card: one segmented row of icon buttons. */
+.us-btn-group { display: flex; margin-top: 0.45rem; border: 1px solid rgba(15, 23, 42, 0.12); border-radius: 0.6rem; overflow: hidden; }
+.dark .us-btn-group { border-color: rgba(255, 255, 255, 0.1); }
+.us-btn-group button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15rem; padding: 0.35rem 0; font-size: 0.7rem; font-weight: 500; color: rgb(75 85 99); transition: background 0.15s, color 0.15s; }
+.dark .us-btn-group button { color: rgb(212 212 216); }
+.us-btn-group button + button { border-left: 1px solid rgba(15, 23, 42, 0.12); }
+.dark .us-btn-group button + button { border-left-color: rgba(255, 255, 255, 0.1); }
+.us-btn-group button:hover { background: color-mix(in srgb, var(--primary-500, #3b82f6) 8%, transparent); color: var(--primary-600, #2563eb); }
+.us-btn-group button:focus-visible { outline: 2px solid var(--primary-500, #3b82f6); outline-offset: -2px; }
+.us-btn-group button:disabled { opacity: 0.6; cursor: progress; }
+.us-btn-group svg { width: 1.1rem; height: 1.1rem; }

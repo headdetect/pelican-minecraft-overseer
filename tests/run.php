@@ -16,7 +16,10 @@ spl_autoload_register(function (string $class) {
 use Headdetect\Overseer\Services\GameRules;
 use Headdetect\Overseer\Services\Map\Squaremap;
 use Headdetect\Overseer\Services\Map\Surface;
+use Headdetect\Overseer\Services\ConfigEditor;
+use Headdetect\Overseer\Services\PlayerActions;
 use Headdetect\Overseer\Services\PlayerService;
+use Headdetect\Overseer\Services\QuickCommands;
 use Headdetect\Overseer\Services\Rcon\RconClient;
 use Headdetect\Overseer\Services\Rcon\RconException;
 use Headdetect\Overseer\Services\Tools\Chunky;
@@ -77,6 +80,8 @@ check('command leading slash removed', CommandInput::command('/time set day'), '
 check('reply lines separated', CommandInput::readableReply('Saving the game (this may take a moment!)Saved the game'), 'Saving the game (this may take a moment!) Saved the game');
 check('reply version untouched', CommandInput::readableReply('id = 1.21.8name = 1.21.8'), 'id = 1.21.8name = 1.21.8');
 check('command one line', CommandInput::command("say hi\nstop"), 'say hi stop');
+check('command keeps selectors', CommandInput::command('kill @e[type=item]'), 'kill @e[type=item]');
+check('custom quick command keeps selectors', QuickCommands::build('custom', ['command' => 'tp @a 0 64 0']), ['custom', 'tp @a 0 64 0']);
 
 // --- Chunky ---
 check('chunky progress', Chunky::parseProgress('[Chunky] Task running for minecraft:overworld. Processed: 1040 chunks (68.38%), ETA: 0:00:12, Rate: 38.1 cps, Current: -4, -7'), [['world' => 'minecraft:overworld', 'chunks' => 1040, 'percent' => 68.38, 'eta' => '0:00:12', 'rate' => 38.1]]);
@@ -420,6 +425,34 @@ check('world settings allowed', Squaremap::isProxiedPath('tiles/minecraft_overwo
 check('players.json not proxied', Squaremap::isProxiedPath('tiles/players.json'), false);
 check('traversal rejected', Squaremap::isProxiedPath('tiles/../../etc/3/0_0.png'), false);
 check('other files rejected', Squaremap::isProxiedPath('index.html'), false);
+
+// --- API actions: the player and command endpoints ---
+check('refused: no such player', PlayerActions::refused('That player does not exist'), true);
+check('refused: nothing changed', PlayerActions::refused('Nothing changed. The player is already whitelisted'), true);
+check('refused: success reply', PlayerActions::refused('Added Notch to the whitelist'), false);
+check('refused: no reply', PlayerActions::refused(null), false);
+check('ban hours: a day', PlayerActions::banHours('24'), 24);
+check('ban hours: forever', PlayerActions::banHours('forever'), null);
+check('ban hours: unknown length', PlayerActions::banHours('5'), null);
+check('ban reason without a length', PlayerActions::banReason('griefing', null), 'griefing');
+check('every player action has a permission', array_diff(['kick', 'ban', 'unban', 'op', 'deop', 'whitelist-add', 'whitelist-remove', 'gamemode', 'give', 'teleport'], array_keys(PlayerActions::PERMISSIONS)), []);
+check('quick command', QuickCommands::build('noon'), ['time', 'time set noon']);
+check('quick command needs world permission', QuickCommands::permission('thunder'), 'overseer.commands-world');
+check('broadcast needs ops permission', QuickCommands::permission('broadcast'), 'overseer.commands-ops');
+check('unknown quick command', QuickCommands::permission('stop'), null);
+check('broadcast text cleaned', QuickCommands::build('broadcast', ['message' => "hi\nop me"]), ['broadcast', 'say hi op me']);
+check('custom command slash removed', QuickCommands::build('custom', ['command' => '/time set day']), ['custom', 'time set day']);
+throws('empty broadcast', fn () => QuickCommands::build('broadcast', ['message' => '  ']));
+throws('unknown command', fn () => QuickCommands::build('stop'));
+
+// --- Config editor: what a save would change ---
+$entries = ['max-players' => ['title' => 'Max players', 'type' => 'int', 'min' => 1, 'max' => 100], 'pvp' => ['title' => 'PvP', 'type' => 'bool']];
+$current = ['max-players' => 20, 'pvp' => true];
+check('config: untouched', ConfigEditor::changes($entries, $current, ['max-players' => '20', 'pvp' => true]), []);
+check('config: changed', ConfigEditor::changes($entries, $current, ['max-players' => '30'])['max-players']['new'], '30');
+check('config: bad value has an error', ConfigEditor::changes($entries, $current, ['max-players' => '500'])['max-players']['error'], "Max players can't be more than 100.");
+check('config: unknown key ignored', ConfigEditor::changes($entries, $current, ['motd' => 'hi']), []);
+check('config: bool off', ConfigEditor::changes($entries, $current, ['pvp' => false])['pvp']['new'], 'false');
 
 // --- RCON packets ---
 $packet = RconClient::encode(7, RconClient::TYPE_COMMAND, 'list');
