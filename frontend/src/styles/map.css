@@ -104,6 +104,22 @@
 .us-follow-stop:hover { background: var(--us-line); color: var(--us-text); }
 .us-follow-stop:focus-visible { outline: 2px solid var(--us-accent); }
 .us-follow-icon { width: 16px; height: 16px; }
+/* The follow toggle in the top right of the player popover. */
+.us-pop-follow { position: absolute; top: 8px; right: 8px; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 7px; color: var(--us-muted); }
+.us-pop-follow:hover { background: var(--us-line); color: var(--us-text); }
+.us-pop-follow.is-on { color: var(--us-accent); background: color-mix(in srgb, var(--us-accent) 14%, transparent); }
+.us-pop-follow:focus-visible { outline: 2px solid var(--us-accent); }
+.us-pop-follow-icon { width: 18px; height: 18px; }
+.us-pop-head { padding-right: 28px; }
+
+/* Full screen: the map in a lightbox over the page. Filament's modals (z-index 40) still open on top. */
+.us-fullscreen-btn { position: absolute; z-index: 3; top: 12px; right: 12px; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: var(--us-panel); border: 1px solid var(--us-border); border-radius: 8px; color: var(--us-muted); backdrop-filter: blur(6px); }
+.us-fullscreen-btn:hover { color: var(--us-text); }
+.us-fullscreen-btn:focus-visible { outline: 2px solid var(--us-accent); }
+.us-viewport.is-fullscreen { position: fixed; inset: 24px; z-index: 35; width: auto; height: auto; min-height: 0; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45); }
+.us-map-backdrop { position: fixed; inset: 0; z-index: 34; background: rgb(3 7 18 / 0.6); backdrop-filter: blur(2px); }
+@media (max-width: 640px) { .us-viewport.is-fullscreen { inset: 8px; } }
+
 /* On a narrow map the chip would cover the world and zoom buttons, so it goes below them. */
 .us-viewport { container-type: inline-size; }
 @container (max-width: 800px) { .us-follow { top: 52px; } }

@@ -111,6 +111,8 @@ return [
         'unfollow' => 'Stop following',
         'following' => 'Following',
         'stop_following' => 'Stop following',
+        'fullscreen' => 'Full screen',
+        'exit_fullscreen' => 'Exit full screen',
         'teleport' => [
             'heading' => 'Teleport a player',
             'ground' => 'Land on the ground',

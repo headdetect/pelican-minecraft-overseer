@@ -430,14 +430,14 @@ export class MapEngine {
     }
 
     private onDown(e: PointerEvent): void {
-        if (e.button !== 0 || (e.target as Element).closest('.us-pin, .us-pop, .us-point, .us-controls, .us-follow')) return;
+        if (e.button !== 0 || (e.target as Element).closest('.us-pin, .us-pop, .us-point, .us-controls, .us-follow, .us-fullscreen-btn')) return;
         this.stopGlide();
         this.drag = { x: e.clientX, y: e.clientY, cx: this.cx, cz: this.cz, moved: false };
         this.els.viewport.setPointerCapture(e.pointerId);
     }
 
     private onMove(e: PointerEvent): void {
-        if (!(e.target as Element).closest('.us-pop, .us-point, .us-controls, .us-follow')) {
+        if (!(e.target as Element).closest('.us-pop, .us-point, .us-controls, .us-follow, .us-fullscreen-btn')) {
             this.opts.onCoords(this.blockAt(e));
         }
 
@@ -461,7 +461,7 @@ export class MapEngine {
     }
 
     private onKey(e: KeyboardEvent): void {
-        if ((e.target as Element).closest('.us-pop, .us-point, .us-controls, .us-follow')) return;
+        if ((e.target as Element).closest('.us-pop, .us-point, .us-controls, .us-follow, .us-fullscreen-btn')) return;
         const pan = 80 / this.ppb;
         const moves: Record<string, [number, number]> = { ArrowLeft: [-pan, 0], ArrowRight: [pan, 0], ArrowUp: [0, -pan], ArrowDown: [0, pan] };
         this.stopGlide();

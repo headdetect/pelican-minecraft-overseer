@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useReducer, useRef, useState } from 'react';
-import { IconX } from '@tabler/icons-react';
+import { IconEye, IconEyeFilled, IconMaximize, IconMinimize, IconX } from '@tabler/icons-react';
+import { createPortal } from 'react-dom';
 import { Icon } from '../../ui/icons';
 import { useBoot, headUrl } from '../../boot';
 import { getJson } from '../../api';
@@ -58,6 +59,9 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ confi
     const [now, setNow] = useState(() => Date.now());
     const [sending, teleport] = useAction();
     const [following, setFollowing] = useState<string | null>(null);
+    const [fullscreen, setFullscreen] = useState(false);
+    const fullscreenRef = useRef(fullscreen);
+    fullscreenRef.current = fullscreen;
     // Where the followed player was when the map last moved to them.
     const followedAt = useRef('');
 
@@ -92,6 +96,9 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ confi
                     frame = requestAnimationFrame(redraw);
                 },
                 onEscape: () => {
+                    const { selected, point } = latest.current;
+                    // Escape closes a popup first, then leaves full screen.
+                    if (!selected && !point && fullscreenRef.current) setFullscreen(false);
                     latest.current.onSelect(null);
                     setPoint(null);
                 },
@@ -138,6 +145,23 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ confi
             setFollowing(null);
         }
     }, [following, players, online]);
+
+    // Full screen: no page scroll behind the map, and Escape leaves it even when
+    // the map itself doesn't have focus.
+    useEffect(() => {
+        if (!fullscreen) return;
+        document.body.style.overflow = 'hidden';
+        viewport.current?.focus();
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key !== 'Escape' || viewport.current?.contains(e.target as Node) || document.querySelector('.fi-modal-open')) return;
+            setFullscreen(false);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => {
+            document.body.style.overflow = '';
+            window.removeEventListener('keydown', onKey);
+        };
+    }, [fullscreen]);
 
     // With automatic refresh off, "Updated 12s ago" counts up.
     useEffect(() => {
@@ -241,6 +265,20 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ confi
         };
         popView = (
             <div className="us-pop" style={{ left: Math.max(8, left), top }} onPointerDown={(e) => e.stopPropagation()}>
+                <button
+                    type="button"
+                    className={cx('us-pop-follow', following === player.name && 'is-on')}
+                    aria-pressed={following === player.name}
+                    aria-label={t(following === player.name ? 'map.unfollow' : 'map.follow')}
+                    title={t(following === player.name ? 'map.unfollow' : 'map.follow')}
+                    onClick={() => {
+                        onSelect(null);
+                        setPoint(null);
+                        setFollowing(following === player.name ? null : player.name);
+                    }}
+                >
+                    <Icon icon={following === player.name ? IconEyeFilled : IconEye} className="us-pop-follow-icon" />
+                </button>
                 <div className="us-pop-head">
                     <img src={headUrl(boot, player.name)} alt="" />
                     <div>
@@ -266,18 +304,6 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ confi
                             {t('players.actions.gamemode')}
                         </button>
                     )}
-                    <button
-                        type="button"
-                        className="us-pop-btn is-gray"
-                        aria-pressed={following === player.name}
-                        onClick={() => {
-                            onSelect(null);
-                            setPoint(null);
-                            setFollowing(following === player.name ? null : player.name);
-                        }}
-                    >
-                        {t(following === player.name ? 'map.unfollow' : 'map.follow')}
-                    </button>
                     {boot.can.op && (
                         <button type="button" className="us-pop-btn is-gray" onClick={() => act(player.op ? 'deop' : 'op')}>
                             {t(player.op ? 'players.actions.deop' : 'players.actions.op')}
@@ -292,7 +318,9 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ confi
     const updatedText = ago < 60 ? t('map.updated_seconds', { n: ago }) : t('map.updated_minutes', { n: Math.floor(ago / 60) });
 
     return (
-        <div ref={viewport} className="us-viewport" tabIndex={0} role="application" aria-label={t('map.aria')}>
+        <>
+        {fullscreen && createPortal(<div className="us-map-backdrop" aria-hidden="true" onClick={() => setFullscreen(false)} />, document.body)}
+        <div ref={viewport} className={cx('us-viewport', fullscreen && 'is-fullscreen')} tabIndex={0} role="application" aria-label={t('map.aria')}>
             <canvas ref={grid} className="us-grid" style={{ display: config.mode === 'grid' ? undefined : 'none' }} />
             <div ref={tiles} className="us-tiles" />
             <div ref={pins} className="us-pins" />
@@ -345,8 +373,20 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ confi
                 </div>
             )}
 
+            <button
+                type="button"
+                className="us-fullscreen-btn"
+                onClick={() => setFullscreen((v) => !v)}
+                aria-pressed={fullscreen}
+                aria-label={t(fullscreen ? 'map.exit_fullscreen' : 'map.fullscreen')}
+                title={t(fullscreen ? 'map.exit_fullscreen' : 'map.fullscreen')}
+            >
+                <Icon icon={fullscreen ? IconMinimize : IconMaximize} className="us-follow-icon" />
+            </button>
+
             {pointView}
             {popView}
         </div>
+        </>
     );
 });
