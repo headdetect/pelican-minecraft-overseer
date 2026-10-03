@@ -23,6 +23,10 @@ window.overseerLiveMap = function (cfg) {
         cx: 0,
         cz: 0,
         players: [],
+        autoSeconds: 5,
+        updatedAt: null,
+        fetching: false,
+        now: null,
         time: null,
         server: null,
         chat: [],
@@ -48,8 +52,19 @@ window.overseerLiveMap = function (cfg) {
             this.resize = new ResizeObserver(() => this.render());
             this.resize.observe(this.$refs.viewport);
             // The refresh control on the tab row sets the pace, so "Off" stops polling.
-            this.onRefresh = (e) => this.refresh(e.detail?.manual);
+            this.onRefresh = (e) => e.detail?.track?.(this.refresh(e.detail?.manual));
             window.addEventListener('overseer-refresh', this.onRefresh);
+            // The Live chip says "Live" only while automatic refresh is on.
+            try {
+                const saved = localStorage.getItem('overseer.refresh');
+                this.autoSeconds = saved === null ? 5 : Number(saved);
+            } catch (e) {
+                this.autoSeconds = 5;
+            }
+            this.onInterval = (e) => (this.autoSeconds = e.detail.seconds);
+            window.addEventListener('overseer-refresh-interval', this.onInterval);
+            // With automatic refresh off, "Updated 12s ago" counts up.
+            this.clock = setInterval(() => (this.now = Date.now()), 1000);
 
             this.tick();
 
@@ -57,6 +72,8 @@ window.overseerLiveMap = function (cfg) {
 
         destroy() {
             window.removeEventListener('overseer-refresh', this.onRefresh);
+            window.removeEventListener('overseer-refresh-interval', this.onInterval);
+            clearInterval(this.clock);
             this.resize?.disconnect();
 
         },
@@ -65,8 +82,9 @@ window.overseerLiveMap = function (cfg) {
 
         // Positions every time; the stats cards (Livewire) at most every 15 s, since
         // Pelican caches resource usage that long, or right away for a click.
+        // Returns a promise for the refresh control's spinner.
         refresh(manual) {
-            this.tick();
+            const done = [this.tick()];
             // Terrain changes as players build and explore, so reload the visible
             // tiles every fifth refresh, or right away for a click.
             this.refreshes = (this.refreshes ?? 0) + 1;
@@ -74,8 +92,15 @@ window.overseerLiveMap = function (cfg) {
             const now = Date.now();
             if (manual || now - (this.statsAt ?? 0) >= 15000) {
                 this.statsAt = now;
-                this.$wire.$refresh();
+                done.push(this.$wire.$refresh());
             }
+
+            // The Live dot pulses for the refresh, at least 600 ms so a fast one is still seen.
+            this.fetching = true;
+            const all = Promise.allSettled([...done, new Promise((resolve) => setTimeout(resolve, 600))]);
+            all.then(() => (this.fetching = false));
+
+            return all;
         },
 
         async tick() {
@@ -97,6 +122,7 @@ window.overseerLiveMap = function (cfg) {
                 this.server = result.server ?? null;
                 this.setChat(result.chat ?? []);
                 this.state = result.ok ? 'live' : 'stale';
+                this.updatedAt = Date.now();
             } catch (e) {
                 this.state = 'stale';
             } finally {
@@ -146,6 +172,14 @@ window.overseerLiveMap = function (cfg) {
             } finally {
                 this.sending = false;
             }
+        },
+
+        // "Updated 12s ago", for the Live chip while automatic refresh is off.
+        updatedAgo() {
+            const seconds = Math.max(0, Math.round(((this.now ?? Date.now()) - (this.updatedAt ?? Date.now())) / 1000));
+            const text = seconds < 60 ? cfg.labels.updatedSeconds : cfg.labels.updatedMinutes;
+
+            return text.replace(':n', seconds < 60 ? seconds : Math.floor(seconds / 60));
         },
 
         phaseIcon(phase) {

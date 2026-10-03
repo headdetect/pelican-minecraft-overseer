@@ -98,9 +98,10 @@
                     </div>
                 </div>
 
-                <div class="us-chip us-live" aria-live="polite">
-                    <span class="us-led" :class="{ 'is-stale': state !== 'live' }"></span>
-                    <span x-show="state === 'live'">{{ trans('overseer::overseer.map.live', ['seconds' => $config['refresh']]) }}</span>
+                <div class="us-chip us-live">
+                    <span class="us-led" :class="{ 'is-stale': state === 'stale', 'is-paused': state === 'live' && autoSeconds === 0, 'is-fetching': fetching && autoSeconds > 0 }"></span>
+                    <span x-show="state === 'live' && autoSeconds > 0">{{ trans('overseer::overseer.map.live') }}</span>
+                    <span x-show="state === 'live' && autoSeconds === 0" x-text="updatedAgo()" x-cloak></span>
                     <span x-show="state === 'loading'">{{ trans('overseer::overseer.map.loading') }}</span>
                     <span x-show="state === 'stale'" x-cloak>{{ trans('overseer::overseer.map.stale') }}</span>
                 </div>

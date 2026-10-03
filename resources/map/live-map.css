@@ -95,11 +95,15 @@
 }
 .us-live { left: 12px; bottom: 12px; }
 .us-coords { right: 12px; bottom: 12px; font-family: ui-monospace, monospace; }
-.us-led { width: 7px; height: 7px; border-radius: 50%; background: var(--us-good); animation: us-pulse 2s infinite; }
+.us-led { width: 7px; height: 7px; border-radius: 50%; background: var(--us-good); }
 .us-led.is-stale { background: var(--us-warn); animation: none; }
-@keyframes us-pulse { 50% { opacity: 0.35; } }
+/* Gray while automatic refresh is off. */
+.us-led.is-paused { background: var(--us-muted); animation: none; }
+/* A quick pulse while a refresh is fetching. */
+.us-led.is-fetching { animation: us-fetch 0.6s ease-in-out infinite alternate; }
+@keyframes us-fetch { from { transform: scale(1); opacity: 1; } to { transform: scale(1.6); opacity: 0.5; } }
 @media (prefers-reduced-motion: reduce) {
-    .us-led { animation: none; }
+    .us-led, .us-led.is-fetching { animation: none; }
     .us-pin { transition: none; }
 }
 

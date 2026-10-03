@@ -110,6 +110,8 @@ class Overview extends Page
             'surfaceUrl' => route('overseer.map.surface', ['server' => $this->server()->uuid]),
             'feedUrl' => route('overseer.map.feed', ['server' => $this->server()->uuid]),
             'labels' => [
+                'updatedSeconds' => trans('overseer::overseer.map.updated_seconds'),
+                'updatedMinutes' => trans('overseer::overseer.map.updated_minutes'),
                 'joined' => trans('overseer::overseer.chat.joined'),
                 'left' => trans('overseer::overseer.chat.left'),
                 'day' => trans('overseer::overseer.overview.day'),

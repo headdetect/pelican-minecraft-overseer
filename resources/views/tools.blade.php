@@ -4,7 +4,7 @@
 
 <x-filament-panels::page>
     <x-filament::section icon="tabler-grid-dots" :heading="trans('overseer::overseer.tools.pregen.title')" :description="trans('overseer::overseer.tools.pregen.help')">
-        <div x-data x-on:overseer-refresh.window="$wire.$refresh()" class="flex flex-col gap-4">
+        <div x-data x-on:overseer-refresh.window="$event.detail.track($wire.$refresh())" class="flex flex-col gap-4">
             @if (!$chunky['running'])
                 <p class="text-sm text-gray-500 dark:text-gray-400">{{ trans($chunky['starting'] ? 'overseer::overseer.tools.starting' : 'overseer::overseer.tools.offline') }}</p>
             @elseif ($chunky['installed'] === null)

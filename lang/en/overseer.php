@@ -80,6 +80,8 @@ return [
         'zoom_in' => 'Zoom in',
         'zoom_out' => 'Zoom out',
         'live' => 'Live',
+        'updated_seconds' => 'Updated :ns ago',
+        'updated_minutes' => 'Updated :nm ago',
         'loading' => 'Loading players',
         'stale' => 'Positions unavailable',
         'online' => 'Online now',

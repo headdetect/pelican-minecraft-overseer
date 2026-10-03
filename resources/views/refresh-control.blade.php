@@ -5,7 +5,9 @@
 
     Pages don't keep their own timers. This sends an overseer-refresh window
     event, with detail.manual true for a click, and each page decides what
-    to reload.
+    to reload. A page passes its reload's promise to detail.track(), and the
+    button spins and stays disabled until every tracked reload finishes.
+    overseer-refresh-interval tells pages the automatic interval.
 --}}
 <div class="us-refresh-anchor">
     <div
@@ -14,7 +16,7 @@
             options: [0, 5, 10, 30, 60],
             seconds: 5,
             open: false,
-            spinning: false,
+            busy: false,
             timer: null,
             init() {
                 try {
@@ -22,6 +24,7 @@
                     if (saved !== null && this.options.includes(Number(saved))) this.seconds = Number(saved);
                 } catch (e) {}
                 this.schedule();
+                this.announce();
                 this.onVisible = () => !document.hidden && this.seconds > 0 && this.fire(false);
                 document.addEventListener('visibilitychange', this.onVisible);
             },
@@ -38,14 +41,21 @@
                 this.open = false;
                 try { localStorage.setItem('overseer.refresh', String(seconds)); } catch (e) {}
                 this.schedule();
+                this.announce();
             },
-            fire(manual) {
+            announce() {
+                window.dispatchEvent(new CustomEvent('overseer-refresh-interval', { detail: { seconds: this.seconds } }));
+            },
+            async fire(manual) {
                 if (!this.$root.isConnected) return this.destroy();
-                window.dispatchEvent(new CustomEvent('overseer-refresh', { detail: { manual } }));
-                if (manual) {
-                    this.spinning = true;
-                    setTimeout(() => (this.spinning = false), 700);
-                }
+                // Skip an automatic refresh while the last one is still running.
+                if (this.busy) return;
+                const pending = [];
+                window.dispatchEvent(new CustomEvent('overseer-refresh', { detail: { manual, track: (promise) => pending.push(promise) } }));
+                this.busy = true;
+                // Spin for at least half a second, so a fast refresh doesn't just flash.
+                await Promise.allSettled([...pending, new Promise((resolve) => setTimeout(resolve, 500))]);
+                this.busy = false;
             },
             label(seconds) {
                 return seconds === 0 ? @js(trans('overseer::overseer.refresh.off')) : (seconds < 60 ? @js(trans('overseer::overseer.refresh.seconds')).replace(':n', seconds) : @js(trans('overseer::overseer.refresh.minute')));
@@ -54,8 +64,8 @@
         x-on:keydown.escape.window="open = false"
         x-on:click.outside="open = false"
     >
-        <button type="button" class="us-refresh-now" x-on:click="fire(true)" title="{{ trans('overseer::overseer.refresh.now') }}">
-            <x-filament::icon icon="tabler-refresh" x-bind:class="{ 'is-spinning': spinning }" />
+        <button type="button" class="us-refresh-now" x-on:click="fire(true)" x-bind:disabled="busy" :aria-busy="busy" title="{{ trans('overseer::overseer.refresh.now') }}">
+            <x-filament::icon icon="tabler-refresh" x-bind:class="{ 'is-spinning': busy }" />
             <span>{{ trans('overseer::overseer.refresh.now') }}</span>
         </button>
         <button type="button" class="us-refresh-menu" x-on:click="open = !open" :aria-expanded="open" aria-haspopup="menu" title="{{ trans('overseer::overseer.refresh.auto') }}">
@@ -88,7 +98,8 @@
     .us-refresh-current { font-variant-numeric: tabular-nums; color: rgb(107 114 128); }
     .dark .us-refresh-current { color: rgb(161 161 170); }
     .us-refresh svg { width: 1rem; height: 1rem; }
-    .us-refresh svg.is-spinning { animation: us-spin 0.7s linear; }
+    .us-refresh svg.is-spinning { animation: us-spin 0.8s linear infinite; }
+    .us-refresh-now:disabled { cursor: progress; }
     @keyframes us-spin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { .us-refresh svg.is-spinning { animation: none; } }
     .us-refresh-list { position: absolute; right: 0; top: calc(100% + 4px); min-width: 11rem; padding: 0.3rem; border: 1px solid rgb(127 127 127 / 0.2); border-radius: 0.6rem; background: #fff; box-shadow: 0 8px 24px rgb(0 0 0 / 0.12); }
