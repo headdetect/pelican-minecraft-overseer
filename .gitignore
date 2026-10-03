@@ -3,3 +3,4 @@
 /dist/
 /.data/
 /frontend/node_modules/
+/.claude/worktrees/
