@@ -71,6 +71,9 @@ class Players extends Page implements HasTable
     /** @var array<string, array<string, mixed>> game mode, level and dimension from player files, by name */
     public array $details = [];
 
+    /** @var array<string, int> when each active timed ban ends, by player name */
+    public array $timedBans = [];
+
     public static function canAccess(): bool
     {
         /** @var Server $server */
@@ -92,7 +95,7 @@ class Players extends Page implements HasTable
     public function mount(): void
     {
         // The Online and All known tabs became one All players tab.
-        if (in_array($this->activeTab, ['online', 'known'], true)) {
+        if (in_array($this->activeTab, ['online', 'known'], true) || ($this->activeTab !== null && !array_key_exists($this->activeTab, $this->getTabs()))) {
             $this->activeTab = null;
         }
 
@@ -100,10 +103,13 @@ class Players extends Page implements HasTable
         $this->loadDefaultActiveTab();
     }
 
-    protected function loadPlayers(): void
+    protected function loadPlayers(bool $fresh = false): void
     {
         $server = $this->server();
         $players = app(PlayerService::class);
+        if ($fresh) {
+            $players->forgetRoster($server);
+        }
 
         $this->online = $server->retrieveStatus() === ContainerStatus::Running ? $players->online($server) : [];
         $this->ops = $players->ops($server);
@@ -111,6 +117,10 @@ class Players extends Page implements HasTable
         $this->banned = $players->banned($server);
         $this->roster = $players->roster($server, array_column($this->online ?? [], 'name'));
         $this->details = $players->details($server, $this->roster);
+        $this->timedBans = TimedBan::active()->where('server_id', $server->id)->pluck('expires_at', 'player')->map(fn ($at) => $at->getTimestamp())->all();
+
+        // The table caches its rows, so drop them to show what changed.
+        $this->flushCachedTableRecords();
     }
 
     /** @return array<string, Tab> */
@@ -120,7 +130,7 @@ class Players extends Page implements HasTable
             'all' => Tab::make('all')->label(trans('overseer::overseer.players.tabs.all'))->badge(fn () => count($this->roster)),
             'ops' => Tab::make('ops')->label(trans('overseer::overseer.players.tabs.ops'))->badge(fn () => count($this->ops)),
             'whitelist' => Tab::make('whitelist')->label(trans('overseer::overseer.players.tabs.whitelist'))->badge(fn () => count($this->whitelist)),
-            'banned' => Tab::make('banned')->label(trans('overseer::overseer.players.tabs.banned'))->badge(fn () => count($this->banned) ?: null),
+            'banned' => Tab::make('banned')->label(trans('overseer::overseer.players.tabs.banned'))->badge(fn () => count($this->banned)),
         ];
     }
 
@@ -160,9 +170,11 @@ class Players extends Page implements HasTable
             })
             ->paginated([25, 50, 100])
             // The filters are small buttons inside the table's card instead of tabs above it.
-            ->header(fn () => view('overseer::partials.player-filters', [
+            // A custom header replaces Filament's, so it renders the header actions too.
+            ->header(fn (Table $table) => view('overseer::partials.player-filters', [
                 'tabs' => collect($this->getTabs())->map(fn (Tab $tab) => ['label' => $tab->getLabel(), 'badge' => $tab->getBadge()])->all(),
-                'active' => $this->activeTab ?: array_key_first($this->getTabs()),
+                'active' => array_key_exists((string) $this->activeTab, $this->getTabs()) ? $this->activeTab : array_key_first($this->getTabs()),
+                'actions' => $table->getHeaderActions(),
             ]))
             ->columns([
                 ImageColumn::make('head')
@@ -178,10 +190,15 @@ class Players extends Page implements HasTable
                     ->label(trans('overseer::overseer.players.columns.role'))
                     ->badge()
                     ->state(fn (array $record) => array_values(array_filter([
-                        in_array($record['name'], $this->ops, true) ? 'OP' : null,
+                        in_array($record['name'], $this->ops, true) ? trans('overseer::overseer.map.op') : null,
                         in_array($record['name'], $this->whitelist, true) ? trans('overseer::overseer.players.whitelisted') : null,
+                        $this->activeTab !== 'banned' && $this->isBanned($record['name']) ? trans('overseer::overseer.players.banned') : null,
                     ])))
-                    ->color(fn (string $state) => $state === 'OP' ? 'warning' : 'info'),
+                    ->color(fn (string $state) => match ($state) {
+                        trans('overseer::overseer.map.op') => 'warning',
+                        trans('overseer::overseer.players.banned') => 'danger',
+                        default => 'info',
+                    }),
                 TextColumn::make('gamemode')
                     ->label(trans('overseer::overseer.players.columns.game_mode'))
                     ->visible(fn () => $this->activeTab !== 'banned')
@@ -226,7 +243,10 @@ class Players extends Page implements HasTable
                 TextColumn::make('reason')
                     ->label(trans('overseer::overseer.players.columns.reason'))
                     ->visible(fn () => $this->activeTab === 'banned')
-                    ->description(fn (array $record) => trim(($record['source'] ? 'by ' . $record['source'] : '') . ($record['created'] ? ' · ' . substr($record['created'], 0, 10) : ''), ' ·'))
+                    ->description(fn (array $record) => implode(' · ', array_filter([
+                        $record['source'] ? trans('overseer::overseer.players.banned_by', ['name' => $record['source']]) : null,
+                        $record['created'] ? substr($record['created'], 0, 10) : null,
+                    ])))
                     ->wrap(),
                 TextColumn::make('expires')
                     ->label(trans('overseer::overseer.players.columns.expires'))
@@ -257,7 +277,7 @@ class Players extends Page implements HasTable
                     ->label(trans('overseer::overseer.players.refresh'))
                     ->icon('tabler-refresh')
                     ->color('gray')
-                    ->action(fn () => $this->loadPlayers()),
+                    ->action(fn () => $this->loadPlayers(fresh: true)),
                 Action::make('add_to_whitelist')
                     ->label(trans('overseer::overseer.players.add_to_whitelist'))
                     ->icon('tabler-user-plus')
@@ -301,7 +321,7 @@ class Players extends Page implements HasTable
             ->label(trans('overseer::overseer.players.actions.ban'))
             ->icon('tabler-hammer')
             ->color('danger')
-            ->visible(fn () => $this->activeTab !== 'banned' && $this->can(Permission::PLAYERS_BAN))
+            ->visible(fn (array $record) => $this->activeTab !== 'banned' && !$this->isBanned($record['name']) && $this->can(Permission::PLAYERS_BAN))
             ->modalHeading(fn (array $record) => trans('overseer::overseer.players.ban_heading', ['name' => $record['name']]))
             ->modalSubmitActionLabel(trans('overseer::overseer.players.actions.ban'))
             ->schema([
@@ -320,11 +340,14 @@ class Players extends Page implements HasTable
             ->action(function (array $record, array $data) {
                 $reason = CommandInput::text($data['reason'] ?? '');
                 $hours = $data['duration'] === 'forever' ? null : (int) $data['duration'];
-                $shownReason = $hours ? trim($reason . ' (' . trans('overseer::overseer.players.ban_for', ['hours' => $hours]) . ')') : $reason;
+                $shownReason = $hours ? trim($reason . ' (' . trans('overseer::overseer.players.ban_for', ['duration' => trans('overseer::overseer.players.durations.' . match ($hours) { 1 => 'hour', 24 => 'day', default => 'week' })]) . ')') : $reason;
 
                 if (!$this->runFor('ban', 'ban', $record['name'], 'banned', $shownReason)) {
                     return;
                 }
+
+                // This ban replaces any earlier timed one, so the scheduler won't lift it.
+                TimedBan::active()->where('server_id', $this->server()->id)->where('player', $record['name'])->update(['lifted_at' => now()]);
 
                 if ($hours) {
                     TimedBan::create([
@@ -378,7 +401,7 @@ class Players extends Page implements HasTable
                         ->helperText(trans('overseer::overseer.players.item_help'))
                         ->placeholder('minecraft:diamond')
                         ->datalist(['minecraft:diamond', 'minecraft:iron_ingot', 'minecraft:golden_apple', 'minecraft:ender_pearl', 'minecraft:cooked_beef', 'minecraft:torch', 'minecraft:oak_log', 'minecraft:elytra', 'minecraft:totem_of_undying'])
-                        ->regex('/^(?:[a-z0-9_.-]+:)?[a-z0-9_.\/-]{1,100}$/')
+                        ->regex('/^(?:[a-z0-9_.-]+:)?[a-z0-9_.\/-]{1,100}$/i')
                         ->required()
                         ->columnSpan(2),
                     TextInput::make('count')
@@ -415,7 +438,7 @@ class Players extends Page implements HasTable
                         'player' => trans('overseer::overseer.players.teleport_player'),
                         'coords' => trans('overseer::overseer.players.teleport_coords'),
                     ])
-                    ->default('player')
+                    ->default(fn () => count(array_filter(array_column($this->online ?? [], 'name'), fn ($name) => $name !== $record['name'])) > 0 ? 'player' : 'coords')
                     ->inline()
                     ->live(),
                 Select::make('target')
@@ -440,7 +463,7 @@ class Players extends Page implements HasTable
                         'minecraft:the_nether' => trans('overseer::overseer.map.worlds.nether'),
                         'minecraft:the_end' => trans('overseer::overseer.map.worlds.end'),
                     ])
-                    ->default('minecraft:' . ($record['dimension'] ?? 'overworld'))
+                    ->default('minecraft:' . preg_replace('/^minecraft:/', '', (string) ($record['dimension'] ?? 'overworld')))
                     ->selectablePlaceholder(false)
                     ->visible(fn (Get $get) => $get('to') === 'coords'),
             ])
@@ -458,12 +481,17 @@ class Players extends Page implements HasTable
         try {
             $name = CommandInput::playerName($player);
             $reply = app(ConsoleService::class)->run($this->server(), $action, $command($name), $name);
+            if (self::refused($reply)) {
+                throw new \RuntimeException($reply);
+            }
 
             Notification::make()
                 ->title(trans("overseer::overseer.players.notifications.$notification", ['name' => $name]))
                 ->body($reply ?: null)
                 ->success()
                 ->send();
+
+            $this->loadPlayers();
 
             return true;
         } catch (Exception $exception) {
@@ -502,7 +530,9 @@ class Players extends Page implements HasTable
             ->color('gray')
             ->visible(fn () => $this->activeTab !== 'banned' && $this->can(Permission::PLAYERS_OP))
             ->requiresConfirmation()
+            ->modalHeading(fn (array $record) => trans($isOp($record) ? 'overseer::overseer.map.deop_heading' : 'overseer::overseer.map.op_heading', ['name' => $record['name']]))
             ->modalDescription(fn (array $record) => $isOp($record) ? null : trans('overseer::overseer.players.op_warning'))
+            ->modalSubmitActionLabel(fn (array $record) => trans($isOp($record) ? 'overseer::overseer.players.actions.deop' : 'overseer::overseer.players.actions.op'))
             ->action(fn (array $record) => $isOp($record)
                 ? $this->runFor('deop', 'deop', $record['name'], 'deopped')
                 : $this->runFor('op', 'op', $record['name'], 'opped'));
@@ -540,6 +570,9 @@ class Players extends Page implements HasTable
         try {
             $name = CommandInput::playerName($player);
             $reply = app(ConsoleService::class)->run($this->server(), $action, trim("$verb $name $suffix"), $name);
+            if (self::refused($reply)) {
+                throw new \RuntimeException($reply);
+            }
 
             Notification::make()
                 ->title(trans("overseer::overseer.players.notifications.$notification", ['name' => $name]))
@@ -547,7 +580,7 @@ class Players extends Page implements HasTable
                 ->success()
                 ->send();
 
-            $this->loadPlayers();
+            $this->loadPlayers(fresh: in_array($action, ['whitelist', 'ban', 'unban'], true));
 
             return true;
         } catch (Exception $exception) {
@@ -561,15 +594,36 @@ class Players extends Page implements HasTable
         }
     }
 
+    /** Replies where Minecraft didn't do what was asked, though the command ran. */
+    private static function refused(?string $reply): bool
+    {
+        return $reply !== null && (bool) preg_match('/^(Nothing changed|That player does not exist|No player was found|Unknown or incomplete command|Incorrect argument)/i', $reply);
+    }
+
+    private function isBanned(string $player): bool
+    {
+        return in_array(strtolower($player), array_map('strtolower', array_column($this->banned, 'name')), true);
+    }
+
     private function banExpiry(string $player): ?string
     {
-        $ban = TimedBan::active()->where('server_id', $this->server()->id)->where('player', $player)->latest('expires_at')->first();
+        $at = $this->timedBans[$player] ?? null;
+        if ($at === null) {
+            return null;
+        }
 
-        return $ban?->expires_at->diffForHumans();
+        // Expired but not lifted yet: the scheduler pardons within a minute while the server runs.
+        return $at <= time()
+            ? trans('overseer::overseer.players.lifting_soon')
+            : \Illuminate\Support\Carbon::createFromTimestamp($at)->diffForHumans();
     }
 
     private function emptyHeading(): string
     {
+        if (filled($this->getTableSearch())) {
+            return trans('overseer::overseer.players.empty.no_match');
+        }
+
         return in_array($this->activeTab, [null, 'all'], true)
             ? trans('overseer::overseer.players.empty.nobody')
             : trans('overseer::overseer.players.empty.none');

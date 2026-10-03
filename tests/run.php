@@ -71,6 +71,7 @@ throws('name too long', fn () => CommandInput::playerName(str_repeat('a', 17)));
 throws('empty name', fn () => CommandInput::playerName(''));
 check('reason newlines flattened', CommandInput::text("Griefing\nop Me\r\nstop"), 'Griefing op Me stop');
 check('reason colour codes removed', CommandInput::text('§cBad §lplayer'), 'Bad player');
+check('reason selectors kept as text', CommandInput::text('testing @a and @p[distance=1] and me@a.com'), 'testing ＠a and ＠p[distance=1] and me@a.com');
 check('reason length bounded', mb_strlen(CommandInput::text(str_repeat('x', 500))), 200);
 check('command leading slash removed', CommandInput::command('/time set day'), 'time set day');
 check('reply lines separated', CommandInput::readableReply('Saving the game (this may take a moment!)Saved the game'), 'Saving the game (this may take a moment!) Saved the game');

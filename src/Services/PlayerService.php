@@ -83,6 +83,12 @@ class PlayerService
      * @param  string[]  $online  names of players online now
      * @return array<int, array{name: string, uuid: ?string, last_seen: ?int, online: bool}>
      */
+    /** Drops the cached roster, after a change to the whitelist or bans or a manual refresh. */
+    public function forgetRoster(Server $server): void
+    {
+        Cache::forget("overseer:roster:$server->uuid");
+    }
+
     public function roster(Server $server, array $online = []): array
     {
         $base = Cache::remember("overseer:roster:$server->uuid", now()->addSeconds(30), function () use ($server) {
@@ -259,18 +265,22 @@ class PlayerService
                 continue;
             }
 
-            $summary = Cache::rememberForever("overseer:player-nbt:$server->uuid:$uuid:{$player['last_seen']}", function () use ($files, $path) {
+            // One key per player holding the file's time, so a changed file replaces it instead of piling up.
+            $key = "overseer:player-nbt:$server->uuid:$uuid";
+            $cached = Cache::get($key);
+            if (!is_array($cached) || ($cached['time'] ?? null) !== $player['last_seen']) {
                 try {
-                    return PlayerNbt::summary($files->getContent($path)) ?? false;
+                    $summary = PlayerNbt::summary($files->getContent($path));
                 } catch (Exception $exception) {
                     report($exception);
-
-                    return false;
+                    $summary = null;
                 }
-            });
+                $cached = ['time' => $player['last_seen'], 'summary' => $summary];
+                Cache::put($key, $cached, now()->addWeek());
+            }
 
-            if ($summary) {
-                $details[$player['name']] = $summary;
+            if ($cached['summary']) {
+                $details[$player['name']] = $cached['summary'];
             }
         }
 

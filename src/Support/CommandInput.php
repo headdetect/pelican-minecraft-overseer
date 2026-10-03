@@ -89,6 +89,9 @@ final class CommandInput
         $text = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $text) ?? '';
         $text = preg_replace('/§./u', '', $text) ?? '';
         $text = trim(preg_replace('/\s+/u', ' ', $text) ?? '');
+        // Minecraft expands selectors such as @a in messages and reasons. A fullwidth
+        // at sign keeps the text as typed.
+        $text = preg_replace('/(?<![\w@])@(?=[aeprsn](?:\[|\b))/u', '＠', $text) ?? $text;
 
         return mb_substr($text, 0, $max);
     }

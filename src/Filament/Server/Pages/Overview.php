@@ -314,11 +314,13 @@ class Overview extends Page
             ->action(function (array $arguments, array $data) {
                 $reason = CommandInput::text($data['reason'] ?? '');
                 $hours = $data['duration'] === 'forever' ? null : (int) $data['duration'];
-                $shownReason = $hours ? trim($reason . ' (' . trans('overseer::overseer.players.ban_for', ['hours' => $hours]) . ')') : $reason;
+                $shownReason = $hours ? trim($reason . ' (' . trans('overseer::overseer.players.ban_for', ['duration' => trans('overseer::overseer.players.durations.' . match ($hours) { 1 => 'hour', 24 => 'day', default => 'week' })]) . ')') : $reason;
 
                 if (!$this->runFor('ban', 'ban', $arguments['name'] ?? '', 'banned', $shownReason)) {
                     return;
                 }
+
+                TimedBan::active()->where('server_id', $this->server()->id)->where('player', CommandInput::playerName($arguments['name']))->update(['lifted_at' => now()]);
 
                 if ($hours) {
                     TimedBan::create([
