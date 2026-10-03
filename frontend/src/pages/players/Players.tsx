@@ -170,7 +170,6 @@ export default function Players() {
                             </div>
                         </div>
                         <div className="fi-ta-header-toolbar">
-                            <div />
                             <div className="fi-ta-search-field">
                                 <label className="fi-sr-only" htmlFor="us-player-search">
                                     {t('ui.search')}
