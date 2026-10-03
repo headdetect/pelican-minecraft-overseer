@@ -28,7 +28,7 @@ final class EditableFiles
     /** Whether a path may be opened: a config file in the root or a known folder, with no way out of them. */
     public static function isEditable(string $path): bool
     {
-        if ($path === '' || str_contains($path, '..') || str_contains($path, '\\') || str_starts_with($path, '/') || preg_match('/[\x00-\x1F]/', $path)) {
+        if ($path === '' || in_array('..', explode('/', $path), true) || in_array('.', explode('/', $path), true) || str_contains($path, '\\') || str_starts_with($path, '/') || preg_match('/[\x00-\x1F]/', $path)) {
             return false;
         }
 

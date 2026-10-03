@@ -79,15 +79,11 @@ final class ConfigSchema
             'bool' => in_array(strtolower($raw), ['true', 'false'], true) ? strtolower($raw) === 'true' : null,
             'int', 'range' => preg_match('/^-?\d+$/', $raw) ? (int) $raw : null,
             'password' => '',
-            default => $raw,
+            // A line break (motd can have one) shows as \n, since the input is one line.
+            default => str_replace("\n", '\n', $raw),
         };
     }
 
-    /**
-     * Checks a value from the form and turns it into the text written to the file.
-     *
-     * @throws InvalidArgumentException with a message an admin can act on
-     */
     /** Whether a form value equals the entry's default. Lenient about types, since forms send numbers as text. */
     public static function isDefault(array $entry, mixed $value): bool
     {
@@ -104,6 +100,11 @@ final class ConfigSchema
         };
     }
 
+    /**
+     * Checks a value from the form and turns it into the text written to the file.
+     *
+     * @throws InvalidArgumentException with a message an admin can act on
+     */
     public static function toFile(array $entry, mixed $value): string
     {
         $title = $entry['title'];
@@ -141,6 +142,8 @@ final class ConfigSchema
             default:
                 // One line of text with no control characters: a newline would start a new setting.
                 $text = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', (string) $value) ?? '';
+                // \n typed in the form is a line break in the file, as Minecraft reads it.
+                $text = str_replace('\n', "\n", $text);
                 $max = $entry['max'] ?? 1000;
                 if (mb_strlen($text) > $max) {
                     throw new InvalidArgumentException("$title can be at most $max characters.");

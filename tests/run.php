@@ -212,6 +212,15 @@ check('chat say from rcon', [$chat[2]['type'], $chat[2]['name'], $chat[2]['text'
 check('chat join and leave', [$chat[3]['type'], $chat[4]['type']], ['join', 'leave']);
 check('chat limit keeps newest', ChatLog::parse(array_fill(0, 5, '[01:00:00] [Server thread/INFO]: <A> x'), 2), [['time' => '01:00:00', 'type' => 'chat', 'name' => 'A', 'text' => 'x'], ['time' => '01:00:00', 'type' => 'chat', 'name' => 'A', 'text' => 'x']]);
 
+// --- Config file edits ---
+check('properties update every duplicate', Properties::update("a=1\na=2\n", ['a' => '9']), "a=9\na=9\n");
+check('yaml quotes yes', YamlLines::scalar('yes'), "'yes'");
+check('yaml plain word', YamlLines::scalar('hello'), 'hello');
+check('motd line break shown', ConfigSchema::fromFile(['type' => 'string'], "one\ntwo"), 'one\ntwo');
+check('motd line break written', ConfigSchema::toFile(['type' => 'string', 'title' => 'MOTD'], 'one\ntwo'), "one\ntwo");
+check('editable double dot name', EditableFiles::isEditable('config/foo..bar.toml'), true);
+check('editable dot segment', EditableFiles::isEditable('config/./x.toml'), false);
+
 // --- Reset to default ---
 $port = ['type' => 'int', 'default' => 25575, 'title' => 'Port'];
 check('default int as text', ConfigSchema::isDefault($port, '25575'), true);

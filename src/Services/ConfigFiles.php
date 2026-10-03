@@ -77,12 +77,11 @@ class ConfigFiles
                     continue;
                 }
 
-                if (isset($entries[$key])) {
-                    $value = ConfigSchema::fromFile($entries[$key], $raw);
-                    if ($value !== null) {
-                        $result['values'][$key] = $value;
-                    }
+                $value = isset($entries[$key]) ? ConfigSchema::fromFile($entries[$key], $raw) : null;
+                if ($value !== null) {
+                    $result['values'][$key] = $value;
                 } else {
+                    // Unknown keys, and known ones with a value the form can't show, stay editable as text.
                     $result['values'][$key] = $raw;
                     $result['advanced'][] = $key;
                 }
@@ -145,8 +144,12 @@ class ConfigFiles
 
         $restart = false;
         $commands = [];
+        $hasRcon = $running && $this->console->hasRcon($server);
         foreach ($changes as $key => $value) {
-            $command = ConfigSchema::liveCommand($entries[$key], $value);
+            // Without RCON a command is sent through Wings and runs later, possibly
+            // after the file write, and Minecraft would write its old values back.
+            // So those settings wait for a restart instead.
+            $command = $hasRcon ? ConfigSchema::liveCommand($entries[$key], $value) : null;
             if ($command !== null) {
                 $commands[$key] = $command;
             } elseif ($entries[$key]['restart'] ?? true) {
@@ -238,7 +241,7 @@ class ConfigFiles
     /** Writes a dated copy of the file and drops the oldest copies past the limit. */
     private function backup(Server $server, string $file, string $contents): string
     {
-        $name = str_replace('/', '_', $file) . '.' . now()->format('Y-m-d_His');
+        $name = str_replace('/', '_', $file) . '.' . now()->format('Y-m-d_His_v');
         $path = self::BACKUP_DIR . '/' . $name;
 
         // Wings makes the folders it needs when writing a file.

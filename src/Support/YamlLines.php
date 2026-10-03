@@ -44,7 +44,10 @@ final class YamlLines
     /** Formats a value so YAML reads it back as the same string, number or boolean. */
     public static function scalar(string $value): string
     {
-        if ($value === '' || preg_match('/^[\s\'"&*!|>%@`{}\[\],#?:-]|[\s:]$|: | #/', $value) || preg_match('/[\x00-\x1F]/', $value)) {
+        // YAML 1.1 (SnakeYAML) reads these words as booleans or null, so quote them to keep a string.
+        // true and false stay plain: boolean settings write them on purpose.
+        $words = ['yes', 'no', 'on', 'off', 'y', 'n', 'null', '~'];
+        if ($value === '' || in_array(strtolower($value), $words, true) || preg_match('/^[\s\'"&*!|>%@`{}\[\],#?:-]|[\s:]$|: | #/', $value) || preg_match('/[\x00-\x1F]/', $value)) {
             return "'" . str_replace("'", "''", $value) . "'";
         }
 
