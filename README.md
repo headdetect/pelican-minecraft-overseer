@@ -15,7 +15,7 @@ A [Pelican](https://pelican.dev) panel plugin for running a Minecraft Java serve
   - Give an item, or teleport to another player or to coordinates. These need the player online.
   - Kick with a reason, ban for 1 hour, 1 day, 7 days or for good, and unban.
 - **Config**: server settings, game rules and Paper settings as a form, with a plain title and description for each setting. Change what you need, then save from the top of the page, or save and restart when a change only applies on restart. An undo icon resets a setting to its vanilla default. The Files tab lists mod and plugin config files and opens them in the panel's file editor. See [Config](#config) below.
-- **Tools**: generate chunks ahead of time with [Chunky](https://modrinth.com/plugin/chunky), with progress, pause, continue and cancel. squaremap draws the new chunks on its own.
+- **Tools**: generate chunks ahead of time with [Chunky](https://modrinth.com/plugin/chunky), with progress, pause, continue and cancel, and render the squaremap map for a world.
 - The Overseer item in the sidebar shows how many players are online. Every Overseer page warns when RCON is off, can't be reached, or is published on a public address.
 - Every action is checked against its own subuser permission and written to the server's Activity log.
 

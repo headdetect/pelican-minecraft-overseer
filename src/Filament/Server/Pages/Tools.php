@@ -17,6 +17,7 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
 use Headdetect\Overseer\Filament\Server\Clusters\Overseer;
+use Headdetect\Overseer\Services\ConsoleService;
 use Headdetect\Overseer\Services\Map\MapService;
 use Headdetect\Overseer\Services\Tools\Chunky;
 use Headdetect\Overseer\Support\Permission;
@@ -62,6 +63,11 @@ class Tools extends Page
         $running = $this->server()->retrieveStatus() === ContainerStatus::Running;
 
         return ['running' => $running, ...($running ? app(Chunky::class)->status($this->server()) : ['installed' => null, 'tasks' => []])];
+    }
+
+    public function squaremapReady(): bool
+    {
+        return app(MapService::class)->source($this->server())['status'] === MapService::READY;
     }
 
     public function startAction(): Action
@@ -150,6 +156,31 @@ class Tools extends Page
             ->requiresConfirmation()
             ->modalDescription(trans('overseer::overseer.tools.pregen.cancel_help'))
             ->action(fn () => $this->notify(fn () => app(Chunky::class)->cancel($this->server())));
+    }
+
+    public function renderAction(): Action
+    {
+        return Action::make('render')
+            ->button()
+            ->label(trans('overseer::overseer.tools.render.start'))
+            ->icon('tabler-map')
+            ->modalHeading(trans('overseer::overseer.tools.render.title'))
+            ->modalDescription(trans('overseer::overseer.tools.render.start_help'))
+            ->modalSubmitActionLabel(trans('overseer::overseer.tools.render.start'))
+            ->schema([
+                Select::make('world')
+                    ->label(trans('overseer::overseer.tools.world'))
+                    ->options($this->worlds())
+                    ->default(self::DEFAULT_WORLDS[0])
+                    ->selectablePlaceholder(false)
+                    ->required(),
+            ])
+            ->action(function (array $data) {
+                if (!Chunky::isWorld($data['world'])) {
+                    return;
+                }
+                $this->notify(fn () => app(ConsoleService::class)->run($this->server(), 'render', "squaremap fullrender {$data['world']}"));
+            });
     }
 
     /** @return array<string, string> world id => label */
