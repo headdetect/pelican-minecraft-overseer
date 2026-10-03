@@ -5,6 +5,7 @@ return [
 
     'ui' => [
         'cancel' => 'Cancel',
+        'loading' => 'Loading',
         'close' => 'Close',
         'search' => 'Search',
         'per_page' => 'Per page',

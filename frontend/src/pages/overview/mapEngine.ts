@@ -7,7 +7,7 @@ import type { MapPlayer, World } from './types';
  * top, at the screen positions this class works out.
  *
  * Coordinates follow squaremap: at zoom level `max` one pixel is one block, each
- * level below halves that, and tile (tx, ty) at a level holds blocks starting at
+ * level below halves that, and tile (tx, ty) at a level has the blocks starting at
  * tx * 512 * 2^(max - level) on x and ty * the same on z.
  *
  * `zoom` can be fractional. The viewer scales the nearest tile level to fit.
@@ -56,6 +56,7 @@ export class MapEngine {
     private els: EngineElements;
     private opts: EngineOptions;
     private cleanup: Array<() => void> = [];
+    private glide = 0;
 
     constructor(els: EngineElements, opts: EngineOptions, worlds: World[]) {
         this.els = els;
@@ -81,6 +82,7 @@ export class MapEngine {
     }
 
     destroy(): void {
+        this.stopGlide();
         this.resize.disconnect();
         this.cleanup.forEach((fn) => fn());
         this.clearTiles();
@@ -147,13 +149,72 @@ export class MapEngine {
         this.renderPins();
     }
 
-    /** Centers on a player, switching worlds if needed, and zooms in to one block per pixel. */
+    /**
+     * Centers on a player and zooms in to one block per pixel. Within one world
+     * the view glides there. A player in another world needs a world switch,
+     * so the view jumps.
+     */
     focus(player: MapPlayer): void {
-        if (player.world !== this.world) this.setWorld(player.world);
-        this.cx = player.x;
-        this.cz = player.z;
-        if (this.zoom < this.current.max) this.zoom = this.current.max;
-        this.render();
+        const zoom = Math.max(this.zoom, this.current.max);
+        if (player.world !== this.world) {
+            this.stopGlide();
+            this.setWorld(player.world, false);
+            this.cx = player.x;
+            this.cz = player.z;
+            this.zoom = Math.max(this.zoom, this.current.max);
+            this.clearTiles();
+            this.render();
+            return;
+        }
+        this.glideTo(player.x, player.z, zoom);
+    }
+
+    /**
+     * Moves the view to a point over a short time. The speed eases in and out,
+     * and the time grows with the distance on screen, from 350 to 900 ms.
+     * A drag, a scroll or a key press stops the glide where it is.
+     */
+    glideTo(x: number, z: number, zoom: number): void {
+        this.stopGlide();
+        const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        const from = { cx: this.cx, cz: this.cz, zoom: this.zoom };
+        const distance = Math.hypot(x - from.cx, z - from.cz) * this.ppb;
+        if (reduce || (distance < 1 && zoom === from.zoom)) {
+            this.cx = x;
+            this.cz = z;
+            this.zoom = zoom;
+            this.render();
+            return;
+        }
+
+        const duration = Math.min(900, 350 + distance * 0.35);
+        const start = performance.now();
+        // Ease in and out (cubic), so the move starts and ends slowly.
+        const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+        this.els.viewport.classList.add('is-moving');
+
+        const step = (now: number) => {
+            const t = Math.min(1, (now - start) / duration);
+            const k = ease(t);
+            this.zoom = from.zoom + (zoom - from.zoom) * k;
+            this.cx = from.cx + (x - from.cx) * k;
+            this.cz = from.cz + (z - from.cz) * k;
+            this.render();
+            if (t < 1) {
+                this.glide = requestAnimationFrame(step);
+            } else {
+                this.glide = 0;
+                this.els.viewport.classList.remove('is-moving');
+            }
+        };
+        this.glide = requestAnimationFrame(step);
+    }
+
+    private stopGlide(): void {
+        if (!this.glide) return;
+        cancelAnimationFrame(this.glide);
+        this.glide = 0;
+        this.els.viewport.classList.remove('is-moving');
     }
 
     render(): void {
@@ -184,6 +245,7 @@ export class MapEngine {
     }
 
     zoomBy(delta: number, sx?: number, sy?: number): void {
+        this.stopGlide();
         const world = this.current;
         const next = Math.max(0, Math.min(world.max + world.extra, this.zoom + delta));
         if (next === this.zoom) return;
@@ -338,6 +400,7 @@ export class MapEngine {
 
     private onWheel(e: WheelEvent): void {
         e.preventDefault();
+        this.stopGlide();
         const r = this.els.viewport.getBoundingClientRect();
         // deltaMode 1 is lines and 2 is pages. Convert both to pixels.
         const px = e.deltaY * [1, 33, 800][e.deltaMode];
@@ -347,6 +410,7 @@ export class MapEngine {
 
     private onDown(e: PointerEvent): void {
         if (e.button !== 0 || (e.target as Element).closest('.us-pin, .us-pop, .us-point, .us-controls')) return;
+        this.stopGlide();
         this.drag = { x: e.clientX, y: e.clientY, cx: this.cx, cz: this.cz, moved: false };
         this.els.viewport.setPointerCapture(e.pointerId);
     }
@@ -378,6 +442,7 @@ export class MapEngine {
         if ((e.target as Element).closest('.us-pop, .us-point, .us-controls')) return;
         const pan = 80 / this.ppb;
         const moves: Record<string, [number, number]> = { ArrowLeft: [-pan, 0], ArrowRight: [pan, 0], ArrowUp: [0, -pan], ArrowDown: [0, pan] };
+        this.stopGlide();
         if (moves[e.key]) {
             this.cx += moves[e.key][0];
             this.cz += moves[e.key][1];

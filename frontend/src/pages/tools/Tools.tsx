@@ -5,7 +5,7 @@ import { postJson } from '../../api';
 import { t } from '../../lang';
 import { notifyDone } from '../../notify';
 import { useRefresh } from '../../refresh';
-import { Button, Field, Modal, ModalActions, Section, Select, Spinner, TextInput, ToggleField } from '../../ui';
+import { Button, Field, Loading, Modal, ModalActions, Section, Select, Skeleton, TextInput, ToggleField } from '../../ui';
 import { useAction } from '../../useAction';
 
 interface Task {
@@ -58,7 +58,14 @@ export default function Tools() {
         <div className="us-tools">
             <Section icon={IconGridDots} heading={t('tools.pregen.title')} description={t('tools.pregen.help')}>
                 {!data ? (
-                    <Spinner />
+                    <div className="us-stack" aria-hidden="true">
+                        <Skeleton width="45%" height="0.9rem" />
+                        <div className="us-buttons">
+                            <Skeleton width="10rem" height="2.25rem" />
+                            <Skeleton width="6.5rem" height="2.25rem" />
+                        </div>
+                        <Loading />
+                    </div>
                 ) : (
                     <div className="us-stack">
                         {!data.running ? (

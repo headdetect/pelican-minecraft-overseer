@@ -83,25 +83,32 @@ final class CommandInput
         return sprintf('execute in %s run tp %s %d %d %d', $dimension, $player, (int) $data['x'], (int) $data['y'], (int) $data['z']);
     }
 
+    /** Text for a message or reason: one line, no colour codes, selectors kept as text. */
     public static function text(?string $text, int $max = 200): string
     {
-        $text = (string) $text;
-        $text = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $text) ?? '';
-        $text = preg_replace('/§./u', '', $text) ?? '';
-        $text = trim(preg_replace('/\s+/u', ' ', $text) ?? '');
         // Minecraft expands selectors such as @a in messages and reasons. A fullwidth
         // at sign keeps the text as typed.
-        $text = preg_replace('/(?<![\w@])@(?=[aeprsn](?:\[|\b))/u', '＠', $text) ?? $text;
+        $text = preg_replace('/(?<![\w@])@(?=[aeprsn](?:\[|\b))/u', '＠', self::oneLine($text)) ?? '';
 
         return mb_substr($text, 0, $max);
     }
 
-    /** A raw console command typed by an admin: one line, no leading slash. */
+    /**
+     * A raw console command typed by an admin: one line, no leading slash.
+     * Selectors like @a stay as they are, because the admin means them.
+     */
     public static function command(string $command): string
     {
-        $command = self::text($command, 1000);
+        return ltrim(mb_substr(self::oneLine($command), 0, 1000), '/');
+    }
 
-        return ltrim($command, '/');
+    /** One line with single spaces and no control characters or § colour codes. */
+    private static function oneLine(?string $text): string
+    {
+        $text = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', (string) $text) ?? '';
+        $text = preg_replace('/§./u', '', $text) ?? '';
+
+        return trim(preg_replace('/\s+/u', ' ', $text) ?? '');
     }
 
     /** Strips § colour codes from server output. */

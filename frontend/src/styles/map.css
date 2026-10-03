@@ -51,7 +51,7 @@
 }
 .us-viewport:focus-visible { box-shadow: 0 0 0 2px var(--us-accent); }
 .us-viewport.is-dragging { cursor: grabbing; }
-.us-viewport.is-dragging .us-pin { transition: none; }
+.us-viewport.is-dragging .us-pin, .us-viewport.is-moving .us-pin { transition: none; }
 .us-tiles, .us-pins, .us-grid { position: absolute; inset: 0; }
 .us-grid { width: 100%; height: 100%; }
 .us-tile { position: absolute; max-width: none; image-rendering: pixelated; pointer-events: none; }

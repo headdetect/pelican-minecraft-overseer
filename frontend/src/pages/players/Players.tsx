@@ -20,7 +20,7 @@ import { headUrl, useBoot } from '../../boot';
 import { t } from '../../lang';
 import { useRefresh } from '../../refresh';
 import { sendPlayerAction, usePlayerActions, type PlayerAction, type PlayerRef } from '../../shared/PlayerActions';
-import { Badge, Button, Dropdown, Field, Modal, ModalActions, Select, Spinner, TextInput, cx, type Color, type MenuItem } from '../../ui';
+import { Badge, Button, Dropdown, Field, Loading, Modal, ModalActions, Select, Skeleton, TextInput, cx, type Color, type MenuItem } from '../../ui';
 import { useAction } from '../../useAction';
 import { notifyDone } from '../../notify';
 
@@ -157,7 +157,7 @@ export default function Players() {
                                 {FILTERS.map((key) => (
                                     <button key={key} type="button" className={cx(filter === key && 'is-on')} aria-pressed={filter === key} onClick={() => setFilter(key)}>
                                         {t(`players.tabs.${key}`)}
-                                        {data && <span className="us-count">{counts[key]}</span>}
+                                        {data ? <span className="us-count">{counts[key]}</span> : <Skeleton width="0.6rem" height="0.65rem" />}
                                     </button>
                                 ))}
                             </div>
@@ -181,9 +181,7 @@ export default function Players() {
 
                     <div className="fi-ta-content-ctn">
                         {!data && !error ? (
-                            <div className="us-loading">
-                                <Spinner />
-                            </div>
+                            <SkeletonTable />
                         ) : shown.length === 0 ? (
                             <div className="fi-ta-empty-state">
                                 <div className="fi-ta-empty-state-content">
@@ -293,6 +291,45 @@ export default function Players() {
             {adding && <AddToWhitelist onClose={() => setAdding(false)} onDone={reload} />}
             {actions.modal}
         </div>
+    );
+}
+
+/** Placeholder rows, before the first player list arrives. */
+function SkeletonTable() {
+    return (
+        <table className="fi-ta-table us-skeleton-table">
+            <tbody>
+                {[0, 1, 2, 3].map((i) => (
+                    <tr key={i} className="fi-ta-row">
+                        <td style={{ width: '1%' }}>
+                            <Skeleton width={32} height={32} />
+                        </td>
+                        <td>
+                            <Skeleton width={`${7 + (i % 3) * 2}rem`} height="0.9rem" />
+                        </td>
+                        <td>
+                            <Skeleton width="2.5rem" height="1.25rem" />
+                        </td>
+                        <td>
+                            <Skeleton width="4rem" height="1.25rem" />
+                        </td>
+                        <td>
+                            <Skeleton width="1.5rem" height="0.9rem" />
+                        </td>
+                        <td>
+                            <Skeleton width="5rem" height="0.9rem" />
+                        </td>
+                        <td>
+                            <Skeleton width="6rem" height="0.9rem" />
+                        </td>
+                        <td style={{ width: '1%' }}>
+                            <Skeleton width="5.5rem" height="2rem" />
+                        </td>
+                    </tr>
+                ))}
+            </tbody>
+            <Loading />
+        </table>
     );
 }
 

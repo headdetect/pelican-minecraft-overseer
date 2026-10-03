@@ -80,6 +80,8 @@ check('command leading slash removed', CommandInput::command('/time set day'), '
 check('reply lines separated', CommandInput::readableReply('Saving the game (this may take a moment!)Saved the game'), 'Saving the game (this may take a moment!) Saved the game');
 check('reply version untouched', CommandInput::readableReply('id = 1.21.8name = 1.21.8'), 'id = 1.21.8name = 1.21.8');
 check('command one line', CommandInput::command("say hi\nstop"), 'say hi stop');
+check('command keeps selectors', CommandInput::command('kill @e[type=item]'), 'kill @e[type=item]');
+check('custom quick command keeps selectors', QuickCommands::build('custom', ['command' => 'tp @a 0 64 0']), ['custom', 'tp @a 0 64 0']);
 
 // --- Chunky ---
 check('chunky progress', Chunky::parseProgress('[Chunky] Task running for minecraft:overworld. Processed: 1040 chunks (68.38%), ETA: 0:00:12, Rate: 38.1 cps, Current: -4, -7'), [['world' => 'minecraft:overworld', 'chunks' => 1040, 'percent' => 68.38, 'eta' => '0:00:12', 'rate' => 38.1]]);

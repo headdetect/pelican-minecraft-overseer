@@ -523,3 +523,5 @@ export function TabItem({ active, icon, badge, onClick, href, children }: { acti
         </button>
     );
 }
+
+export { Loading, Skeleton, SkeletonInput, SkeletonLines, SkeletonRow } from './Skeleton';

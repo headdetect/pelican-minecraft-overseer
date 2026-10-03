@@ -6,7 +6,7 @@ import { postJson } from '../../api';
 import { useBoot } from '../../boot';
 import { choice, t } from '../../lang';
 import { notify, type Status } from '../../notify';
-import { Button, Callout, Field, IconButton, Modal, ModalActions, Select, Spinner, TabItem, Tabs, TextInput, Toggle } from '../../ui';
+import { Button, Callout, Field, IconButton, Loading, Modal, ModalActions, Select, Skeleton, SkeletonInput, TabItem, Tabs, TextInput, Toggle } from '../../ui';
 import { Icon, namedIcon } from '../../ui/icons';
 import { useAction } from '../../useAction';
 import { changes as changesFor, diffLine, isDefault, matches, shown, type Change, type Entry, type Source, type Value } from './schema';
@@ -75,13 +75,7 @@ export default function Config() {
         setLoadedFrom(data);
     }, [data, loadedFrom, form, changeCount]);
 
-    if (!data || !form) {
-        return (
-            <div className="us-loading">
-                <Spinner />
-            </div>
-        );
-    }
+    if (!data || !form) return <ConfigSkeleton />;
 
     const invalid = Object.values(changes).some((list) => Object.values(list).some((c) => c.error !== null));
     const restartCount = Object.entries(changes).reduce((n, [source, list]) => n + (source === 'rules' ? 0 : Object.values(list).filter((c) => c.entry.restart).length), 0);
@@ -101,12 +95,14 @@ export default function Config() {
 
     const discard = () => setForm(formFrom(data));
 
-    const afterSave = async () => {
+    // After a save, load the files again. When a source failed to save, keep the
+    // form as it is: the saved values now match the files, and the failed edits
+    // still show as changes, so the admin can try again.
+    const afterSave = async (failed: boolean) => {
         const fresh = await mutate();
-        if (fresh) {
-            setForm(formFrom(fresh));
-            setLoadedFrom(fresh);
-        }
+        if (!fresh) return;
+        if (!failed) setForm(formFrom(fresh));
+        setLoadedFrom(fresh);
     };
 
     return (
@@ -189,6 +185,42 @@ export default function Config() {
                 />
             )}
             {confirmRestart && <RestartModal onClose={() => setConfirmRestart(false)} onDone={() => mutate()} />}
+        </div>
+    );
+}
+
+/** The page's shape before the settings arrive: search, the source tabs, and setting rows. */
+function ConfigSkeleton() {
+    return (
+        <div className="us-config" aria-hidden="true">
+            <div className="us-config-search">
+                <SkeletonInput />
+                <Skeleton width="8rem" height="1.5rem" />
+            </div>
+            <div className="us-config-body">
+                <div className="fi-tabs fi-vertical us-config-tabs">
+                    {[0, 1, 2].map((i) => (
+                        <Skeleton key={i} width={`${9 - i * 2}rem`} height="1.1rem" style={{ margin: '0.55rem 0.75rem' }} />
+                    ))}
+                </div>
+                <div className="fi-section us-config-panel">
+                    <div className="fi-section-content-ctn">
+                        <div className="fi-section-content">
+                            <Skeleton width="5rem" height="1.1rem" style={{ marginBottom: '0.75rem' }} />
+                            {[0, 1, 2, 3, 4, 5].map((i) => (
+                                <div key={i} className="us-skeleton-setting">
+                                    <div className="us-skeleton-lines" style={{ gap: '0.4rem' }}>
+                                        <Skeleton width={`${30 + ((i * 17) % 25)}%`} height="0.85rem" />
+                                        <Skeleton width={`${55 + ((i * 11) % 30)}%`} height="0.7rem" />
+                                    </div>
+                                    {i % 3 === 1 ? <Skeleton width="2.75rem" height="1.5rem" round /> : <SkeletonInput />}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <Loading />
         </div>
     );
 }
@@ -306,7 +338,7 @@ function Setting({ name, entry, value, canEdit, onChange }: { name: string; entr
 }
 
 /** The changes as a diff, then save, or save and restart. */
-function ReviewModal({ restart, sources, changes, form, onClose, onSaved }: { restart: boolean; sources: Source[]; changes: Record<string, Record<string, Change>>; form: Form; onClose: () => void; onSaved: () => Promise<void> }) {
+function ReviewModal({ restart, sources, changes, form, onClose, onSaved }: { restart: boolean; sources: Source[]; changes: Record<string, Record<string, Change>>; form: Form; onClose: () => void; onSaved: (failed: boolean) => Promise<void> }) {
     const [busy, run] = useAction();
 
     const submit = async () => {
@@ -314,7 +346,7 @@ function ReviewModal({ restart, sources, changes, form, onClose, onSaved }: { re
         const result = await run(async () => {
             const response = await postJson<SaveResult>('/config', { values, restart });
             response.notifications.forEach((n) => notify(n.status, n.title, n.body));
-            await onSaved();
+            await onSaved(response.failed);
             return response;
         });
         if (result) onClose();
@@ -410,7 +442,7 @@ function FilesTab() {
             <Callout color="info" heading={t('config.files.help')} />
             <Field label={t('config.files.file')}>
                 {canEdit && !data ? (
-                    <Spinner />
+                    <SkeletonInput />
                 ) : (
                     <Select disabled={!canEdit} value={picked} onChange={(e) => open(e.target.value)} options={[['', t('config.files.pick')], ...(data?.files ?? []).map((path): [string, string] => [path, path])]} />
                 )}

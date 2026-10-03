@@ -22,7 +22,7 @@ import { t } from '../../lang';
 import { notifyDone } from '../../notify';
 import { useRefresh } from '../../refresh';
 import { TeleportCoordsModal, usePlayerActions } from '../../shared/PlayerActions';
-import { Badge, Button, Field, Modal, ModalActions, Section, Spinner, TextInput, cx } from '../../ui';
+import { Badge, Button, Field, Loading, Modal, ModalActions, Section, Skeleton, SkeletonLines, SkeletonRow, Spinner, TextInput, cx } from '../../ui';
 import { Icon, type IconComponent } from '../../ui/icons';
 import { useAction } from '../../useAction';
 import { LiveMap, type LiveMapHandle } from './LiveMap';
@@ -94,6 +94,9 @@ export default function Overview() {
 
     const actions = usePlayerActions(afterPlayerAction);
 
+    // True only before the first response. A refresh keeps the old data on screen.
+    const feedLoading = !feed.data && !feed.error;
+    const statsLoading = !stats.data && !stats.error;
     const feedState: 'loading' | 'live' | 'stale' = feed.error ? 'stale' : !feed.data ? 'loading' : feed.data.ok ? 'live' : 'stale';
     const players = feed.data?.players ?? [];
     const unmapped = feed.data?.unmapped ?? [];
@@ -103,7 +106,7 @@ export default function Overview() {
         <div className="us-overview">
             {canSeeMap && (
                 <div className="us-stats">
-                    <StatCards stats={stats.data} />
+                    <StatCards stats={stats.data} loading={statsLoading} />
                     {canCommand && <ServerCard onDone={afterCommand} />}
                 </div>
             )}
@@ -128,15 +131,24 @@ export default function Overview() {
                                     onChanged={afterPlayerAction}
                                 />
                             ) : (
-                                <div className="us-viewport" />
+                                <div className="us-viewport is-skeleton">
+                                    <Skeleton width="100%" height="100%" />
+                                    <Loading />
+                                </div>
                             )}
                         </div>
 
                         <div className="us-side">
-                            <Chat lines={feed.data?.chat ?? []} onSent={reloadFeed} />
+                            <Chat lines={feed.data?.chat ?? []} loading={feedLoading} onSent={reloadFeed} />
 
-                            <Section heading={t('map.online')} compact afterHeader={<Badge color="success">{players.length + unmapped.length}</Badge>}>
+                            <Section heading={t('map.online')} compact afterHeader={feedLoading ? <Skeleton width="1.75rem" height="1.4rem" /> : <Badge color="success">{players.length + unmapped.length}</Badge>}>
                                 <div className="us-list">
+                                    {feedLoading && (
+                                        <>
+                                            <SkeletonRow />
+                                            <SkeletonRow />
+                                        </>
+                                    )}
                                     {players.map((p) => (
                                         <button
                                             key={p.name}
@@ -175,9 +187,9 @@ export default function Overview() {
                                 </div>
                             </Section>
 
-                            {boot.can.commandsWorld && <QuickActions time={feed.data?.time ?? null} withClock onDone={afterCommand} onTeleported={afterPlayerAction} />}
+                            {boot.can.commandsWorld && <QuickActions time={feed.data?.time ?? null} withClock loading={feedLoading} onDone={afterCommand} onTeleported={afterPlayerAction} />}
 
-                            <MinecraftCard server={feed.data?.server} />
+                            <MinecraftCard server={feed.data?.server} loading={feedLoading} />
                         </div>
                     </div>
                 </div>
@@ -194,7 +206,9 @@ export default function Overview() {
 
             {canCommand && (
                 <Section heading={t('commands.recent.title')} description={t('commands.recent.help')} compact>
-                    {recent.data?.lines.length ? (
+                    {!recent.data && !recent.error ? (
+                        <SkeletonLines lines={5} />
+                    ) : recent.data?.lines.length ? (
                         <ul className="us-log">
                             {recent.data.lines.map((line, i) => (
                                 <li key={i}>{line}</li>
@@ -215,7 +229,17 @@ function percent(used: number | null, limit: number): number | null {
     return used !== null && limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : null;
 }
 
-function StatCard({ label, value, sub, bar }: { label: string; value: string | null; sub: string; bar: number | null }) {
+function StatCard({ label, value, sub, bar, loading }: { label: string; value: string | null; sub: string; bar: number | null; loading: boolean }) {
+    if (loading) {
+        return (
+            <div className="us-stat">
+                <div className="us-stat-label">{label}</div>
+                <Skeleton width="55%" height="1.35rem" style={{ margin: '0.3rem 0 0.35rem' }} />
+                <Skeleton width="40%" height="0.7rem" />
+                <Loading />
+            </div>
+        );
+    }
     return (
         <div className="us-stat">
             <div className="us-stat-label">{label}</div>
@@ -230,13 +254,13 @@ function StatCard({ label, value, sub, bar }: { label: string; value: string | n
     );
 }
 
-function StatCards({ stats }: { stats: Stats | undefined }) {
+function StatCards({ stats, loading }: { stats: Stats | undefined; loading: boolean }) {
     const of = (limit: string | null) => (limit ? t('overview.of', { limit }) : t('overview.no_limit'));
     return (
         <>
-            <StatCard label={t('overview.cpu')} value={stats?.cpu != null ? `${stats.cpu.toFixed(1)}%` : null} sub={stats && stats.cpu_limit > 0 ? of(`${stats.cpu_limit}%`) : of(null)} bar={stats ? percent(stats.cpu, stats.cpu_limit) : null} />
-            <StatCard label={t('overview.memory')} value={stats?.memory_text ?? null} sub={of(stats?.memory_limit_text ?? null)} bar={stats ? percent(stats.memory, stats.memory_limit) : null} />
-            <StatCard label={t('overview.disk')} value={stats?.disk_text ?? null} sub={of(stats?.disk_limit_text ?? null)} bar={stats ? percent(stats.disk, stats.disk_limit) : null} />
+            <StatCard label={t('overview.cpu')} value={stats?.cpu != null ? `${stats.cpu.toFixed(1)}%` : null} sub={stats && stats.cpu_limit > 0 ? of(`${stats.cpu_limit}%`) : of(null)} bar={stats ? percent(stats.cpu, stats.cpu_limit) : null} loading={loading} />
+            <StatCard label={t('overview.memory')} value={stats?.memory_text ?? null} sub={of(stats?.memory_limit_text ?? null)} bar={stats ? percent(stats.memory, stats.memory_limit) : null} loading={loading} />
+            <StatCard label={t('overview.disk')} value={stats?.disk_text ?? null} sub={of(stats?.disk_limit_text ?? null)} bar={stats ? percent(stats.disk, stats.disk_limit) : null} loading={loading} />
         </>
     );
 }
@@ -379,7 +403,7 @@ function Tiles({ tiles, onDone }: { tiles: Array<[string, IconComponent, string,
 }
 
 /** The Quick actions card: time, weather and teleport. */
-function QuickActions({ time, withClock, onDone, onTeleported }: { time: GameTime | null; withClock: boolean; onDone: () => void; onTeleported: () => void }) {
+function QuickActions({ time, withClock, loading = false, onDone, onTeleported }: { time: GameTime | null; withClock: boolean; loading?: boolean; onDone: () => void; onTeleported: () => void }) {
     const boot = useBoot();
     const [teleporting, setTeleporting] = useState(false);
 
@@ -388,6 +412,7 @@ function QuickActions({ time, withClock, onDone, onTeleported }: { time: GameTim
             <div className="us-qa">
                 <div className="us-qa-head">
                     <span className="us-stat-label">{t('overview.game_time')}</span>
+                    {withClock && loading && <Skeleton width="9rem" height="1.25rem" />}
                     {withClock && time && (
                         <span className="us-time">
                             <span className="us-time-icon" title={t(`overview.phases.${time.phase}`)} aria-hidden="true">
@@ -424,8 +449,18 @@ function QuickActions({ time, withClock, onDone, onTeleported }: { time: GameTim
     );
 }
 
-function MinecraftCard({ server }: { server: Feed['server'] | undefined }) {
+function MinecraftCard({ server, loading }: { server: Feed['server'] | undefined; loading: boolean }) {
     const modpack = server?.modpack;
+    if (loading) {
+        return (
+            <Section compact>
+                <div className="us-stat-label">{t('overview.minecraft')}</div>
+                <Skeleton width="45%" height="1.35rem" style={{ margin: '0.3rem 0 0.4rem' }} />
+                <Skeleton width="65%" height="0.7rem" style={{ marginBottom: '0.3rem' }} />
+                <Skeleton width="35%" height="0.7rem" />
+            </Section>
+        );
+    }
     return (
         <Section compact>
             <div className="us-stat-label">{t('overview.minecraft')}</div>
@@ -455,7 +490,7 @@ function MinecraftCard({ server }: { server: Feed['server'] | undefined }) {
  * Chat, joins and leaves, with a box to message everyone. It stays scrolled
  * to the newest line unless someone scrolled up to read.
  */
-function Chat({ lines, onSent }: { lines: ChatLine[]; onSent: () => void }) {
+function Chat({ lines, loading, onSent }: { lines: ChatLine[]; loading: boolean; onSent: () => void }) {
     const boot = useBoot();
     const box = useRef<HTMLDivElement>(null);
     const stick = useRef(true);
@@ -509,7 +544,8 @@ function Chat({ lines, onSent }: { lines: ChatLine[]; onSent: () => void }) {
                         {m.type === 'leave' && <span>{t('chat.left', { name: m.name })}</span>}
                     </div>
                 ))}
-                {lines.length === 0 && <div className="us-empty">{t('chat.empty')}</div>}
+                {loading && <SkeletonLines lines={4} height="0.8rem" gap="0.5rem" />}
+                {!loading && lines.length === 0 && <div className="us-empty">{t('chat.empty')}</div>}
             </div>
             {boot.can.commandsOps && (
                 <form className="us-chat-send" onSubmit={send}>

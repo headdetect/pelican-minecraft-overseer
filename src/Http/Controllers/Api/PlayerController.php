@@ -41,7 +41,7 @@ class PlayerController extends ApiController
         $byName = array_column($roster, null, 'name');
         $timezone = user()?->timezone ?? config('app.timezone');
 
-        // Online players' live values win over what their file had at the last save.
+        // For online players, use the values from RCON in place of what their file had at the last save.
         $row = function (string $name) use ($details, $positions, $byName, $timezone) {
             $lastSeen = $byName[$name]['last_seen'] ?? null;
 

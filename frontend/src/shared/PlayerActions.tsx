@@ -5,7 +5,7 @@ import { useBoot } from '../boot';
 import { t } from '../lang';
 import { notifyDone } from '../notify';
 import { useAction } from '../useAction';
-import { Field, Modal, ModalActions, Radios, Select, Spinner, TextInput, ToggleField, type Color } from '../ui';
+import { Field, Modal, ModalActions, Radios, Select, SkeletonInput, TextInput, ToggleField, type Color } from '../ui';
 
 /** What a form needs to know about the player it acts on. */
 export interface PlayerRef {
@@ -200,7 +200,7 @@ function ActionModal({ action, player, online, onClose, onDone }: { action: Play
             body = (
                 <Field label={t('players.game_mode')}>
                     {mode === '' ? (
-                        <Spinner />
+                        <SkeletonInput />
                     ) : (
                         <Select value={mode} onChange={(e) => setMode(e.target.value)} options={GAME_MODES.map((m) => [m, t(`players.game_modes.${m}`)])} />
                     )}
@@ -248,7 +248,7 @@ function ActionModal({ action, player, online, onClose, onDone }: { action: Play
                     </Field>
                     {to === 'player' ? (
                         <Field label={t('players.columns.name')}>
-                            {online === null ? <Spinner /> : <Select value={target} onChange={(e) => setTarget(e.target.value)} options={[['', ''], ...others.map((n): [string, string] => [n, n])]} required />}
+                            {online === null ? <SkeletonInput /> : <Select value={target} onChange={(e) => setTarget(e.target.value)} options={[['', ''], ...others.map((n): [string, string] => [n, n])]} required />}
                         </Field>
                     ) : (
                         <>
@@ -390,7 +390,7 @@ export function TeleportCoordsModal({ onClose, onDone }: { onClose: () => void; 
             <Form>
                 <Field label={t('map.point.player')}>
                     {online === null ? (
-                        <Spinner />
+                        <SkeletonInput />
                     ) : online.length === 0 ? (
                         <p className="us-help">{t('map.point.nobody')}</p>
                     ) : (

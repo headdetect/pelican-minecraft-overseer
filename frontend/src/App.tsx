@@ -31,8 +31,8 @@ function tabFromPath(tabs: { key: TabKey; url: string }[]): TabKey | null {
  */
 function useTabs(): [TabKey, (tab: TabKey) => void] {
     const boot = useBoot();
-    // The address bar wins over the boot tab: after Back from another panel page,
-    // Livewire restores the HTML of the tab the page first loaded with.
+    // Read the tab from the URL first. After Back from another panel page, Livewire
+    // restores the HTML the page first loaded with, so boot.tab can be out of date.
     const [tab, setTab] = useState<TabKey>(() => tabFromPath(boot.tabs) ?? boot.tab);
 
     useEffect(() => {
