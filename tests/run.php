@@ -104,12 +104,13 @@ check('loopback is private', ServerAddress::isPublic('127.0.0.1'), false);
 check('lan is private', ServerAddress::isPublic('10.0.0.5'), false);
 
 // --- Overview stats ---
-check('time 26.1 timeline', ServerStats::gameTime('Timeline minecraft:day is at 3153 tick(s)'), ['day' => 1, 'clock' => '09:09', 'phase' => 'day']);
-check('time 26.1 later day', ServerStats::gameTime('Timeline minecraft:day is at 66000 tick(s)'), ['day' => 3, 'clock' => '00:00', 'phase' => 'night']);
-check('time older versions', ServerStats::gameTime('The time is 4', 'The time is 12500'), ['day' => 5, 'clock' => '18:30', 'phase' => 'sunset']);
-check('time older daytime keeps counting', ServerStats::gameTime('The time is 0', 'The time is 47000')['clock'], '05:00');
+check('time 26.1 timeline', ServerStats::gameTime('Timeline minecraft:day is at 3153 tick(s)'), ['day' => 1, 'clock' => '9:09 AM', 'phase' => 'day']);
+check('time 26.1 later day', ServerStats::gameTime('Timeline minecraft:day is at 66000 tick(s)'), ['day' => 3, 'clock' => '12:00 AM', 'phase' => 'night']);
+check('time older versions', ServerStats::gameTime('The time is 4', 'The time is 12500'), ['day' => 5, 'clock' => '6:30 PM', 'phase' => 'sunset']);
+check('time older daytime keeps counting', ServerStats::gameTime('The time is 0', 'The time is 47000')['clock'], '5:00 AM');
 check('time unknown reply', ServerStats::gameTime('Unknown or incomplete command'), null);
 check('time no rcon', ServerStats::gameTime(null), null);
+check('clock noon', ServerStats::clock(0, 6000)['clock'], '12:00 PM');
 check('clock sunrise', ServerStats::clock(0, 23500)['phase'], 'sunrise');
 check('version vanilla', ServerStats::version('Server version info:id = 26.1.2name = 26.1.2data = 4790series = main'), '26.1.2');
 check('version vanilla lines', ServerStats::version("Server version info:\nid = 1.21.8\nname = 1.21.8\ndata = 4440"), '1.21.8');

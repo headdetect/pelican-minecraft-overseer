@@ -53,7 +53,8 @@ final class ServerStats
 
         return [
             'day' => max(0, $daysPassed) + 1,
-            'clock' => sprintf('%02d:%02d', intdiv($minutes, 60), $minutes % 60),
+            // 12-hour clock: 0:00 is 12:00 AM and 12:00 is 12:00 PM.
+            'clock' => sprintf('%d:%02d %s', (intdiv($minutes, 60) + 11) % 12 + 1, $minutes % 60, $minutes < 12 * 60 ? 'AM' : 'PM'),
             'phase' => match (true) {
                 $ticks < 12000 => 'day',
                 $ticks < 13000 => 'sunset',
