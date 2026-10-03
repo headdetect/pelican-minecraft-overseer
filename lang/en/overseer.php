@@ -467,6 +467,7 @@ return [
             'result' => 'Result',
             'listed' => 'On the whitelist',
             'added' => 'Added',
+            'rejected' => 'Turned down',
             'empty' => 'Nobody has used /whitelist yet.',
         ],
         'rejected' => [
