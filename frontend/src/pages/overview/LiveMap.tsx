@@ -1,4 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useReducer, useRef, useState } from 'react';
+import { IconX } from '@tabler/icons-react';
+import { Icon } from '../../ui/icons';
 import { useBoot, headUrl } from '../../boot';
 import { getJson } from '../../api';
 import { t } from '../../lang';
@@ -28,6 +30,8 @@ interface Point {
 interface Props {
     config: MapConfig;
     players: MapPlayer[];
+    /** Everyone online, on the map or not, so following stops only when the player leaves. */
+    online: string[];
     state: 'loading' | 'live' | 'stale';
     fetching: boolean;
     updatedAt: number | null;
@@ -38,7 +42,7 @@ interface Props {
 }
 
 /** The map viewport: tiles and markers from MapEngine, with the controls and popovers on top. */
-export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ config, players, state, fetching, updatedAt, selected, onSelect, onAct, onChanged }, ref) {
+export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ config, players, online, state, fetching, updatedAt, selected, onSelect, onAct, onChanged }, ref) {
     const boot = useBoot();
     const { seconds } = useRefreshState();
     const viewport = useRef<HTMLDivElement>(null);
@@ -53,6 +57,9 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ confi
     const [, redraw] = useReducer((n: number) => n + 1, 0);
     const [now, setNow] = useState(() => Date.now());
     const [sending, teleport] = useAction();
+    const [following, setFollowing] = useState<string | null>(null);
+    // Where the followed player was when the map last moved to them.
+    const followedAt = useRef('');
 
     // Kept in refs, because the engine's callbacks outlive each render.
     const latest = useRef({ selected, point, players, onSelect });
@@ -78,6 +85,7 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ confi
                         openPoint(map.blockAt(e), map.world);
                     }
                 },
+                onPan: () => setFollowing(null),
                 onCoords: (b) => setCoords(b ? `x ${b.x} · z ${b.z}` : ''),
                 onView: () => {
                     cancelAnimationFrame(frame);
@@ -110,6 +118,27 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ confi
         engine.current?.setSelected(selected);
     }, [selected]);
 
+    // Following: glide to the player on each position update. Stop once they leave.
+    useEffect(() => {
+        const map = engine.current;
+        if (map) map.following = following !== null;
+        if (!map || !following) {
+            followedAt.current = '';
+            return;
+        }
+        const player = players.find((p) => p.name === following);
+        if (player) {
+            // Move only when the position changed, so a redraw doesn't restart the glide.
+            const at = `${following}:${player.world}:${player.x}:${player.z}`;
+            if (at === followedAt.current) return;
+            followedAt.current = at;
+            map.follow(player);
+            setWorld(map.world);
+        } else if (!online.includes(following)) {
+            setFollowing(null);
+        }
+    }, [following, players, online]);
+
     // With automatic refresh off, "Updated 12s ago" counts up.
     useEffect(() => {
         if (seconds > 0) return;
@@ -122,6 +151,7 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ confi
             const map = engine.current;
             if (!map) return;
             setPoint(null);
+            if (following !== player.name) setFollowing(null);
             map.focus(player);
             setWorld(map.world);
         },
@@ -236,6 +266,18 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ confi
                             {t('players.actions.gamemode')}
                         </button>
                     )}
+                    <button
+                        type="button"
+                        className="us-pop-btn is-gray"
+                        aria-pressed={following === player.name}
+                        onClick={() => {
+                            onSelect(null);
+                            setPoint(null);
+                            setFollowing(following === player.name ? null : player.name);
+                        }}
+                    >
+                        {t(following === player.name ? 'map.unfollow' : 'map.follow')}
+                    </button>
                     {boot.can.op && (
                         <button type="button" className="us-pop-btn is-gray" onClick={() => act(player.op ? 'deop' : 'op')}>
                             {t(player.op ? 'players.actions.deop' : 'players.actions.op')}
@@ -291,6 +333,17 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ confi
                 {state === 'stale' && <span>{t('map.stale')}</span>}
             </div>
             {coords && <div className="us-chip us-coords">{coords}</div>}
+
+            {following && (
+                <div className="us-follow" role="status">
+                    <img src={headUrl(boot, following)} alt="" />
+                    <span className="us-follow-label">{t('map.following')}</span>
+                    <strong>{following}</strong>
+                    <button type="button" className="us-follow-stop" onClick={() => setFollowing(null)} aria-label={t('map.stop_following')} title={t('map.stop_following')}>
+                        <Icon icon={IconX} className="us-follow-icon" />
+                    </button>
+                </div>
+            )}
 
             {pointView}
             {popView}

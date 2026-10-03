@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import useSWR from 'swr';
 import {
     IconArrowsMove,
@@ -98,8 +98,9 @@ export default function Overview() {
     const feedLoading = !feed.data && !feed.error;
     const statsLoading = !stats.data && !stats.error;
     const feedState: 'loading' | 'live' | 'stale' = feed.error ? 'stale' : !feed.data ? 'loading' : feed.data.ok ? 'live' : 'stale';
-    const players = feed.data?.players ?? [];
-    const unmapped = feed.data?.unmapped ?? [];
+    const players = useMemo(() => feed.data?.players ?? [], [feed.data]);
+    const unmapped = useMemo(() => feed.data?.unmapped ?? [], [feed.data]);
+    const onlineNames = useMemo(() => [...players.map((p) => p.name), ...unmapped.map((u) => u.name)], [players, unmapped]);
     const worldLabel = (name: string) => map.data?.worlds.find((w) => w.name === name)?.label ?? name;
 
     return (
@@ -122,6 +123,7 @@ export default function Overview() {
                                     ref={mapRef}
                                     config={map.data}
                                     players={players}
+                                    online={onlineNames}
                                     state={feedState}
                                     fetching={fetching}
                                     updatedAt={updatedAt}

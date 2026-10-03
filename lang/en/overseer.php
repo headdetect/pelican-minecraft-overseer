@@ -107,6 +107,10 @@ return [
         'op_heading' => 'Make :name an operator?',
         'deop_heading' => 'Remove :name as an operator?',
         'op' => 'OP',
+        'follow' => 'Follow',
+        'unfollow' => 'Stop following',
+        'following' => 'Following',
+        'stop_following' => 'Stop following',
         'teleport' => [
             'heading' => 'Teleport a player',
             'ground' => 'Land on the ground',

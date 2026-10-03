@@ -31,6 +31,8 @@ export interface EngineOptions {
     head: (name: string) => string;
     /** A marker was clicked. */
     onPin: (name: string) => void;
+    /** The user moved the map by hand, with a drag or the arrow keys. */
+    onPan: () => void;
     /** A click on the map that wasn't a drag. */
     onClick: (e: PointerEvent) => void;
     /** The pointer moved, with the block under it, or null when it left. */
@@ -48,6 +50,8 @@ export class MapEngine {
     cz = 0;
     players: MapPlayer[] = [];
     selected: string | null = null;
+    /** While true, wheel zoom keeps the center still, so a followed player stays in view. */
+    following = false;
 
     private tiles = new Map<string, HTMLImageElement>();
     private pins = new Map<string, HTMLButtonElement>();
@@ -167,6 +171,22 @@ export class MapEngine {
             return;
         }
         this.glideTo(player.x, player.z, zoom);
+    }
+
+    /** Keeps a followed player in the center: a glide within a world, a jump to another world. */
+    follow(player: MapPlayer): void {
+        if (player.world !== this.world) {
+            this.stopGlide();
+            const zoom = this.zoom;
+            this.setWorld(player.world, false);
+            this.cx = player.x + 0.5;
+            this.cz = player.z + 0.5;
+            this.zoom = Math.min(zoom, this.current.max + this.current.extra);
+            this.clearTiles();
+            this.render();
+            return;
+        }
+        this.glideTo(player.x + 0.5, player.z + 0.5, this.zoom);
     }
 
     /**
@@ -405,18 +425,19 @@ export class MapEngine {
         // deltaMode 1 is lines and 2 is pages. Convert both to pixels.
         const px = e.deltaY * [1, 33, 800][e.deltaMode];
         const delta = Math.max(-1, Math.min(1, -px / WHEEL_PX_PER_LEVEL));
-        this.zoomBy(delta, e.clientX - r.left, e.clientY - r.top);
+        if (this.following) this.zoomBy(delta);
+        else this.zoomBy(delta, e.clientX - r.left, e.clientY - r.top);
     }
 
     private onDown(e: PointerEvent): void {
-        if (e.button !== 0 || (e.target as Element).closest('.us-pin, .us-pop, .us-point, .us-controls')) return;
+        if (e.button !== 0 || (e.target as Element).closest('.us-pin, .us-pop, .us-point, .us-controls, .us-follow')) return;
         this.stopGlide();
         this.drag = { x: e.clientX, y: e.clientY, cx: this.cx, cz: this.cz, moved: false };
         this.els.viewport.setPointerCapture(e.pointerId);
     }
 
     private onMove(e: PointerEvent): void {
-        if (!(e.target as Element).closest('.us-pop, .us-point, .us-controls')) {
+        if (!(e.target as Element).closest('.us-pop, .us-point, .us-controls, .us-follow')) {
             this.opts.onCoords(this.blockAt(e));
         }
 
@@ -424,6 +445,7 @@ export class MapEngine {
         const dx = e.clientX - this.drag.x;
         const dy = e.clientY - this.drag.y;
         if (Math.abs(dx) + Math.abs(dy) > 3) {
+            if (!this.drag.moved) this.opts.onPan();
             this.drag.moved = true;
             this.els.viewport.classList.add('is-dragging');
         }
@@ -439,11 +461,12 @@ export class MapEngine {
     }
 
     private onKey(e: KeyboardEvent): void {
-        if ((e.target as Element).closest('.us-pop, .us-point, .us-controls')) return;
+        if ((e.target as Element).closest('.us-pop, .us-point, .us-controls, .us-follow')) return;
         const pan = 80 / this.ppb;
         const moves: Record<string, [number, number]> = { ArrowLeft: [-pan, 0], ArrowRight: [pan, 0], ArrowUp: [0, -pan], ArrowDown: [0, pan] };
         this.stopGlide();
         if (moves[e.key]) {
+            this.opts.onPan();
             this.cx += moves[e.key][0];
             this.cz += moves[e.key][1];
             this.render();

@@ -95,6 +95,18 @@
 }
 .us-live { left: 12px; bottom: 12px; }
 .us-coords { right: 12px; bottom: 12px; font-family: ui-monospace, monospace; }
+/* The player being followed, top center, with a button to stop. */
+.us-follow { position: absolute; z-index: 3; top: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 24px); padding: 4px 4px 4px 6px; background: var(--us-panel); border: 1px solid var(--us-border); border-radius: 10px; font-size: 13px; color: var(--us-text); backdrop-filter: blur(6px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12); }
+.us-follow img { width: 22px; height: 22px; border-radius: 4px; image-rendering: pixelated; flex: none; }
+.us-follow-label { color: var(--us-muted); }
+.us-follow strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.us-follow-stop { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-left: 4px; border-radius: 7px; color: var(--us-muted); }
+.us-follow-stop:hover { background: var(--us-line); color: var(--us-text); }
+.us-follow-stop:focus-visible { outline: 2px solid var(--us-accent); }
+.us-follow-icon { width: 16px; height: 16px; }
+/* On a narrow map the chip would cover the world and zoom buttons, so it goes below them. */
+.us-viewport { container-type: inline-size; }
+@container (max-width: 800px) { .us-follow { top: 52px; } }
 .us-led { width: 7px; height: 7px; border-radius: 50%; background: var(--us-good); }
 .us-led.is-stale { background: var(--us-warn); animation: none; }
 /* Gray while automatic refresh is off. */
