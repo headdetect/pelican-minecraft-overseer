@@ -16,8 +16,9 @@ Read the PNG that `script/screenshot` saves in `.data/shots/`. It prints console
 errors and new Laravel log lines too. If the dev stack is not running, start it
 with `script/up`. `DEVELOPMENT.md` lists every tool.
 
-The panel loads the source from this checkout, so there is no build or upload
-step. If you add or remove a Filament page, run
+The panel loads the source from this checkout, so there is no upload step.
+The pages are a React app in `frontend/`. After you change it, run
+`npm run build` in `frontend/` and commit `resources/dist/` with the change. If you add or remove a Filament page, run
 `script/artisan filament:cache-components`. If you add a migration, run
 `script/artisan migrate`.
 
