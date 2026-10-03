@@ -16,7 +16,8 @@ class LiftExpiredBans extends Command
 
     public function handle(): int
     {
-        TimedBan::expired()->with('server')->each(function (TimedBan $ban) {
+        // Load the rows first: updating rows while chunking the same query skips some.
+        TimedBan::expired()->with('server')->get()->each(function (TimedBan $ban) {
             // Offline servers keep the ban until they are running again; pardon needs a live server.
             if ($ban->server->retrieveStatus() !== ContainerStatus::Running) {
                 return;

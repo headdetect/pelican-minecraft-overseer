@@ -6,9 +6,14 @@
  * Coordinates follow squaremap: at zoom level `max` one pixel is one block, each
  * level below halves that, and tile (tx, ty) at a level holds blocks starting at
  * tx * 512 * 2^(max - level) on x and ty * the same on z.
+ *
+ * `zoom` can be fractional. The viewer scales the nearest tile level to fit.
  */
 window.overseerLiveMap = function (cfg) {
     const TILE = 512;
+    // Scroll distance, in pixels, for one zoom level (a 2x change in scale).
+    // A mouse wheel notch is about 100px, so one notch zooms about 19%.
+    const WHEEL_PX_PER_LEVEL = 400;
 
     return {
         cfg,
@@ -18,6 +23,20 @@ window.overseerLiveMap = function (cfg) {
         cx: 0,
         cz: 0,
         players: [],
+        autoSeconds: 5,
+        updatedAt: null,
+        fetching: false,
+        now: null,
+        time: null,
+        server: null,
+        chat: [],
+        // Online players squaremap leaves off the map, such as dead players.
+        unmapped: [],
+        // The point menu: a block clicked on the map, with its ground height once known.
+        point: null,
+        chatScrolled: false,
+        draft: '',
+        sending: false,
         selected: null,
         pop: null,
         state: 'loading',
@@ -32,20 +51,57 @@ window.overseerLiveMap = function (cfg) {
             this.pins = new Map();
             this.resize = new ResizeObserver(() => this.render());
             this.resize.observe(this.$refs.viewport);
-            this.onVisible = () => !document.hidden && this.tick();
-            document.addEventListener('visibilitychange', this.onVisible);
+            // The refresh control on the tab row sets the pace, so "Off" stops polling.
+            this.onRefresh = (e) => e.detail?.track?.(this.refresh(e.detail?.manual));
+            window.addEventListener('overseer-refresh', this.onRefresh);
+            // The Live chip says "Live" only while automatic refresh is on.
+            try {
+                const saved = localStorage.getItem('overseer.refresh');
+                this.autoSeconds = saved === null ? 5 : Number(saved);
+            } catch (e) {
+                this.autoSeconds = 5;
+            }
+            this.onInterval = (e) => (this.autoSeconds = e.detail.seconds);
+            window.addEventListener('overseer-refresh-interval', this.onInterval);
+            // With automatic refresh off, "Updated 12s ago" counts up.
+            this.clock = setInterval(() => (this.now = Date.now()), 1000);
 
             this.tick();
-            this.timer = setInterval(() => this.tick(), cfg.refresh * 1000);
+
         },
 
         destroy() {
-            clearInterval(this.timer);
+            window.removeEventListener('overseer-refresh', this.onRefresh);
+            window.removeEventListener('overseer-refresh-interval', this.onInterval);
+            clearInterval(this.clock);
             this.resize?.disconnect();
-            document.removeEventListener('visibilitychange', this.onVisible);
+
         },
 
         // ---- data ----
+
+        // Positions every time; the stats cards (Livewire) at most every 15 s, since
+        // Pelican caches resource usage that long, or right away for a click.
+        // Returns a promise for the refresh control's spinner.
+        refresh(manual) {
+            const done = [this.tick()];
+            // Terrain changes as players build and explore, so reload the visible
+            // tiles every fifth refresh, or right away for a click.
+            this.refreshes = (this.refreshes ?? 0) + 1;
+            if (manual || this.refreshes % 5 === 0) this.reloadTiles();
+            const now = Date.now();
+            if (manual || now - (this.statsAt ?? 0) >= 15000) {
+                this.statsAt = now;
+                done.push(this.$wire.$refresh());
+            }
+
+            // The Live dot pulses for the refresh, at least 600 ms so a fast one is still seen.
+            this.fetching = true;
+            const all = Promise.allSettled([...done, new Promise((resolve) => setTimeout(resolve, 600))]);
+            all.then(() => (this.fetching = false));
+
+            return all;
+        },
 
         async tick() {
             // Stop polling when the tab is hidden or the page was navigated away from.
@@ -56,9 +112,17 @@ window.overseerLiveMap = function (cfg) {
             if (this.busy) return;
             this.busy = true;
             try {
-                const result = await this.$wire.positions();
+                // A plain fetch, so a slow poll never holds up a Livewire button click.
+                const response = await fetch(cfg.feedUrl, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const result = await response.json();
                 this.players = result.players;
+                this.unmapped = result.unmapped ?? [];
+                this.time = result.time ?? null;
+                this.server = result.server ?? null;
+                this.setChat(result.chat ?? []);
                 this.state = result.ok ? 'live' : 'stale';
+                this.updatedAt = Date.now();
             } catch (e) {
                 this.state = 'stale';
             } finally {
@@ -74,6 +138,54 @@ window.overseerLiveMap = function (cfg) {
         get here() {
             return this.players.filter((p) => p.world === this.world);
         },
+
+
+        // Keeps the chat scrolled to the newest line, unless someone scrolled up to read.
+        // The chat box is inside a Filament section, which has its own x-data,
+        // so $refs can't see it. Keep scrolling until it has been scrolled once.
+        chatBox() {
+            return this.$root.querySelector('.us-chat');
+        },
+
+        setChat(lines) {
+            const box = this.chatBox();
+            const atBottom = !this.chatScrolled || !box || box.scrollHeight - box.scrollTop - box.clientHeight < 24;
+            this.chat = lines;
+            if (!atBottom) return;
+            this.$nextTick(() => requestAnimationFrame(() => {
+                const el = this.chatBox();
+                if (!el) return;
+                el.scrollTop = el.scrollHeight;
+                this.chatScrolled = lines.length > 0;
+            }));
+        },
+
+        async sendChat() {
+            const text = this.draft.trim();
+            if (!text || this.sending) return;
+            this.sending = true;
+            try {
+                if (await this.$wire.sendChat(text)) {
+                    this.draft = '';
+                    this.tick();
+                }
+            } finally {
+                this.sending = false;
+            }
+        },
+
+        // "Updated 12s ago", for the Live chip while automatic refresh is off.
+        updatedAgo() {
+            const seconds = Math.max(0, Math.round(((this.now ?? Date.now()) - (this.updatedAt ?? Date.now())) / 1000));
+            const text = seconds < 60 ? cfg.labels.updatedSeconds : cfg.labels.updatedMinutes;
+
+            return text.replace(':n', seconds < 60 ? seconds : Math.floor(seconds / 60));
+        },
+
+        phaseIcon(phase) {
+            return { day: '\u2600\uFE0F', sunset: '\u{1F307}', night: '\u{1F319}', sunrise: '\u{1F305}' }[phase] ?? '';
+        },
+
 
         worldLabel(name) {
             return this.worlds.find((w) => w.name === name)?.label ?? name;
@@ -126,6 +238,22 @@ window.overseerLiveMap = function (cfg) {
             this.renderPins();
         },
 
+        // Loads each visible tile again in the background and swaps it in once it
+        // arrives, so the map doesn't flicker. The query string skips the
+        // browser's 30-second tile cache. Tiles that failed before get another try.
+        reloadTiles() {
+            const version = Date.now();
+            this.tiles.forEach((img, key) => {
+                const fresh = new Image();
+                fresh.onload = () => {
+                    if (this.tiles.get(key) !== img) return;
+                    img.src = fresh.src;
+                    img.style.visibility = '';
+                };
+                fresh.src = `${cfg.tileBase}tiles/${key}.png?v=${version}`;
+            });
+        },
+
         clearTiles() {
             this.tiles.forEach((img) => img.remove());
             this.tiles.clear();
@@ -133,7 +261,7 @@ window.overseerLiveMap = function (cfg) {
 
         renderTiles() {
             const world = this.current;
-            const level = Math.min(this.zoom, world.max);
+            const level = Math.min(Math.round(this.zoom), world.max);
             const blocks = TILE * Math.pow(2, world.max - level);
             const px = blocks * this.ppb;
             const { w, h } = this.size();
@@ -259,6 +387,58 @@ window.overseerLiveMap = function (cfg) {
             });
 
             this.placePop();
+            this.placePoint();
+        },
+
+        openPoint(e) {
+            const r = this.$refs.viewport.getBoundingClientRect();
+            const b = this.toBlock(e.clientX - r.left, e.clientY - r.top);
+            this.point = { world: this.world, x: Math.floor(b.x), z: Math.floor(b.z), y: null, loading: true, failed: false, player: this.players[0]?.name ?? '', sending: false };
+            // Change it through Alpine's reactive copy, so the menu updates when the height arrives.
+            const point = this.point;
+            this.placePoint();
+            // A plain fetch, so it doesn't wait behind the Livewire position poll.
+            const url = `${cfg.surfaceUrl}?${new URLSearchParams({ world: point.world, x: point.x, z: point.z })}`;
+            fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+                .then((r) => (r.ok ? r.json() : { y: null }))
+                .then(({ y }) => {
+                    if (this.point !== point) return;
+                    point.y = y;
+                    point.loading = false;
+                    point.failed = y === null;
+                }, () => {
+                    point.loading = false;
+                    point.failed = true;
+                });
+        },
+
+        placePoint() {
+            const p = this.point;
+            if (!p) return;
+            if (p.world !== this.world) {
+                this.point = null;
+                return;
+            }
+            const at = this.toScreen(p.x + 0.5, p.z + 0.5);
+            const { w, h } = this.size();
+            p.left = Math.max(8, Math.min(at.x + 12, w - 268));
+            p.top = Math.max(8, Math.min(at.y - 20, h - 190));
+            p.dotX = at.x;
+            p.dotY = at.y;
+        },
+
+        async teleportHere() {
+            const p = this.point;
+            if (!p || p.y === null || !p.player || p.sending) return;
+            p.sending = true;
+            try {
+                if (await this.$wire.teleportTo(p.player, p.world, p.x, p.y, p.z)) {
+                    this.point = null;
+                    this.tick();
+                }
+            } finally {
+                p.sending = false;
+            }
         },
 
         placePop() {
@@ -268,9 +448,9 @@ window.overseerLiveMap = function (cfg) {
                 return;
             }
             const at = this.toScreen(p.x + 0.5, p.z + 0.5);
-            const { w } = this.size();
+            const { w, h } = this.size();
             const left = at.x + 250 > w ? at.x - 256 : at.x + 18;
-            this.pop = { left: Math.max(8, left), top: Math.max(8, at.y - 60) };
+            this.pop = { left: Math.max(8, left), top: Math.max(8, Math.min(at.y - 60, h - 190)) };
         },
 
         head(name) {
@@ -315,11 +495,14 @@ window.overseerLiveMap = function (cfg) {
 
         onWheel(e) {
             const r = this.$refs.viewport.getBoundingClientRect();
-            this.zoomBy(e.deltaY < 0 ? 1 : -1, e.clientX - r.left, e.clientY - r.top);
+            // deltaMode 1 is lines and 2 is pages. Convert both to pixels.
+            const px = e.deltaY * [1, 33, 800][e.deltaMode];
+            const delta = Math.max(-1, Math.min(1, -px / WHEEL_PX_PER_LEVEL));
+            this.zoomBy(delta, e.clientX - r.left, e.clientY - r.top);
         },
 
         onDown(e) {
-            if (e.button !== 0 || e.target.closest('.us-pin, .us-pop, .us-controls')) return;
+            if (e.button !== 0 || e.target.closest('.us-pin, .us-pop, .us-point, .us-controls')) return;
             this.drag = { x: e.clientX, y: e.clientY, cx: this.cx, cz: this.cz, moved: false };
             this.$refs.viewport.setPointerCapture(e.pointerId);
         },
@@ -341,8 +524,14 @@ window.overseerLiveMap = function (cfg) {
             this.render();
         },
 
-        onUp() {
-            if (this.drag && !this.drag.moved) this.selected = null;
+        onUp(e) {
+            if (this.drag && !this.drag.moved) {
+                const hadPopup = this.selected || this.point;
+                this.selected = null;
+                this.point = null;
+                // A click on empty map opens the point menu, unless it closed a popup.
+                if (!hadPopup && cfg.canTeleport && e) this.openPoint(e);
+            }
             this.drag = null;
             this.$refs.viewport.classList.remove('is-dragging');
             this.renderPins();
@@ -361,6 +550,7 @@ window.overseerLiveMap = function (cfg) {
                 this.zoomBy(-1);
             } else if (e.key === 'Escape') {
                 this.selected = null;
+                this.point = null;
                 this.renderPins();
             } else {
                 return;

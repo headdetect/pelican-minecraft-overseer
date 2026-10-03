@@ -24,6 +24,8 @@ final class Permission
 
     public const PLAYERS_WHITELIST = 'overseer.players-whitelist';
 
+    public const PLAYERS_CHEAT = 'overseer.players-cheat';
+
     public const COMMANDS_WORLD = 'overseer.commands-world';
 
     public const COMMANDS_OPS = 'overseer.commands-ops';
@@ -31,6 +33,8 @@ final class Permission
     public const CONFIG_VIEW = 'overseer.config-view';
 
     public const CONFIG_EDIT = 'overseer.config-edit';
+
+    public const TOOLS = 'overseer.tools';
 
     /** @return string[] permission names without the group prefix, as Pelican registers them */
     public static function names(): array
@@ -44,10 +48,12 @@ final class Permission
                 self::PLAYERS_BAN,
                 self::PLAYERS_OP,
                 self::PLAYERS_WHITELIST,
+                self::PLAYERS_CHEAT,
                 self::COMMANDS_WORLD,
                 self::COMMANDS_OPS,
                 self::CONFIG_VIEW,
                 self::CONFIG_EDIT,
+                self::TOOLS,
             ],
         );
     }

@@ -83,6 +83,7 @@ seed server
 seed uuid > "$DEV_DATA/server-uuid"
 
 echo "up: waiting for the server install. The first one takes a few minutes."
+waited=0
 while :; do
   status=$(seed status)
   case "$status" in
@@ -91,10 +92,15 @@ while :; do
       echo "up: install failed. Run: docker logs overseer-dev-wings 2>&1 | grep -i error" >&2
       exit 1 ;;
   esac
-  sleep 5
+  if [ "$waited" -ge 1200 ]; then
+    echo "up: the install didn't finish in 20 minutes (status: $status). Check: docker logs overseer-dev-wings" >&2
+    exit 1
+  fi
+  sleep 5; waited=$((waited + 5))
 done
 
 seed configure
+seed mods
 seed start
 
 echo "up: waiting for the server to boot, then rendering the map around spawn"

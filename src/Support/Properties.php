@@ -70,13 +70,14 @@ final class Properties
 
         foreach ($lines as $i => $line) {
             $key = self::keyOf($line);
+            // Every line for the key: Java uses the last one when a key repeats.
             if ($key !== null && array_key_exists($key, $changes)) {
                 $lines[$i] = self::line($key, $changes[$key]);
-                unset($changes[$key]);
+                $written[$key] = true;
             }
         }
 
-        foreach ($changes as $key => $value) {
+        foreach (array_diff_key($changes, $written ?? []) as $key => $value) {
             $lines[] = self::line($key, $value);
         }
 

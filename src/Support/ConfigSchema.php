@@ -79,7 +79,24 @@ final class ConfigSchema
             'bool' => in_array(strtolower($raw), ['true', 'false'], true) ? strtolower($raw) === 'true' : null,
             'int', 'range' => preg_match('/^-?\d+$/', $raw) ? (int) $raw : null,
             'password' => '',
-            default => $raw,
+            // A line break (motd can have one) shows as \n, since the input is one line.
+            default => str_replace("\n", '\n', $raw),
+        };
+    }
+
+    /** Whether a form value equals the entry's default. Lenient about types, since forms send numbers as text. */
+    public static function isDefault(array $entry, mixed $value): bool
+    {
+        if (!array_key_exists('default', $entry)) {
+            return true;
+        }
+
+        $default = $entry['default'];
+
+        return match ($entry['type']) {
+            'bool' => filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) === $default,
+            'int', 'range' => is_numeric($value) && (int) $value == $value && (int) $value === (int) $default,
+            default => trim((string) $value) === trim((string) $default),
         };
     }
 
@@ -125,6 +142,8 @@ final class ConfigSchema
             default:
                 // One line of text with no control characters: a newline would start a new setting.
                 $text = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', (string) $value) ?? '';
+                // \n typed in the form is a line break in the file, as Minecraft reads it.
+                $text = str_replace('\n', "\n", $text);
                 $max = $entry['max'] ?? 1000;
                 if (mb_strlen($text) > $max) {
                     throw new InvalidArgumentException("$title can be at most $max characters.");

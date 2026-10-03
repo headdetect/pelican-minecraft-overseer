@@ -4,10 +4,19 @@ A [Pelican](https://pelican.dev) panel plugin for running a Minecraft Java serve
 
 **Working now**
 
-- **Live Map**: the world map from squaremap with a marker for everyone online, updated every 5 seconds. Switch between Overworld, Nether and End, drag and zoom, and click a player to kick, ban or op them. Without squaremap, players are drawn on a block grid using RCON.
-- **Players**: who is online and where they are, plus everyone the server has seen, ops, the whitelist and bans. Kick (with a reason), ban for 1 hour, 1 day, 7 days or permanently, unban, op or deop, and whitelist from each row.
-- **Quick Commands**: one-click time of day, weather and difficulty; switches for common game rules; save the world, whitelist on or off, broadcast, or run any command. A "Recent actions" list shows who ran what.
-- **Config**: server settings, game rules and Paper settings as a form. Each setting has a plain title, a one-line description and the right control (switch, number, slider, dropdown or text), plus a tag saying whether it applies right away or needs a restart. Search across all settings, review a before-and-after list, then save. See [Config](#config) below.
+- **Overview**: CPU, memory and disk use, and Save, Broadcast and Command buttons. A live map from squaremap shows everyone online, refreshed every 5 seconds. Switch between Overworld, Nether and End, drag and zoom, and click a player to kick, ban, op them or change their game mode. Click anywhere else to see that spot's coordinates, ground height included, and teleport a player there. Without squaremap, players are drawn on a block grid using RCON. Beside the map:
+  - Live chat, joins and leaves, with a box to message everyone.
+  - Who is online now. Dead players show as Dead, and spectators are left out. Click a player to find them on the map.
+  - The game time with a day or night icon, and one-click time of day and weather.
+  - The Minecraft version, the modpack with a link to its Modrinth or CurseForge page, and uptime. The modpack comes from `modrinth.index.json`, which the Modrinth generic egg leaves in the server folder, or from the [Modpack Manager](https://hub.pelican.dev/plugins/modpack-manager) plugin.
+  - Recent actions, below the map.
+- **Players**: everyone who has played on the server and the whitelist, with when each was last online, plus ops and bans. Each player has an actions menu:
+  - Op or deop, and add to or remove from the whitelist.
+  - Give an item, or teleport to another player or to coordinates. These need the player online.
+  - Kick with a reason, ban for 1 hour, 1 day, 7 days or for good, and unban.
+- **Config**: server settings, game rules and Paper settings as a form, with a plain title and description for each setting. Change what you need, then save from the top of the page, or save and restart when a change only applies on restart. An undo icon resets a setting to its vanilla default. The Files tab lists mod and plugin config files and opens them in the panel's file editor. See [Config](#config) below.
+- **Tools**: generate chunks ahead of time with [Chunky](https://modrinth.com/plugin/chunky), with progress, pause, continue and cancel. squaremap draws new chunks on its own, and Redraw the map draws a whole world again when its map is missing areas.
+- The Overseer item in the sidebar shows how many players are online. Every Overseer page warns when RCON is off, can't be reached, or is published on a public address.
 - Every action is checked against its own subuser permission and written to the server's Activity log.
 
 ## Requirements
@@ -23,13 +32,21 @@ A [Pelican](https://pelican.dev) panel plugin for running a Minecraft Java serve
   broadcast-rcon-to-ops=false
   ```
 
-  The panel connects to that port, so it must be reachable from the panel host. Add the port as an extra allocation on the server in Pelican, and don't expose it to the internet: RCON is not encrypted.
+  The panel connects to that port, so it must be reachable from the panel host, but never from the internet. RCON sends its password unencrypted and Minecraft doesn't slow down password guessing, so anyone who reaches the port can try passwords until one works.
+
+  - If the panel can reach the game container directly, set `OVERSEER_RCON_HOST` to that address and don't add an allocation for the port.
+  - Otherwise add the port as an extra allocation bound to a private IP, never `0.0.0.0` or a public IP. Docker writes its own firewall rules for published ports, so a ufw rule on the host may not block them.
+  - Check from a machine outside the VPS: `nc -vz <server-ip> 25575` must fail.
+
+  Overseer shows a warning on its pages when an allocation publishes the RCON port on a public or `0.0.0.0` address.
 
 ### Live Map (optional)
 
 Install [squaremap](https://github.com/jpenilla/squaremap) on the Minecraft server (Paper, Fabric or NeoForge). Its built-in web server listens on port 8080 by default (`settings.internal-webserver.port` in squaremap's `config.yml`). Add that port as an allocation on the server in Pelican, like the RCON port.
 
-squaremap draws only the chunks that exist and updates them as players explore. To draw an existing world now, run `squaremap fullrender minecraft:overworld` in the server console.
+squaremap draws only the chunks that exist and updates them as players explore. To draw an existing world now, use Redraw the map on the Tools tab, or run `squaremap fullrender minecraft:overworld` in the server console.
+
+Overseer polls the server over RCON every few seconds while one of its pages is open, and Minecraft logs a "Thread RCON Client ... started" line for each connection. Those lines show in Pelican's console.
 
 The browser never connects to squaremap: the panel fetches the tiles and passes them on, so the map works on an HTTPS panel and the port does not need to be open to the internet. The panel only ever connects to the server's own address on one of its own allocated ports.
 
@@ -52,18 +69,22 @@ Then give people access under the server's **Users** page. The Overseer tab has 
 
 | Permission | Lets them |
 | --- | --- |
-| map-view | Open the Live Map |
+| map-view | See the Overview: stats, the map, chat and who is online |
 | players-view | Open the Players page |
 | players-kick | Kick |
 | players-ban | Ban and unban |
 | players-op | Op and deop |
 | players-whitelist | Change the whitelist |
-| commands-world | Time, weather, difficulty, game rules, save |
-| commands-ops | Whitelist on or off, broadcast, any command |
+| players-cheat | Change game mode, give items and teleport players |
+| commands-world | Set the time and weather, and save the world |
+| commands-ops | Broadcast, send chat and run any console command |
 | config-view | Open the Config page |
 | config-edit | Change settings on the Config page |
+| tools | Generate chunks and redraw the map on the Tools page |
 
 The server owner and panel admins always have every permission.
+
+`commands-ops` lets someone run any console command, including `op` and `stop`, so it covers everything the other permissions allow. Only give it to people you'd trust with the console.
 
 ## Settings
 

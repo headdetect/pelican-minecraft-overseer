@@ -24,7 +24,7 @@ class RconConnector
         return Properties::bool($properties, 'enable-rcon') && ($properties['rcon.password'] ?? '') !== '';
     }
 
-    public function connect(Server $server): RconClient
+    public function connect(Server $server, ?float $timeout = null): RconClient
     {
         if (!$this->isConfigured($server)) {
             throw new RconException('RCON is off. Set enable-rcon=true and an rcon.password in server.properties.');
@@ -36,7 +36,7 @@ class RconConnector
             ServerAddress::host($server, config('overseer.rcon.host')),
             (int) ($properties['rcon.port'] ?? 25575),
             $properties['rcon.password'],
-            (float) config('overseer.rcon.timeout', 2.0),
+            $timeout ?? (float) config('overseer.rcon.timeout', 2.0),
         );
         $client->connect();
 

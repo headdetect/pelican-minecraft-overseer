@@ -4,11 +4,12 @@
 #
 # Usage: script/screenshot <page> [--click TEXT]... [--wait MS]
 #   <page> is a panel path such as /admin/plugins, or an Overseer page name
-#   (players, map, commands, config) on the dev server.
-#   --click clicks the first visible element with that text, in order, before
-#   the screenshot. --wait sets the pause before the screenshot (default 1500).
+#   (overview, players, config, tools) on the dev server.
+#   --click clicks the first visible element with exactly that text, in order,
+#   before the screenshot. --wait sets the pause before the screenshot in
+#   milliseconds (default 1500).
 #
-# The PNG goes to .data/shots/<page>.png.
+# The PNG goes to .data/shots/<page>.png, or <page>--<clicked text>.png with --click.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -23,6 +24,15 @@ case "$page" in
     path="/server/${uuid:0:8}/overseer/$page" ;;
 esac
 name=$(printf '%s' "$page" | tr -c 'A-Za-z0-9' '-' | sed 's/^-*//; s/-*$//')
+# Shots with --click get the clicked text in the name, so they don't overwrite the plain shot.
+clicks=""
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  if [ "${args[$i]}" = --click ] && [ $((i + 1)) -lt ${#args[@]} ]; then
+    clicks="$clicks--$(printf '%s' "${args[$((i + 1))]}" | tr -c 'A-Za-z0-9' '-' | sed 's/^-*//; s/-*$//')"
+  fi
+done
+name="$name$clicks"
 mkdir -p .data/shots
 
 logs() { docker exec overseer-dev-panel sh -c 'cat storage/logs/*.log 2>/dev/null | wc -l'; }
