@@ -14,6 +14,6 @@ return [
     'overseer_commands_world' => 'Set the time and weather, and save the world, from the Overview.',
     'overseer_commands_ops' => 'Broadcast messages and run any console command from the Overview.',
     'overseer_config_view' => 'See the Config page with the server settings, game rules and Paper settings.',
-    'overseer_tools' => 'Use the Tools page: generate chunks ahead of time and render the map.',
+    'overseer_tools' => 'Use the Tools page to generate chunks ahead of time.',
     'overseer_config_edit' => 'Change server settings, game rules and Paper settings from the Config page.',
 ];

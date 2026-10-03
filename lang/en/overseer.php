@@ -237,12 +237,6 @@ return [
             'cancel' => 'Cancel',
             'cancel_help' => 'Chunky deletes the task, so it can\'t be continued. Chunks it already generated stay.',
         ],
-        'render' => [
-            'title' => 'Render the map',
-            'help' => 'squaremap draws new chunks on its own, including ones the Generate chunks tool makes. Render the world to draw chunks that existed before squaremap was installed.',
-            'start' => 'Render world',
-            'start_help' => 'squaremap redraws every generated chunk in this world. Large worlds take a while.',
-        ],
     ],
 
     'commands' => [

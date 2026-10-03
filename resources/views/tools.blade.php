@@ -48,9 +48,4 @@
         </div>
     </x-filament::section>
 
-    @if ($this->squaremapReady())
-        <x-filament::section icon="tabler-map" :heading="trans('overseer::overseer.tools.render.title')" :description="trans('overseer::overseer.tools.render.help')">
-            {{ $this->renderAction }}
-        </x-filament::section>
-    @endif
 </x-filament-panels::page>
