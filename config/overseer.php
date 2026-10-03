@@ -26,6 +26,16 @@ return [
         'backups' => (int) env('OVERSEER_CONFIG_BACKUPS', 10),
     ],
 
+    // The Discord application for the /status, /info and /whitelist commands.
+    // Set these under Admin > Plugins > Overseer > Settings, which writes them to the panel's .env.
+    'discord' => [
+        'app_id' => env('OVERSEER_DISCORD_APP_ID'),
+        'public_key' => env('OVERSEER_DISCORD_PUBLIC_KEY'),
+        'bot_token' => env('OVERSEER_DISCORD_BOT_TOKEN'),
+        // Discord gives the panel 3 seconds to answer, so calls it makes to Discord and Mojang stay short.
+        'timeout' => (float) env('OVERSEER_DISCORD_TIMEOUT', 2.0),
+    ],
+
     // Default reasons offered when kicking or banning.
     'reasons' => ['Griefing', 'Harassment', 'Cheating', 'Spam'],
 ];
