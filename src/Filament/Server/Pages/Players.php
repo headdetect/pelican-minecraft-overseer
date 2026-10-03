@@ -68,6 +68,9 @@ class Players extends Page implements HasTable
     /** @var array<int, array<string, mixed>> everyone who has played, plus the whitelist */
     public array $roster = [];
 
+    /** @var array<string, array<string, mixed>> game mode, level and dimension from player files, by name */
+    public array $details = [];
+
     public static function canAccess(): bool
     {
         /** @var Server $server */
@@ -107,6 +110,7 @@ class Players extends Page implements HasTable
         $this->whitelist = $players->whitelist($server);
         $this->banned = $players->banned($server);
         $this->roster = $players->roster($server, array_column($this->online ?? [], 'name'));
+        $this->details = $players->details($server, $this->roster);
     }
 
     /** @return array<string, Tab> */
@@ -125,8 +129,10 @@ class Players extends Page implements HasTable
     {
         $positions = array_column($this->online ?? [], null, 'name');
         $roster = array_column($this->roster, null, 'name');
+        // Online players' live values win over what their file had at the last save.
         $row = fn (string $name) => [
-            ...($positions[$name] ?? []),
+            ...($this->details[$name] ?? []),
+            ...array_filter($positions[$name] ?? [], fn ($value) => $value !== null),
             'name' => $name,
             'is_online' => $roster[$name]['online'] ?? isset($positions[$name]),
             'last_seen' => $roster[$name]['last_seen'] ?? null,
@@ -171,14 +177,35 @@ class Players extends Page implements HasTable
                         in_array($record['name'], $this->whitelist, true) ? trans('overseer::overseer.players.whitelisted') : null,
                     ])))
                     ->color(fn (string $state) => $state === 'OP' ? 'warning' : 'info'),
-                TextColumn::make('location')
-                    ->label(trans('overseer::overseer.players.columns.location'))
-                    ->fontFamily(FontFamily::Mono)
+                TextColumn::make('gamemode')
+                    ->label(trans('overseer::overseer.players.columns.game_mode'))
+                    ->visible(fn () => $this->activeTab !== 'banned')
+                    ->badge()
+                    ->placeholder('')
+                    ->state(fn (array $record) => isset($record['gamemode']) ? trans("overseer::overseer.players.game_modes.{$record['gamemode']}") : null)
+                    ->color(fn (array $record) => match ($record['gamemode'] ?? null) {
+                        'creative' => 'warning',
+                        'spectator' => 'gray',
+                        'adventure' => 'info',
+                        default => 'success',
+                    }),
+                TextColumn::make('xp_level')
+                    ->label(trans('overseer::overseer.players.columns.level'))
                     ->visible(fn () => $this->activeTab !== 'banned')
                     ->placeholder('')
-                    ->state(fn (array $record) => isset($record['x'])
-                        ? str($record['dimension'] ?? 'overworld')->headline() . " · {$record['x']}, {$record['y']}, {$record['z']}"
-                        : null),
+                    ->state(fn (array $record) => $record['xp_level'] ?? null),
+                TextColumn::make('world')
+                    ->label(trans('overseer::overseer.players.columns.world'))
+                    ->visible(fn () => $this->activeTab !== 'banned')
+                    ->placeholder('')
+                    ->state(fn (array $record) => isset($record['dimension'])
+                        ? trans('overseer::overseer.map.worlds.' . match (preg_replace('/^minecraft:/', '', $record['dimension'])) {
+                            'the_nether' => 'nether',
+                            'the_end' => 'end',
+                            default => 'overworld',
+                        })
+                        : null)
+                    ->description(fn (array $record) => isset($record['x']) ? "{$record['x']}, {$record['y']}, {$record['z']}" : null),
                 TextColumn::make('last_seen')
                     ->label(trans('overseer::overseer.players.columns.last_online'))
                     ->visible(fn () => $this->activeTab !== 'banned')

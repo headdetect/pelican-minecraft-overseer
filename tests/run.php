@@ -132,6 +132,8 @@ check('item id plain', CommandInput::itemId(' Diamond '), 'diamond');
 check('item id modded', CommandInput::itemId('create:wrench'), 'create:wrench');
 throws('item id with nbt', fn () => CommandInput::itemId('diamond_sword{Enchantments:[]}'));
 check('game mode', CommandInput::gameMode(' Creative '), 'creative');
+check('entity number', PlayerService::parseNumber('headdetect has the following entity data: 30'), 30);
+check('entity number missing', PlayerService::parseNumber('No entity was found'), null);
 throws('game mode injection', fn () => CommandInput::gameMode('creative @a'));
 check('teleport to player', CommandInput::teleport('Doobie', ['to' => 'player', 'target' => 'kelp_lord']), 'tp Doobie kelp_lord');
 check('teleport to coords', CommandInput::teleport('Doobie', ['to' => 'coords', 'x' => '10', 'y' => 64, 'z' => '-20.7', 'dimension' => 'minecraft:the_nether']), 'execute in minecraft:the_nether run tp Doobie 10 64 -20');

@@ -131,8 +131,10 @@ return [
         'columns' => [
             'name' => 'Player',
             'role' => 'Role',
-            'location' => 'Location',
             'last_online' => 'Last online',
+            'game_mode' => 'Game mode',
+            'level' => 'Level',
+            'world' => 'World',
             'reason' => 'Reason',
             'expires' => 'Unbanned',
         ],

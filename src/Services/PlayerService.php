@@ -6,6 +6,8 @@ use App\Models\Server;
 use App\Repositories\Daemon\DaemonFileRepository;
 use Exception;
 use Headdetect\Overseer\Services\Rcon\RconConnector;
+use Headdetect\Overseer\Support\CommandInput;
+use Headdetect\Overseer\Support\PlayerNbt;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
@@ -33,6 +35,8 @@ class PlayerService
         foreach (self::parseList($reply) as $name) {
             $position = self::parsePosition((string) $this->console->query($server, "data get entity $name Pos"));
             $dimension = self::parseDimension((string) $this->console->query($server, "data get entity $name Dimension"));
+            $mode = self::parseNumber((string) $this->console->query($server, "data get entity $name playerGameType"));
+            $level = self::parseNumber((string) $this->console->query($server, "data get entity $name XpLevel"));
 
             $players[] = [
                 'name' => $name,
@@ -40,6 +44,8 @@ class PlayerService
                 'y' => $position[1] ?? null,
                 'z' => $position[2] ?? null,
                 'dimension' => $dimension,
+                'gamemode' => $mode !== null ? (CommandInput::GAME_MODES[$mode] ?? null) : null,
+                'xp_level' => $level,
             ];
         }
 
@@ -79,11 +85,16 @@ class PlayerService
      */
     public function roster(Server $server, array $online = []): array
     {
-        $base = Cache::remember("overseer:roster:$server->uuid", now()->addSeconds(30), fn () => [
-            'usercache' => $this->readJson($server, 'usercache.json'),
-            'whitelist' => $this->readJson($server, 'whitelist.json'),
-            'last_seen' => $this->lastSeen($server),
-        ]);
+        $base = Cache::remember("overseer:roster:$server->uuid", now()->addSeconds(30), function () use ($server) {
+            [$lastSeen, $paths] = $this->lastSeen($server);
+
+            return [
+                'usercache' => $this->readJson($server, 'usercache.json'),
+                'whitelist' => $this->readJson($server, 'whitelist.json'),
+                'last_seen' => $lastSeen,
+                'paths' => $paths,
+            ];
+        });
 
         return self::buildRoster($base['usercache'], $base['whitelist'], $base['last_seen'], $online);
     }
@@ -146,13 +157,14 @@ class PlayerService
      * data file. Minecraft 26.1 and newer use <world>/players/data, older
      * versions <world>/playerdata.
      *
-     * @return array<string, int> lowercase uuid => unix time
+     * @return array{array<string, int>, array<string, string>} lowercase uuid => unix time, and uuid => file path
      */
     private function lastSeen(Server $server): array
     {
         $world = app(RconConnector::class)->properties($server)['level-name'] ?? '' ?: 'world';
         $files = (new DaemonFileRepository())->setServer($server);
         $seen = [];
+        $paths = [];
 
         foreach (["$world/players/data", "$world/playerdata"] as $directory) {
             try {
@@ -173,12 +185,15 @@ class PlayerService
                 if (preg_match('/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.dat$/i', $entry['name'] ?? '', $m)
                     && ($time = strtotime((string) ($entry['modified'] ?? '')))) {
                     $uuid = strtolower($m[1]);
-                    $seen[$uuid] = max($seen[$uuid] ?? 0, $time);
+                    if ($time >= ($seen[$uuid] ?? 0)) {
+                        $seen[$uuid] = $time;
+                        $paths[$uuid] = "$directory/{$entry['name']}";
+                    }
                 }
             }
         }
 
-        return $seen;
+        return [$seen, $paths];
     }
 
     /**
@@ -209,6 +224,51 @@ class PlayerService
         }
 
         return [(int) floor((float) $m[1]), (int) floor((float) $m[2]), (int) floor((float) $m[3])];
+    }
+
+    /** Parses "Doobie has the following entity data: 30" into 30. */
+    public static function parseNumber(string $reply): ?int
+    {
+        return preg_match('/entity data: (-?\d+)[bsL]?\s*$/', trim($reply), $m) ? (int) $m[1] : null;
+    }
+
+    /**
+     * Game mode, XP level and dimension for players who aren't online, from
+     * their player data files. Each file is read once per change: the cache
+     * key includes the time the server last wrote it.
+     *
+     * @param  array<int, array{name: string, uuid: ?string, last_seen: ?int}>  $roster
+     * @return array<string, array{gamemode: ?string, xp_level: ?int, dimension: ?string}> by player name
+     */
+    public function details(Server $server, array $roster): array
+    {
+        $paths = Cache::get("overseer:roster:$server->uuid")['paths'] ?? [];
+        $files = (new DaemonFileRepository())->setServer($server);
+        $details = [];
+
+        foreach ($roster as $player) {
+            $uuid = strtolower((string) $player['uuid']);
+            $path = $paths[$uuid] ?? null;
+            if (!$path || !$player['last_seen']) {
+                continue;
+            }
+
+            $summary = Cache::rememberForever("overseer:player-nbt:$server->uuid:$uuid:{$player['last_seen']}", function () use ($files, $path) {
+                try {
+                    return PlayerNbt::summary($files->getContent($path)) ?? false;
+                } catch (Exception $exception) {
+                    report($exception);
+
+                    return false;
+                }
+            });
+
+            if ($summary) {
+                $details[$player['name']] = $summary;
+            }
+        }
+
+        return $details;
     }
 
     /** Parses 'Doobie has the following entity data: "minecraft:the_nether"' into "the_nether". */
