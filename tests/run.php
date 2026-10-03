@@ -116,6 +116,38 @@ check('discord signature wrong key', DiscordSignature::verify($otherKey, $signat
 check('discord signature not hex', DiscordSignature::verify($publicKey, str_repeat('zz', 64), '1700000000', $body), false);
 check('discord signature missing', DiscordSignature::verify($publicKey, '', '1700000000', $body), false);
 check('discord signature no key set', DiscordSignature::verify('', $signature, '1700000000', $body), false);
+
+// --- Discord: what /info, /status and /whitelist reply with ---
+$discord = (require __DIR__ . '/../lang/en/overseer.php')['discord'];
+$info = DiscordEmbeds::info('Nurps', 'mc.example.com', '1.21.8', ['name' => 'Cobblemon', 'version' => '1.6', 'url' => 'https://modrinth.com/modpack/cobblemon'], "Be nice.\n", $discord)['embeds'][0];
+check('info address in a code block', $info['fields'][0]['value'], "```\nmc.example.com\n```");
+check('info says java only', $info['fields'][1]['value'], '1.21.8, Java Edition only');
+check('info links the modpack', $info['fields'][2]['value'], '[Cobblemon 1.6](https://modrinth.com/modpack/cobblemon)');
+check('info text as the description', $info['description'], 'Be nice.');
+$bare = DiscordEmbeds::info('Nurps', 'mc.example.com:25566', null, null, '  ', $discord)['embeds'][0];
+check('info without version or modpack', array_column($bare['fields'], 'name'), ['Address', 'Version', 'Whitelist']);
+check('info without text has no description', array_key_exists('description', $bare), false);
+check('info never pings', DiscordEmbeds::info('Nurps', 'x', null, null, '@everyone', $discord)['allowed_mentions'], ['parse' => []]);
+
+$list = 'There are 2 of a max of 20 players online: Doobie, kelp_lord';
+$online = DiscordEmbeds::status('Nurps', true, '3h 4m', $list, PlayerService::parseList($list), $discord)['embeds'][0];
+check('status online title', $online['title'], 'Nurps: Online');
+check('status player count', $online['fields'][0]['name'], 'Players (2/20)');
+check('status names escaped', $online['fields'][0]['value'], 'Doobie, kelp\\_lord');
+check('status uptime', $online['fields'][1]['value'], '3h 4m');
+$empty = DiscordEmbeds::status('Nurps', true, null, 'There are 0 of a max of 20 players online:', [], $discord)['embeds'][0];
+check('status nobody on', $empty['fields'][0]['value'], 'Nobody is on right now.');
+check('status paper count', DiscordEmbeds::playerCount('There are 3/20 players online: a, b, c'), [3, 20]);
+check('status no rcon has no player field', array_key_exists('fields', DiscordEmbeds::status('Nurps', true, null, null, [], $discord)['embeds'][0]), false);
+$offline = DiscordEmbeds::status('Nurps', false, null, null, [], $discord)['embeds'][0];
+check('status offline title', $offline['title'], 'Nurps: Offline');
+
+$profile = ['id' => '853c80ef3c3749fdaa49938b674adae6', 'name' => 'jeb_'];
+$added = DiscordEmbeds::whitelisted($profile, 'Added jeb_ to the whitelist', $discord)['embeds'][0];
+check('whitelisted title', $added['title'], 'Added jeb_ to the whitelist');
+check('whitelisted skin head by uuid', $added['thumbnail']['url'], 'https://mc-heads.net/avatar/853c80ef3c3749fdaa49938b674adae6/64');
+check('whitelisted already', DiscordEmbeds::whitelisted($profile, 'Player is already whitelisted', $discord)['embeds'][0]['title'], 'jeb_ is already on the whitelist');
+check('whitelisted through wings', DiscordEmbeds::whitelisted($profile, null, $discord)['embeds'][0]['title'], 'Sent jeb_ to the server');
 check('command keeps selectors', CommandInput::command('kill @e[type=item]'), 'kill @e[type=item]');
 check('custom quick command keeps selectors', QuickCommands::build('custom', ['command' => 'tp @a 0 64 0']), ['custom', 'tp @a 0 64 0']);
 
