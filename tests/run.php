@@ -27,6 +27,8 @@ use Headdetect\Overseer\Support\ChatLog;
 use Headdetect\Overseer\Support\CommandInput;
 use Headdetect\Overseer\Support\ConfigSchema;
 use Headdetect\Overseer\Support\DiscordCommands;
+use Headdetect\Overseer\Support\DiscordEmbeds;
+use Headdetect\Overseer\Support\DiscordSignature;
 use Headdetect\Overseer\Support\EditableFiles;
 use Headdetect\Overseer\Support\PlayerNbt;
 use Headdetect\Overseer\Support\Properties;
@@ -100,6 +102,20 @@ check('discord descriptions fit', max(array_map(fn ($c) => mb_strlen($c['descrip
 check('discord whitelist takes a name', $commands[2]['options'][0]['name'] ?? null, 'name');
 check('discord whitelist name is required', $commands[2]['options'][0]['required'] ?? null, true);
 check('discord status has no options', array_key_exists('options', $commands[0]), false);
+
+// --- Discord: only requests Discord signed get through the interactions endpoint ---
+$keys = sodium_crypto_sign_keypair();
+$publicKey = bin2hex(sodium_crypto_sign_publickey($keys));
+$otherKey = bin2hex(sodium_crypto_sign_publickey(sodium_crypto_sign_keypair()));
+$body = '{"type":1}';
+$signature = bin2hex(sodium_crypto_sign_detached('1700000000' . $body, sodium_crypto_sign_secretkey($keys)));
+check('discord signature valid', DiscordSignature::verify($publicKey, $signature, '1700000000', $body), true);
+check('discord signature tampered body', DiscordSignature::verify($publicKey, $signature, '1700000000', '{"type":2}'), false);
+check('discord signature other timestamp', DiscordSignature::verify($publicKey, $signature, '1700000001', $body), false);
+check('discord signature wrong key', DiscordSignature::verify($otherKey, $signature, '1700000000', $body), false);
+check('discord signature not hex', DiscordSignature::verify($publicKey, str_repeat('zz', 64), '1700000000', $body), false);
+check('discord signature missing', DiscordSignature::verify($publicKey, '', '1700000000', $body), false);
+check('discord signature no key set', DiscordSignature::verify('', $signature, '1700000000', $body), false);
 check('command keeps selectors', CommandInput::command('kill @e[type=item]'), 'kill @e[type=item]');
 check('custom quick command keeps selectors', QuickCommands::build('custom', ['command' => 'tp @a 0 64 0']), ['custom', 'tp @a 0 64 0']);
 
