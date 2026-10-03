@@ -177,6 +177,13 @@ class InteractionHandler
                 $message = DiscordEmbeds::text($this->text()['reply']['failed']);
             }
 
+            // script/discord-sign uses this token, since there's no real interaction to edit.
+            if ($token === 'local' && app()->isLocal()) {
+                logger()->info('Discord reply', $message);
+
+                return;
+            }
+
             try {
                 $this->discord->editReply($token, $message);
             } catch (Throwable $exception) {

@@ -93,6 +93,8 @@ panel does not quietly mark the plugin as errored.
 - `script/rcon <command>` sends one RCON command through the RCON client of
   Overseer.
 - `script/screenshot <page>` saves a screenshot of a panel page.
+- `script/discord-sign <command>` sends a signed Discord interaction to the
+  panel, since Discord can't reach localhost. See below.
 
 `script/screenshot` logs in as the admin with headless Chromium and saves a PNG in
 `.data/shots/`. It also prints the HTTP status, browser console errors and
@@ -111,3 +113,34 @@ before the screenshot, 1500 milliseconds by default.
 
 To see players on the Players page and the map, join `localhost:25565` with
 your Minecraft client.
+
+## Testing the Discord commands
+
+Discord can't reach `localhost`, so `script/discord-sign` stands in for it. It
+signs each request with a fixed dev key pair and sends it to the panel.
+
+1. Run `script/discord-sign key` and copy the public key it prints.
+2. Open `/admin/plugins`, then Overseer, then Settings. Paste the key as the
+   public key, and enter any 18 digits as the application ID and any text as
+   the token. The Discord tab then shows its form, though the guild list
+   shows an error, since the token isn't real.
+3. Run `script/discord-sign link` to link the dev server to a made-up guild.
+
+Then send commands:
+
+```bash
+script/discord-sign ping             # 200 {"type":1}
+script/discord-sign info
+script/discord-sign status
+script/discord-sign whitelist Doobie
+script/discord-sign whitelist "Cool Gamer"
+```
+
+The panel answers each command with `{"type":5}`, which is Discord's
+"thinking" reply. With the token `local` the script uses, the panel then writes
+the real reply to the Laravel log as `Discord reply`, instead of sending it to
+Discord:
+
+```bash
+docker exec overseer-dev-panel sh -c 'tail -n 5 storage/logs/*.log'
+```
