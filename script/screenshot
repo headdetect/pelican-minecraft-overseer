@@ -2,16 +2,17 @@
 # Screenshots a page of the dev panel as the dev admin, with headless Chromium.
 # Prints the HTTP status, browser console errors and new laravel.log lines.
 #
-# Usage: dev/shot <page> [--click TEXT]... [--wait MS]
+# Usage: script/screenshot <page> [--click TEXT]... [--wait MS]
 #   <page> is a panel path such as /admin/plugins, or an Overseer page name
-#   (players, map, commands, config) on the dev server.
-#   --click clicks the first visible element with that text, in order, before
-#   the screenshot. --wait sets the pause before the screenshot (default 1500).
+#   (overview, players, config, tools) on the dev server.
+#   --click clicks the first visible element with exactly that text, in order,
+#   before the screenshot. --wait sets the pause before the screenshot in
+#   milliseconds (default 1500).
 #
-# The PNG goes to dev/.data/shots/<page>.png.
+# The PNG goes to .data/shots/<page>.png, or <page>--<clicked text>.png with --click.
 set -euo pipefail
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 [ $# -gt 0 ] || { sed -n '5,10p' "$0" >&2; exit 2; }
 page=$1
 shift
@@ -19,10 +20,19 @@ shift
 case "$page" in
   /*) path=$page ;;
   *)
-    uuid=$(cat .data/server-uuid 2>/dev/null) || { echo "shot: no dev server. Run dev/up.sh." >&2; exit 1; }
+    uuid=$(cat .data/server-uuid 2>/dev/null) || { echo "screenshot: no dev server. Run script/up." >&2; exit 1; }
     path="/server/${uuid:0:8}/overseer/$page" ;;
 esac
 name=$(printf '%s' "$page" | tr -c 'A-Za-z0-9' '-' | sed 's/^-*//; s/-*$//')
+# Shots with --click get the clicked text in the name, so they don't overwrite the plain shot.
+clicks=""
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  if [ "${args[$i]}" = --click ] && [ $((i + 1)) -lt ${#args[@]} ]; then
+    clicks="$clicks--$(printf '%s' "${args[$((i + 1))]}" | tr -c 'A-Za-z0-9' '-' | sed 's/^-*//; s/-*$//')"
+  fi
+done
+name="$name$clicks"
 mkdir -p .data/shots
 
 logs() { docker exec overseer-dev-panel sh -c 'cat storage/logs/*.log 2>/dev/null | wc -l'; }
@@ -34,10 +44,10 @@ PW=1.63.0
 mkdir -p .data/playwright
 docker run --rm --network host --user "$(id -u):$(id -g)" -e HOME=/tmp \
   -e PYTHONPATH=/pw \
-  -v "$PWD/scripts:/scripts:ro" -v "$PWD/.data/shots:/shots" -v "$PWD/.data/playwright:/pw" \
+  -v "$PWD/script/lib:/scripts:ro" -v "$PWD/.data/shots:/shots" -v "$PWD/.data/playwright:/pw" \
   "mcr.microsoft.com/playwright/python:v$PW-noble" sh -c '
     [ -d /pw/playwright ] || pip install -q --target /pw "playwright==$0" >&2
-    exec python3 /scripts/shot.py "$@"' \
+    exec python3 /scripts/screenshot.py "$@"' \
   "$PW" "http://localhost:${PANEL_PORT:-8890}" "$path" "/shots/$name.png" "$@"
 
 after=$(logs)
@@ -45,4 +55,4 @@ if [ "$after" -gt "$before" ]; then
   echo "--- laravel.log ($((after - before)) new lines)"
   docker exec overseer-dev-panel sh -c "cat storage/logs/*.log | tail -n $((after - before))" | cut -c1-400
 fi
-echo "shot: dev/.data/shots/$name.png"
+echo "screenshot: .data/shots/$name.png"

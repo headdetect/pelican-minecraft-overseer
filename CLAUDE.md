@@ -8,18 +8,18 @@ directory: `plugin.json` at the top, the code in `src/`.
 Run the unit tests and look at the change in a real panel:
 
 ```bash
-dev/test                 # tests/run.php, with the PHP in the dev panel
-dev/shot players         # screenshot of an Overseer page, plus errors
+script/test                # tests/run.php, with the PHP in the dev panel
+script/screenshot players  # screenshot of an Overseer page, plus errors
 ```
 
-Read the PNG that `dev/shot` saves in `dev/.data/shots/`. It prints console
+Read the PNG that `script/screenshot` saves in `.data/shots/`. It prints console
 errors and new Laravel log lines too. If the dev stack is not running, start it
-with `dev/up.sh`. `dev/README.md` lists every tool.
+with `script/up`. `DEVELOPMENT.md` lists every tool.
 
 The panel loads the source from this checkout, so there is no build or upload
 step. If you add or remove a Filament page, run
-`dev/artisan filament:cache-components`. If you add a migration, run
-`dev/artisan migrate`.
+`script/artisan filament:cache-components`. If you add a migration, run
+`script/artisan migrate`.
 
 ## Deploying
 

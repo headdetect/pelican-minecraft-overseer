@@ -8,9 +8,12 @@ use App\Models\Server;
 use App\Repositories\Daemon\DaemonFileRepository;
 use Exception;
 use Headdetect\Overseer\Support\ConfigSchema;
+use Headdetect\Overseer\Support\EditableFiles;
 use Headdetect\Overseer\Support\Properties;
 use Headdetect\Overseer\Support\YamlLines;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Cache;
 use RuntimeException;
 
 /**
@@ -74,12 +77,11 @@ class ConfigFiles
                     continue;
                 }
 
-                if (isset($entries[$key])) {
-                    $value = ConfigSchema::fromFile($entries[$key], $raw);
-                    if ($value !== null) {
-                        $result['values'][$key] = $value;
-                    }
+                $value = isset($entries[$key]) ? ConfigSchema::fromFile($entries[$key], $raw) : null;
+                if ($value !== null) {
+                    $result['values'][$key] = $value;
                 } else {
+                    // Unknown keys, and known ones with a value the form can't show, stay editable as text.
                     $result['values'][$key] = $raw;
                     $result['advanced'][] = $key;
                 }
@@ -142,8 +144,12 @@ class ConfigFiles
 
         $restart = false;
         $commands = [];
+        $hasRcon = $running && $this->console->hasRcon($server);
         foreach ($changes as $key => $value) {
-            $command = ConfigSchema::liveCommand($entries[$key], $value);
+            // Without RCON a command is sent through Wings and runs later, possibly
+            // after the file write, and Minecraft would write its old values back.
+            // So those settings wait for a restart instead.
+            $command = $hasRcon ? ConfigSchema::liveCommand($entries[$key], $value) : null;
             if ($command !== null) {
                 $commands[$key] = $command;
             } elseif ($entries[$key]['restart'] ?? true) {
@@ -175,6 +181,53 @@ class ConfigFiles
         return $running && $restart;
     }
 
+    /**
+     * Config files the file editor can open: the root and the folders mods and
+     * plugins use, a few levels deep. Cached for a minute, because each folder
+     * is one request to Wings.
+     *
+     * @return string[] paths relative to the server root, sorted
+     */
+    public function editableFiles(Server $server): array
+    {
+        return Cache::remember("overseer:config-files:$server->uuid", now()->addMinute(), function () use ($server) {
+            $found = [];
+            $queue = [['', 0]];
+
+            while ($queue && count($found) < EditableFiles::MAX_FILES) {
+                [$dir, $depth] = array_shift($queue);
+
+                try {
+                    $entries = $this->files($server)->getDirectory($dir === '' ? '/' : $dir);
+                } catch (RequestException $exception) {
+                    if ($exception->response->status() !== 404) {
+                        report($exception);
+                    }
+
+                    continue;
+                }
+
+                foreach ($entries as $entry) {
+                    $name = (string) ($entry['name'] ?? '');
+                    $path = $dir === '' ? $name : "$dir/$name";
+
+                    if ($entry['directory'] ?? false) {
+                        $inFolder = $dir === '' ? in_array($name, EditableFiles::FOLDERS, true) : $depth < EditableFiles::DEPTH;
+                        if ($inFolder && !($entry['symlink'] ?? false) && !in_array($path, EditableFiles::SKIP_FOLDERS, true)) {
+                            $queue[] = [$path, $depth + 1];
+                        }
+                    } elseif (($entry['file'] ?? false) && EditableFiles::isEditable($path)) {
+                        $found[] = $path;
+                    }
+                }
+            }
+
+            sort($found);
+
+            return $found;
+        });
+    }
+
     /** The file's contents, or null when it doesn't exist. */
     private function read(Server $server, string $file): ?string
     {
@@ -188,7 +241,7 @@ class ConfigFiles
     /** Writes a dated copy of the file and drops the oldest copies past the limit. */
     private function backup(Server $server, string $file, string $contents): string
     {
-        $name = str_replace('/', '_', $file) . '.' . now()->format('Y-m-d_His');
+        $name = str_replace('/', '_', $file) . '.' . now()->format('Y-m-d_His_v');
         $path = self::BACKUP_DIR . '/' . $name;
 
         // Wings makes the folders it needs when writing a file.

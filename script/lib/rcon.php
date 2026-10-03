@@ -1,6 +1,6 @@
 <?php
 
-// Runs one RCON command against the dev server. dev/rcon calls this.
+// Runs one RCON command against the dev server. script/rcon calls this.
 
 use App\Models\Server;
 use Headdetect\Overseer\Services\Rcon\RconConnector;

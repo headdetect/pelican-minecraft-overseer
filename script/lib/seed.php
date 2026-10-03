@@ -1,15 +1,16 @@
 <?php
 
 // Seeds the local dev panel with what the web installer and the admin pages
-// would create by hand. dev/up.sh runs each step inside the panel container:
+// would create by hand. script/up runs each step inside the panel container:
 //
-//   php /dev-scripts/seed.php node      create the node, print the wings config
-//   php /dev-scripts/seed.php server    create the egg, allocations and server
-//   php /dev-scripts/seed.php status    print the server's install state
-//   php /dev-scripts/seed.php configure write server.properties, EULA, mods
-//   php /dev-scripts/seed.php start     start the server
-//   php /dev-scripts/seed.php render    render the map around spawn once
-//   php /dev-scripts/seed.php uuid      print the server's uuid
+//   php /script-lib/seed.php node      create the node, print the wings config
+//   php /script-lib/seed.php server    create the egg, allocations and server
+//   php /script-lib/seed.php status    print the server's install state
+//   php /script-lib/seed.php configure write server.properties, EULA, mods
+//   php /script-lib/seed.php mods      download any missing mods
+//   php /script-lib/seed.php start     start the server
+//   php /script-lib/seed.php render    render the map around spawn once
+//   php /script-lib/seed.php uuid      print the server's uuid
 //
 // Every step is safe to run again. It skips what already exists.
 
@@ -44,7 +45,7 @@ $wingsPort = (int) (getenv('WINGS_PORT') ?: 8891);
 $step = $argv[1] ?? '';
 
 // Laravel's handler prints an uncaught exception but exits 0, which hides the
-// failure from up.sh. Print it and exit 1 instead.
+// failure from script/up. Print it and exit 1 instead.
 set_exception_handler(function (Throwable $e) {
     fwrite(STDERR, 'seed: ' . $e::class . ': ' . $e->getMessage() . "\n");
     exit(1);
@@ -88,9 +89,16 @@ function versions(): array
     }
     throw_unless($game, new RuntimeException('No Minecraft version has both squaremap and Fabric API builds.'));
 
+    // Chunky is for the Tools tab. It is optional, so a version without a
+    // Chunky build still works.
     $jars = [];
-    foreach (['fabric-api', 'squaremap'] as $project) {
-        $build = $builds($project, $game)[0] ?? throw new RuntimeException("$project has no Fabric build for $game");
+    foreach (['fabric-api' => true, 'squaremap' => true, 'chunky' => false] as $project => $required) {
+        $build = $builds($project, $game)[0] ?? null;
+        if (!$build) {
+            throw_if($required, new RuntimeException("$project has no Fabric build for $game"));
+            echo "seed: $project has no Fabric build for $game, skipping\n";
+            continue;
+        }
         $file = collect($build['files'])->firstWhere('primary', true) ?? $build['files'][0];
         $jars[$file['filename']] = $file['url'];
     }
@@ -121,6 +129,9 @@ switch ($step) {
             'daemon_sftp_alias' => '',
             'daemon_base' => "$dataDir/wings/volumes",
         ]);
+        // Keep the data path current, so the stack still starts after the
+        // checkout or the data directory moves.
+        $node->update(['daemon_base' => "$dataDir/wings/volumes"]);
 
         // The panel's config only sets the server data path. Every other wings
         // path defaults to a system directory, so point them all at DEV_DATA.
@@ -150,6 +161,9 @@ switch ($step) {
 
     case 'server':
         if (server()) {
+            // Dev stacks seeded before RCON and squaremap moved to loopback
+            // bound every port to 0.0.0.0.
+            Allocation::query()->where('node_id', server()->node_id)->whereIn('port', [RCON_PORT, MAP_PORT])->where('ip', '0.0.0.0')->update(['ip' => '127.0.0.1']);
             break;
         }
 
@@ -157,11 +171,12 @@ switch ($step) {
         $egg = Egg::query()->where('name', 'Fabric')->first()
             ?? app(EggImporterService::class)->fromUrl(EGG_URL);
 
+        // Players connect to the game port from anywhere. RCON and squaremap
+        // only need to reach the panel, so they bind to loopback, as they
+        // would to a private IP in production.
         if (!Allocation::query()->where('node_id', $node->id)->exists()) {
-            app(AssignmentService::class)->handle($node, [
-                'allocation_ip' => '0.0.0.0',
-                'allocation_ports' => [(string) GAME_PORT, (string) RCON_PORT, (string) MAP_PORT],
-            ]);
+            app(AssignmentService::class)->handle($node, ['allocation_ip' => '0.0.0.0', 'allocation_ports' => [(string) GAME_PORT]]);
+            app(AssignmentService::class)->handle($node, ['allocation_ip' => '127.0.0.1', 'allocation_ports' => [(string) RCON_PORT, (string) MAP_PORT]]);
         }
         $allocation = fn (int $port) => Allocation::query()->where('node_id', $node->id)->where('port', $port)->value('id');
 
@@ -232,6 +247,18 @@ switch ($step) {
         }
         break;
 
+    case 'mods':
+        $files = (new DaemonFileRepository())->setServer(server() ?? throw new RuntimeException('Run the server step first.'));
+        $existing = collect($files->getDirectory('mods'))->pluck('name');
+        [, $jars] = versions();
+        foreach ($jars as $name => $url) {
+            if (!$existing->contains($name)) {
+                $files->pull($url, 'mods', ['filename' => $name, 'foreground' => true]);
+                echo "seed: downloaded mods/$name\n";
+            }
+        }
+        break;
+
     case 'start':
         (new DaemonServerRepository())->setServer(server())->power('start');
         break;
@@ -243,7 +270,9 @@ switch ($step) {
         // anyone joins.
         $server = server() ?? throw new RuntimeException('Run the server step first.');
         $files = (new DaemonFileRepository())->setServer($server);
-        if (collect($files->getDirectory('squaremap'))->pluck('name')->contains('.dev-rendered')) {
+        // The marker is in the world directory, so a regenerated world renders again.
+        $rendered = fn () => collect($files->getDirectory('world'))->pluck('name')->contains('.dev-rendered');
+        if (rescue($rendered, false, report: false)) {
             echo "seed: map already rendered, skipping\n";
             break;
         }
@@ -280,11 +309,11 @@ switch ($step) {
         $rcon('forceload remove all');
         $rcon(sprintf('squaremap radiusrender %s 128 %d %d', preg_replace('/_/', ':', $world['name'], 1), $world['spawn']['x'], $world['spawn']['z']));
 
-        $files->putContent('squaremap/.dev-rendered', '');
+        $files->putContent('world/.dev-rendered', '');
         echo "seed: rendered the map around spawn\n";
         break;
 
     default:
-        fwrite(STDERR, "usage: seed.php node|server|status|configure|start|render|uuid\n");
+        fwrite(STDERR, "usage: seed.php node|server|status|configure|mods|start|render|uuid\n");
         exit(2);
 }

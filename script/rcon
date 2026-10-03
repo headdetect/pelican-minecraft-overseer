@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Sends one command to the dev game server over RCON, through Overseer's own
 # RconConnector, so it uses the same address and password lookup as the pages.
-# Example: dev/rcon list
+# Example: script/rcon list
 set -euo pipefail
-[ $# -gt 0 ] || { echo "usage: dev/rcon <command>" >&2; exit 2; }
-exec docker exec -u www-data overseer-dev-panel php /dev-scripts/rcon.php "$*"
+[ $# -gt 0 ] || { echo "usage: script/rcon <command>" >&2; exit 2; }
+exec docker exec -u www-data overseer-dev-panel php /script-lib/rcon.php "$*"

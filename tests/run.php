@@ -15,12 +15,19 @@ spl_autoload_register(function (string $class) {
 
 use Headdetect\Overseer\Services\GameRules;
 use Headdetect\Overseer\Services\Map\Squaremap;
+use Headdetect\Overseer\Services\Map\Surface;
 use Headdetect\Overseer\Services\PlayerService;
 use Headdetect\Overseer\Services\Rcon\RconClient;
 use Headdetect\Overseer\Services\Rcon\RconException;
+use Headdetect\Overseer\Services\Tools\Chunky;
+use Headdetect\Overseer\Support\ChatLog;
 use Headdetect\Overseer\Support\CommandInput;
 use Headdetect\Overseer\Support\ConfigSchema;
+use Headdetect\Overseer\Support\EditableFiles;
+use Headdetect\Overseer\Support\PlayerNbt;
 use Headdetect\Overseer\Support\Properties;
+use Headdetect\Overseer\Support\ServerAddress;
+use Headdetect\Overseer\Support\ServerStats;
 use Headdetect\Overseer\Support\YamlLines;
 
 $failures = 0;
@@ -50,6 +57,11 @@ function throws(string $name, callable $fn, string $class = InvalidArgumentExcep
     }
 }
 
+// --- Language files load and use the same keys as each other ---
+foreach (glob(__DIR__ . '/../lang/*/*.php') as $file) {
+    check('lang file loads: ' . basename(dirname($file)) . '/' . basename($file), is_array(require $file), true);
+}
+
 // --- CommandInput: nothing typed in the panel may start a second command ---
 check('valid name', CommandInput::playerName(' kelp_lord '), 'kelp_lord');
 check('floodgate name', CommandInput::playerName('.BedrockSteve'), '.BedrockSteve');
@@ -59,9 +71,170 @@ throws('name too long', fn () => CommandInput::playerName(str_repeat('a', 17)));
 throws('empty name', fn () => CommandInput::playerName(''));
 check('reason newlines flattened', CommandInput::text("Griefing\nop Me\r\nstop"), 'Griefing op Me stop');
 check('reason colour codes removed', CommandInput::text('§cBad §lplayer'), 'Bad player');
+check('reason selectors kept as text', CommandInput::text('testing @a and @p[distance=1] and me@a.com'), 'testing ＠a and ＠p[distance=1] and me@a.com');
 check('reason length bounded', mb_strlen(CommandInput::text(str_repeat('x', 500))), 200);
 check('command leading slash removed', CommandInput::command('/time set day'), 'time set day');
+check('reply lines separated', CommandInput::readableReply('Saving the game (this may take a moment!)Saved the game'), 'Saving the game (this may take a moment!) Saved the game');
+check('reply version untouched', CommandInput::readableReply('id = 1.21.8name = 1.21.8'), 'id = 1.21.8name = 1.21.8');
 check('command one line', CommandInput::command("say hi\nstop"), 'say hi stop');
+
+// --- Chunky ---
+check('chunky progress', Chunky::parseProgress('[Chunky] Task running for minecraft:overworld. Processed: 1040 chunks (68.38%), ETA: 0:00:12, Rate: 38.1 cps, Current: -4, -7'), [['world' => 'minecraft:overworld', 'chunks' => 1040, 'percent' => 68.38, 'eta' => '0:00:12', 'rate' => 38.1]]);
+check('chunky two tasks', array_column(Chunky::parseProgress("[Chunky] Task running for minecraft:overworld. Processed: 5 chunks (1.00%), ETA: 1:00:00, Rate: 2.0 cps, Current: 0, 0\n[Chunky] Task running for minecraft:the_nether. Processed: 9 chunks (2.00%), ETA: 0:30:00, Rate: 3.0 cps, Current: 0, 0"), 'world'), ['minecraft:overworld', 'minecraft:the_nether']);
+check('chunky comma decimals', Chunky::parseProgress('[Chunky] Task running for minecraft:overworld. Processed: 10 chunks (1,50%), ETA: 0:01:00, Rate: 2,5 cps')[0]['percent'], 1.5);
+check('chunky saved task', Chunky::parseTask("world=minecraft:overworld\ncancelled=false\nradius=2000.0\nshape=square\nchunks=18651\n"), ['world' => 'minecraft:overworld', 'chunks' => 18651, 'percent' => 29.6]);
+check('chunky cancelled task', Chunky::parseTask("world=minecraft:overworld\ncancelled=true\n"), null);
+check('chunky idle', Chunky::parseProgress('[Chunky] No tasks running.'), []);
+check('chunky square count', Chunky::chunkCount(300, 'square'), 1444);
+check('chunky circle smaller', Chunky::chunkCount(300, 'circle') < 1444, true);
+check('chunky world name', Chunky::isWorld('minecraft:the_nether'), true);
+check('chunky world injection', Chunky::isWorld('minecraft:overworld; stop'), false);
+
+// --- Player roster ---
+$cache = [['name' => 'Doobie', 'uuid' => 'AAAAAAAA-0000-0000-0000-000000000001'], ['name' => 'kelp_lord', 'uuid' => 'aaaaaaaa-0000-0000-0000-000000000002'], ['name' => 'lookup_only', 'uuid' => 'aaaaaaaa-0000-0000-0000-000000000009']];
+$list = [['name' => 'NewFriend', 'uuid' => 'aaaaaaaa-0000-0000-0000-000000000003'], ['name' => 'kelp_lord', 'uuid' => 'aaaaaaaa-0000-0000-0000-000000000002']];
+$seen = ['aaaaaaaa-0000-0000-0000-000000000001' => 1000, 'aaaaaaaa-0000-0000-0000-000000000002' => 2000];
+$roster = PlayerService::buildRoster($cache, $list, $seen, ['Doobie']);
+check('roster order', array_column($roster, 'name'), ['Doobie', 'kelp_lord', 'NewFriend']);
+check('roster online first', $roster[0]['online'], true);
+check('roster last seen', $roster[1]['last_seen'], 2000);
+check('roster whitelisted never joined', $roster[2]['last_seen'], null);
+check('roster skips usercache lookups', in_array('lookup_only', array_column($roster, 'name'), true), false);
+check('roster online without records', PlayerService::buildRoster([], [], [], ['Stranger'])[0], ['name' => 'Stranger', 'uuid' => null, 'last_seen' => null, 'online' => true]);
+
+// --- RCON exposure ---
+check('bind-all is public', ServerAddress::isPublic('0.0.0.0'), true);
+check('public ip is public', ServerAddress::isPublic('51.75.10.20'), true);
+check('docker bridge is private', ServerAddress::isPublic('172.18.0.1'), false);
+check('loopback is private', ServerAddress::isPublic('127.0.0.1'), false);
+check('lan is private', ServerAddress::isPublic('10.0.0.5'), false);
+
+// --- Overview stats ---
+check('time 26.1 timeline', ServerStats::gameTime('Timeline minecraft:day is at 3153 tick(s)'), ['day' => 1, 'clock' => '9:09 AM', 'phase' => 'day']);
+check('time 26.1 later day', ServerStats::gameTime('Timeline minecraft:day is at 66000 tick(s)'), ['day' => 3, 'clock' => '12:00 AM', 'phase' => 'night']);
+check('time 26.1 day from game time', ServerStats::gameTime('Timeline minecraft:day is at 4029 tick(s)', null, 'The game time is 94161 tick(s)'), ['day' => 4, 'clock' => '10:01 AM', 'phase' => 'day']);
+check('time older versions', ServerStats::gameTime('The time is 4', 'The time is 12500'), ['day' => 5, 'clock' => '6:30 PM', 'phase' => 'sunset']);
+check('time older daytime keeps counting', ServerStats::gameTime('The time is 0', 'The time is 47000')['clock'], '5:00 AM');
+check('time unknown reply', ServerStats::gameTime('Unknown or incomplete command'), null);
+check('time no rcon', ServerStats::gameTime(null), null);
+check('clock noon', ServerStats::clock(0, 6000)['clock'], '12:00 PM');
+check('clock sunrise', ServerStats::clock(0, 23500)['phase'], 'sunrise');
+check('version vanilla', ServerStats::version('Server version info:id = 26.1.2name = 26.1.2data = 4790series = main'), '26.1.2');
+check('version vanilla lines', ServerStats::version("Server version info:\nid = 1.21.8\nname = 1.21.8\ndata = 4440"), '1.21.8');
+check('version paper', ServerStats::version('This server is running Paper version 1.21.1-130-master@b48403b (2024-10-23T08:39:46Z) (Implementing API version 1.21.1-R0.1-SNAPSHOT) (MC: 1.21.1)'), '1.21.1');
+check('version unknown', ServerStats::version('Unknown or incomplete command'), null);
+check('version from egg', ServerStats::versionFromEnvironment(['MC_VERSION' => '26.1.2']), '26.1.2');
+check('version egg latest ignored', ServerStats::versionFromEnvironment(['MC_VERSION' => 'latest', 'MINECRAFT_VERSION' => '1.20.1']), '1.20.1');
+check('modpack from db row', ServerStats::modpack(['provider' => 'modrinth', 'modpack_id' => '1KVo5zza', 'modpack_name' => 'Fabulously Optimized', 'modpack_version' => '6.4.0']), ['name' => 'Fabulously Optimized', 'version' => '6.4.0', 'provider' => 'modrinth', 'url' => 'https://modrinth.com/modpack/1KVo5zza']);
+check('modpack from metadata file', ServerStats::modpack(['provider' => 'curseforge', 'modpack_id' => '715572', 'name' => 'All the Mods 9', 'version' => null])['url'], 'https://www.curseforge.com/projects/715572');
+check('modpack bad id gets no link', ServerStats::modpack(['provider' => 'modrinth', 'modpack_id' => '../x', 'name' => 'Pack'])['url'], null);
+check('modpack html stripped', ServerStats::modpack(['name' => '<b>Pack</b>'])['name'], 'Pack');
+check('modpack from modrinth egg', ServerStats::modpackFromIndex(['formatVersion' => 1, 'game' => 'minecraft', 'versionId' => '2.3.0', 'name' => 'Nurps SMP', 'dependencies' => ['minecraft' => '26.1.2']], 'nurps-smp'), ['name' => 'Nurps SMP', 'version' => '2.3.0', 'provider' => 'modrinth', 'url' => 'https://modrinth.com/modpack/nurps-smp']);
+check('modpack from zip upload has no link', ServerStats::modpackFromIndex(['name' => 'Pack', 'versionId' => '1'], 'zip')['url'], null);
+check('modpack missing name', ServerStats::modpack(['provider' => 'modrinth']), null);
+check('uptime days', ServerStats::uptime(3 * 86400000 + 4 * 3600000), '3d 4h');
+check('uptime minutes', ServerStats::uptime(12 * 60000 + 59000), '12m');
+
+// --- Give and teleport ---
+check('item id plain', CommandInput::itemId(' Diamond '), 'diamond');
+check('item id modded', CommandInput::itemId('create:wrench'), 'create:wrench');
+throws('item id with nbt', fn () => CommandInput::itemId('diamond_sword{Enchantments:[]}'));
+check('game mode', CommandInput::gameMode(' Creative '), 'creative');
+check('entity number', PlayerService::parseNumber('headdetect has the following entity data: 30'), 30);
+check('entity float', PlayerService::parseFloat('headdetect has the following entity data: 0.0f'), 0.0);
+check('entity float health', PlayerService::parseFloat('headdetect has the following entity data: 20.0f'), 20.0);
+check('entity number missing', PlayerService::parseNumber('No entity was found'), null);
+throws('game mode injection', fn () => CommandInput::gameMode('creative @a'));
+check('teleport to player', CommandInput::teleport('Doobie', ['to' => 'player', 'target' => 'kelp_lord']), 'tp Doobie kelp_lord');
+check('teleport to coords', CommandInput::teleport('Doobie', ['to' => 'coords', 'x' => '10', 'y' => 64, 'z' => '-20.7', 'dimension' => 'minecraft:the_nether']), 'execute in minecraft:the_nether run tp Doobie 10 64 -20');
+throws('teleport bad target', fn () => CommandInput::teleport('Doobie', ['to' => 'player', 'target' => 'x; stop']));
+throws('teleport bad dimension', fn () => CommandInput::teleport('Doobie', ['to' => 'coords', 'x' => 0, 'y' => 0, 'z' => 0, 'dimension' => 'minecraft:overworld run stop']));
+throws('item id with second command', fn () => CommandInput::itemId('diamond 64\nop Me'));
+
+// --- File editor paths ---
+check('editable mod config', EditableFiles::isEditable('config/sodium-options.json'), true);
+check('editable nested', EditableFiles::isEditable('config/create/server.toml'), true);
+check('editable paper plugin', EditableFiles::isEditable('plugins/Chunky/config.yml'), true);
+check('editable root properties', EditableFiles::isEditable('server.properties'), true);
+check('not ops.json', EditableFiles::isEditable('ops.json'), false);
+check('not a jar', EditableFiles::isEditable('mods/sodium.jar'), false);
+check('not the world', EditableFiles::isEditable('world/level.dat'), false);
+check('not outside folders', EditableFiles::isEditable('logs/latest.txt'), false);
+check('no traversal', EditableFiles::isEditable('config/../ops.json'), false);
+check('no absolute path', EditableFiles::isEditable('/etc/passwd.conf'), false);
+check('not squaremap tiles', EditableFiles::isEditable('squaremap/web/tiles/settings.json'), false);
+check('too deep', EditableFiles::isEditable('config/a/b/c/d.toml'), false);
+check('language toml', EditableFiles::language('config/x.toml'), 'ini');
+check('language yaml', EditableFiles::language('plugins/x/config.yml'), 'yaml');
+
+// --- Map point teleport ---
+check('surface y', Surface::parseY('Marker has the following entity data: 71.0d'), 71);
+check('surface y negative', Surface::parseY('Marker has the following entity data: -12.5d'), -13);
+check('surface y missing', Surface::parseY('No entity was found'), null);
+check('dimension from squaremap', Surface::dimension('minecraft_the_nether'), 'minecraft:the_nether');
+check('dimension from grid', Surface::dimension('overworld'), 'minecraft:overworld');
+throws('dimension modded', fn () => Surface::dimension('twilightforest_twilight_forest'));
+
+// --- Player .dat files ---
+$tag = fn (int $type, string $name, string $payload) => chr($type) . pack('n', strlen($name)) . $name . $payload;
+$nbtString = fn (string $value) => pack('n', strlen($value)) . $value;
+$dat = gzencode($tag(10, '', implode('', [
+    $tag(9, 'Pos', chr(6) . pack('N', 3) . str_repeat(pack('E', 1.5), 3)),
+    $tag(10, 'abilities', $tag(1, 'flying', chr(0)) . chr(0)),
+    $tag(3, 'playerGameType', pack('N', 1)),
+    $tag(7, 'Bytes', pack('N', 3) . 'abc'),
+    $tag(3, 'XpLevel', pack('N', 30)),
+    $tag(8, 'Dimension', $nbtString('minecraft:the_nether')),
+    $tag(12, 'Longs', pack('N', 1) . pack('J', 5)),
+]) . chr(0)));
+check('nbt summary', PlayerNbt::summary($dat), ['gamemode' => 'creative', 'xp_level' => 30, 'dimension' => 'minecraft:the_nether']);
+check('nbt not gzip', PlayerNbt::summary('not nbt'), null);
+check('nbt truncated', PlayerNbt::summary(gzencode(substr(gzdecode($dat), 0, 40))), null);
+
+// --- Chat ---
+$chat = ChatLog::parse([
+    '[12:04:31] [Server thread/INFO]: <Doobie> hi all',
+    '[12:04:32] [Async Chat Thread - #0/INFO]: [Not Secure] <kelp_lord> §ahello',
+    '[12:05:02] [Server thread/INFO]: [Not Secure] [Rcon] admin: restarting soon',
+    '[12:06:10] [Server thread/INFO]: Doobie joined the game',
+    '[12:06:11] [Server thread/INFO]: Doobie left the game',
+    '[12:06:12] [RCON Listener #2/INFO]: Thread RCON Client /172.29.0.1 started',
+    '[12:06:13] [Server thread/WARN]: <Fake> not chat',
+    'garbage',
+]);
+check('chat count', count($chat), 5);
+$m = fn (string $t, string $text) => ['time' => $t, 'type' => 'chat', 'name' => 'A', 'text' => $text];
+check('chat merge appends new', array_column(ChatLog::merge([$m('1', 'a'), $m('2', 'b')], [$m('2', 'b'), $m('3', 'c')]), 'text'), ['a', 'b', 'c']);
+check('chat merge no change', array_column(ChatLog::merge([$m('1', 'a'), $m('2', 'b')], [$m('1', 'a'), $m('2', 'b')]), 'text'), ['a', 'b']);
+check('chat merge keeps a repeated message', array_column(ChatLog::merge([$m('1', 'hi')], [$m('1', 'hi'), $m('1', 'hi')]), 'text'), ['hi', 'hi']);
+check('chat merge limit', count(ChatLog::merge([$m('1', 'a'), $m('2', 'b')], [$m('3', 'c')], 2)), 2);
+check('chat skips mod status lines', ChatLog::parse(['[23:53:00] [Server thread/INFO]: [Chunky] Task running for minecraft:overworld.']), []);
+check('chat message', $chat[0], ['time' => '12:04:31', 'type' => 'chat', 'name' => 'Doobie', 'text' => 'hi all']);
+check('chat paper not secure, colours stripped', $chat[1]['text'], 'hello');
+check('chat say from rcon', [$chat[2]['type'], $chat[2]['name'], $chat[2]['text']], ['say', 'Rcon', 'admin: restarting soon']);
+check('chat join and leave', [$chat[3]['type'], $chat[4]['type']], ['join', 'leave']);
+check('chat limit keeps newest', ChatLog::parse(array_fill(0, 5, '[01:00:00] [Server thread/INFO]: <A> x'), 2), [['time' => '01:00:00', 'type' => 'chat', 'name' => 'A', 'text' => 'x'], ['time' => '01:00:00', 'type' => 'chat', 'name' => 'A', 'text' => 'x']]);
+
+// --- Config file edits ---
+check('properties update every duplicate', Properties::update("a=1\na=2\n", ['a' => '9']), "a=9\na=9\n");
+check('yaml quotes yes', YamlLines::scalar('yes'), "'yes'");
+check('yaml plain word', YamlLines::scalar('hello'), 'hello');
+check('motd line break shown', ConfigSchema::fromFile(['type' => 'string'], "one\ntwo"), 'one\ntwo');
+check('motd line break written', ConfigSchema::toFile(['type' => 'string', 'title' => 'MOTD'], 'one\ntwo'), "one\ntwo");
+check('editable double dot name', EditableFiles::isEditable('config/foo..bar.toml'), true);
+check('editable dot segment', EditableFiles::isEditable('config/./x.toml'), false);
+
+// --- Reset to default ---
+$port = ['type' => 'int', 'default' => 25575, 'title' => 'Port'];
+check('default int as text', ConfigSchema::isDefault($port, '25575'), true);
+check('default int', ConfigSchema::isDefault($port, 25575), true);
+check('default int float', ConfigSchema::isDefault($port, 25575.0), true);
+check('changed int', ConfigSchema::isDefault($port, '25576'), false);
+check('blank int not default', ConfigSchema::isDefault($port, ''), false);
+check('default bool', ConfigSchema::isDefault(['type' => 'bool', 'default' => true], true), true);
+check('changed bool', ConfigSchema::isDefault(['type' => 'bool', 'default' => true], false), false);
+check('default text', ConfigSchema::isDefault(['type' => 'string', 'default' => 'world'], ' world '), true);
+check('no default never shows reset', ConfigSchema::isDefault(['type' => 'string'], 'x'), true);
 
 // --- server.properties ---
 $props = Properties::parse(<<<'TXT'

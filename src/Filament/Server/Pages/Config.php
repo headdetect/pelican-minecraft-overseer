@@ -4,6 +4,7 @@ namespace Headdetect\Overseer\Filament\Server\Pages;
 
 use App\Enums\SubuserPermission;
 use App\Facades\Activity;
+use App\Filament\Server\Resources\Files\Pages\EditFiles;
 use App\Filament\Server\Pages\ServerFormPage;
 use App\Models\Server;
 use App\Repositories\Daemon\DaemonServerRepository;
@@ -74,7 +75,8 @@ class Config extends ServerFormPage
 
     protected function fillForm(): void
     {
-        $data = ['_search' => '', '_advanced' => false];
+        $data = ['_search' => '', '_advanced' => false, '_file' => null];
+        $this->restartNeeded = (bool) cache()->get("overseer:restart-needed:{$this->getRecord()->uuid}", false);
 
         foreach (array_keys(ConfigSchema::SOURCES) as $source) {
             try {
@@ -100,13 +102,68 @@ class Config extends ServerFormPage
 
     protected function getDefaultHeaderActions(): array
     {
+        $changed = fn () => $this->canEdit() && $this->changeCount() > 0;
+        $canRestart = fn () => user()?->can(SubuserPermission::ControlRestart, $this->getRecord()) ?? false;
+
         return [
+            // Not a button: a note beside the save buttons when a change only applies on restart.
+            Action::make('restartNote')
+                ->label(fn () => trans($this->changesRcon() ? 'overseer::overseer.config.rcon_note' : 'overseer::overseer.config.restart_note'))
+                ->icon('tabler-info-circle')
+                ->color('warning')
+                ->link()
+                ->disabled()
+                ->extraAttributes(['class' => 'us-config-note'])
+                ->visible(fn () => $changed() && $this->restartChangeCount() > 0),
+            Action::make('invalidNote')
+                ->label(trans('overseer::overseer.config.invalid_note'))
+                ->icon('tabler-alert-circle')
+                ->color('danger')
+                ->link()
+                ->disabled()
+                ->extraAttributes(['class' => 'us-config-note is-danger'])
+                ->visible(fn () => $changed() && $this->hasInvalidChanges()),
+            Action::make('discard')
+                ->button()
+                ->label(trans('overseer::overseer.config.discard'))
+                ->color('gray')
+                ->visible($changed)
+                ->action(fn () => $this->discard()),
+            Action::make('save')
+                ->button()
+                ->label(fn () => trans_choice('overseer::overseer.config.save', $this->changeCount(), ['count' => $this->changeCount()]))
+                ->icon('tabler-device-floppy')
+                ->color(fn () => $this->restartChangeCount() > 0 && $canRestart() ? 'gray' : 'primary')
+                ->disabled(fn () => $this->hasInvalidChanges())
+                // Overseer reads RCON details from the file, so an RCON change would cut it off until a restart.
+                ->visible(fn () => $changed() && !($this->changesRcon() && $canRestart()))
+                ->modalHeading(trans('overseer::overseer.config.review_heading'))
+                ->modalDescription(trans('overseer::overseer.config.review_help'))
+                ->modalContent(fn () => $this->diff())
+                ->modalSubmitActionLabel(trans('overseer::overseer.config.save_changes'))
+                ->action(fn () => $this->saveSettings()),
+            Action::make('saveRestart')
+                ->button()
+                ->label(trans('overseer::overseer.config.save_restart'))
+                ->icon('tabler-reload')
+                ->disabled(fn () => $this->hasInvalidChanges())
+                ->visible(fn () => $changed() && $this->restartChangeCount() > 0 && $canRestart())
+                ->modalHeading(trans('overseer::overseer.config.review_heading'))
+                ->modalDescription(trans('overseer::overseer.config.save_restart_help'))
+                ->modalContent(fn () => $this->diff())
+                ->modalSubmitActionLabel(trans('overseer::overseer.config.save_restart'))
+                ->action(function () {
+                    if ($this->saveSettings()) {
+                        $this->restart();
+                    }
+                }),
             Action::make('restart')
+                ->button()
                 ->label(trans('overseer::overseer.config.restart'))
                 ->icon('tabler-reload')
                 ->color('warning')
-                ->visible(fn () => $this->restartNeeded)
-                ->authorize(fn () => user()?->can(SubuserPermission::ControlRestart, $this->getRecord()))
+                ->visible(fn () => $this->restartNeeded && !$changed())
+                ->authorize($canRestart)
                 ->requiresConfirmation()
                 ->modalHeading(trans('overseer::overseer.config.restart_heading'))
                 ->modalDescription(trans('overseer::overseer.config.restart_help'))
@@ -124,6 +181,7 @@ class Config extends ServerFormPage
             }
             $tabs[] = $this->sourceTab($source);
         }
+        $tabs[] = $this->filesTab();
 
         return parent::form($schema)->components([
             Grid::make(['default' => 1, 'sm' => 3])->columnSpanFull()->schema([
@@ -143,35 +201,42 @@ class Config extends ServerFormPage
                 ->persistTabInQueryString('source')
                 ->columnSpanFull()
                 ->tabs($tabs),
-            Actions::make([
-                Action::make('discard')
-                    ->label(trans('overseer::overseer.config.discard'))
-                    ->color('gray')
-                    ->action(fn () => $this->discard()),
-                Action::make('review')
-                    ->label(trans('overseer::overseer.config.review'))
-                    ->color('gray')
-                    ->modalHeading(trans('overseer::overseer.config.review_heading'))
-                    ->modalDescription(trans('overseer::overseer.config.review_help'))
-                    ->modalContent(fn () => $this->diff())
-                    ->modalSubmitActionLabel(trans('overseer::overseer.config.save_changes'))
-                    ->action(fn () => $this->save()),
-                Action::make('save')
-                    ->label(fn () => trans_choice('overseer::overseer.config.save', $this->changeCount(), ['count' => $this->changeCount()]))
-                    ->icon('tabler-device-floppy')
-                    ->action(fn () => $this->save()),
-            ])
-                ->alignment(Alignment::End)
-                ->sticky()
-                ->columnSpanFull()
-                ->visible(fn () => $this->canEdit() && $this->changeCount() > 0),
         ]);
+    }
+
+    /**
+     * A list of config files for mods whose settings the form doesn't know.
+     * Picking one opens it in Pelican's own file editor, which checks the
+     * user's file permissions itself.
+     */
+    private function filesTab(): Tab
+    {
+        return Tab::make('files')
+            ->label(trans('overseer::overseer.config.files.title'))
+            ->icon('tabler-file-code')
+            ->schema([
+                Callout::make(trans('overseer::overseer.config.files.help'))->info(),
+                Select::make('_file')
+                    ->label(trans('overseer::overseer.config.files.file'))
+                    ->placeholder(trans('overseer::overseer.config.files.pick'))
+                    ->options(fn () => collect(app(ConfigFiles::class)->editableFiles($this->getRecord()))->mapWithKeys(fn ($path) => [$path => $path])->all())
+                    ->searchable()
+                    ->live()
+                    ->disabled(!$this->canEdit())
+                    ->dehydrated(false)
+                    ->afterStateUpdated(function (?string $state) {
+                        if ($this->canEdit() && $state && in_array($state, app(ConfigFiles::class)->editableFiles($this->getRecord()), true)) {
+                            $this->redirect(EditFiles::getUrl(['path' => encode_path($state)]));
+                        }
+                    }),
+            ]);
     }
 
     private function sourceTab(string $source): Tab
     {
         $schema = ConfigSchema::source($source);
-        $tab = Tab::make($schema['title'])->id($source)->icon($schema['icon']);
+        // The name is the key Filament writes to ?source=, so it has to stay stable.
+        $tab = Tab::make($source)->label($schema['title'])->icon($schema['icon']);
 
         if ($reason = $this->unavailable[$source] ?? null) {
             return $tab->schema([
@@ -189,8 +254,10 @@ class Config extends ServerFormPage
 
         $sections = [];
         foreach ($groups as $group => $settings) {
+            // Plain headings with space between groups, so there are no cards inside the tab's card.
             $sections[] = Section::make($group)
-                ->compact()
+                ->contained(false)
+                ->extraAttributes(['class' => 'us-config-group'])
                 ->hidden(fn () => !$this->anyVisible($settings))
                 ->schema(array_map(fn (string $key) => $this->field($source, $key, $settings[$key]), array_keys($settings)));
         }
@@ -211,7 +278,10 @@ class Config extends ServerFormPage
      */
     private function entriesFor(string $source): array
     {
-        $entries = array_intersect_key(ConfigSchema::entries($source), $this->original[$source] ?? []);
+        $entries = array_diff_key(
+            array_intersect_key(ConfigSchema::entries($source), $this->original[$source] ?? []),
+            array_flip($this->advancedKeys[$source] ?? []),
+        );
 
         foreach ($entries as $key => $entry) {
             // Keep a value we don't know about selectable instead of silently changing it.
@@ -242,6 +312,7 @@ class Config extends ServerFormPage
                 ->suffix($entry['unit'] ?? null)
                 ->live(onBlur: true),
             'range' => Slider::make($name)
+                ->markAsRequired(false)
                 ->range($entry['min'], $entry['max'])
                 ->step(1)
                 ->tooltips()
@@ -266,20 +337,49 @@ class Config extends ServerFormPage
             $entry['help'] .= ' (' . $entry['min'] . '–' . $entry['max'] . ' ' . $entry['unit'] . ')';
         }
 
-        $live = $source === 'rules' || isset($entry['live']);
-
+        // Title and description on the left, the input on the right.
         return $field
-            ->label($entry['title'])
-            ->helperText($entry['help'])
-            ->hint(match (true) {
-                $live => trans('overseer::overseer.config.instant'),
-                $entry['restart'] => trans('overseer::overseer.config.restart_needed'),
-                default => null,
-            })
-            ->hintColor($live ? 'success' : 'warning')
-            ->hintIcon($live ? 'tabler-bolt' : 'tabler-reload', tooltip: $key)
+            ->inlineLabel()
+            ->label(new HtmlString(sprintf(
+                '<span class="us-config-title" title="%s">%s</span><span class="us-config-help">%s</span>',
+                e($key),
+                e($entry['title']),
+                e($entry['help']),
+            )))
+            ->hintActions(array_filter([$this->resetAction($source, $key, $entry)]))
             ->disabled(!$this->canEdit())
             ->hidden(fn () => !$this->isVisible($key, $entry));
+    }
+
+    /** An undo icon that puts a setting back to its vanilla default, after a confirmation. */
+    private function resetAction(string $source, string $key, array $entry): ?Action
+    {
+        if (!array_key_exists('default', $entry) || $entry['type'] === 'password' || !$this->canEdit()) {
+            return null;
+        }
+
+        $field = ConfigSchema::fieldName($key);
+        $default = $entry['default'];
+        $shown = match (true) {
+            is_bool($default) => trans('overseer::overseer.config.' . ($default ? 'on' : 'off')),
+            $entry['type'] === 'enum' => $entry['options'][(string) $default] ?? (string) $default,
+            $default === '' => trans('overseer::overseer.config.empty'),
+            default => (string) $default . (isset($entry['unit']) ? ' ' . $entry['unit'] : ''),
+        };
+
+        return Action::make('reset_' . md5("$source.$key"))
+            ->label(trans('overseer::overseer.config.reset_tooltip', ['value' => $shown]))
+            ->iconButton()
+            ->icon('tabler-arrow-back-up')
+            ->color('gray')
+            ->tooltip(trans('overseer::overseer.config.reset_tooltip', ['value' => $shown]))
+            ->visible(fn () => !ConfigSchema::isDefault($entry, $this->data[$source][$field] ?? null))
+            ->requiresConfirmation()
+            ->modalIcon('tabler-arrow-back-up')
+            ->modalHeading(trans('overseer::overseer.config.reset_heading', ['setting' => $entry['title']]))
+            ->modalDescription(trans('overseer::overseer.config.reset_help', ['value' => $shown]))
+            ->modalSubmitActionLabel(trans('overseer::overseer.config.reset'))
+            ->action(fn () => $this->data[$source][$field] = $default);
     }
 
     private function isVisible(string $key, array $entry): bool
@@ -322,8 +422,13 @@ class Config extends ServerFormPage
                 $current = $this->data[$source][ConfigSchema::fieldName($key)] ?? null;
 
                 if ($entry['type'] === 'password') {
-                    if (filled($current)) {
-                        $changes[$source][$key] = ['entry' => $entry, 'old' => null, 'new' => (string) $current, 'error' => null];
+                    if (filled(trim((string) $current))) {
+                        $error = match (true) {
+                            (bool) preg_match('/[\x00-\x1F\x7F\s]/', (string) $current) => trans('overseer::overseer.config.password_spaces'),
+                            mb_strlen((string) $current) > 100 => trans('overseer::overseer.config.password_long'),
+                            default => null,
+                        };
+                        $changes[$source][$key] = ['entry' => $entry, 'old' => null, 'new' => $error ? null : (string) $current, 'error' => $error];
                     }
 
                     continue;
@@ -357,12 +462,21 @@ class Config extends ServerFormPage
         return array_sum(array_map('count', $this->changes()));
     }
 
-    public function save(): void
+    /**
+     * Pelican's form page wraps everything in a form that calls save() on
+     * submit, and Filament draws action modals inside it, so confirming any
+     * modal (Reset, for one) would also save. Saving only happens from the
+     * Save buttons in the header, after the review modal.
+     */
+    public function save(): void {}
+
+    /** Saves every changed setting. Returns whether all of them saved. */
+    private function saveSettings(): bool
     {
         if (!$this->canEdit()) {
             Notification::make()->title(trans('overseer::overseer.config.no_permission'))->danger()->send();
 
-            return;
+            return false;
         }
 
         $changes = $this->changes();
@@ -372,16 +486,17 @@ class Config extends ServerFormPage
                 if ($change['error'] !== null) {
                     Notification::make()->title(trans('overseer::overseer.config.invalid'))->body($change['error'])->danger()->send();
 
-                    return;
+                    return false;
                 }
             }
         }
 
         if ($changes === []) {
-            return;
+            return false;
         }
 
         $saved = 0;
+        $failed = false;
         $restart = false;
 
         foreach ($changes as $source => $settings) {
@@ -400,6 +515,7 @@ class Config extends ServerFormPage
                     ->danger()
                     ->persistent()
                     ->send();
+                $failed = true;
 
                 continue;
             }
@@ -418,10 +534,13 @@ class Config extends ServerFormPage
         }
 
         if ($saved === 0) {
-            return;
+            return false;
         }
 
         $this->restartNeeded = $this->restartNeeded || $restart;
+        if ($restart) {
+            cache()->put("overseer:restart-needed:{$this->getRecord()->uuid}", true, now()->addDay());
+        }
 
         Notification::make()
             ->title(trans_choice('overseer::overseer.config.saved', $saved, ['count' => $saved]))
@@ -431,6 +550,40 @@ class Config extends ServerFormPage
             ])) ?: null)
             ->success()
             ->send();
+
+        return !$failed;
+    }
+
+    private function hasInvalidChanges(): bool
+    {
+        foreach ($this->changes() as $settings) {
+            foreach ($settings as $change) {
+                if ($change['error'] !== null) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /** Whether a change touches how Overseer reaches RCON. */
+    private function changesRcon(): bool
+    {
+        return (bool) array_intersect(array_keys($this->changes()['server'] ?? []), ['enable-rcon', 'rcon.port', 'rcon.password']);
+    }
+
+    /** How many changed settings only apply after a restart. */
+    private function restartChangeCount(): int
+    {
+        $count = 0;
+        foreach ($this->changes() as $source => $settings) {
+            foreach ($settings as $change) {
+                $count += $source !== 'rules' && ($change['entry']['restart'] ?? false) ? 1 : 0;
+            }
+        }
+
+        return $count;
     }
 
     public function discard(): void
@@ -459,7 +612,14 @@ class Config extends ServerFormPage
 
                 $secret = $change['entry']['type'] === 'password';
                 $old = $secret ? '••••••' : $change['old'];
-                $new = $secret ? '••••••' : ($change['new'] ?? $change['error']);
+                $new = $secret ? '••••••' : $change['new'];
+
+                if ($change['error'] !== null) {
+                    $rows .= '<div style="margin-top:.35rem;font-size:.8rem;color:inherit;opacity:.75">' . e($change['entry']['title']) . '</div>'
+                        . '<div style="font-size:.8rem;padding:.15rem .5rem;border-radius:.25rem;background:rgba(239,68,68,.12);color:rgb(220,38,38)">' . e($change['error']) . '</div>';
+
+                    continue;
+                }
 
                 $rows .= '<div style="margin-top:.35rem;font-size:.8rem;color:inherit;opacity:.75">' . e($change['entry']['title']) . '</div>'
                     . '<div style="font-family:ui-monospace,monospace;font-size:.8rem;padding:.15rem .5rem;border-radius:.25rem;background:rgba(239,68,68,.12)">- ' . $line($old) . '</div>'
@@ -478,6 +638,7 @@ class Config extends ServerFormPage
             app(DaemonServerRepository::class)->setServer($server)->power('restart');
             Activity::event('server:power.restart')->log();
             $this->restartNeeded = false;
+            cache()->forget("overseer:restart-needed:{$server->uuid}");
 
             Notification::make()->title(trans('overseer::overseer.config.restarting'))->success()->send();
         } catch (Exception $exception) {
