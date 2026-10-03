@@ -24,7 +24,7 @@
         $none = trans('overseer::overseer.overview.none');
     @endphp
 
-    <div class="us-stats" wire:poll.15s>
+    <div class="us-stats">
         <div class="us-stat">
             <div class="us-stat-label">{{ trans('overseer::overseer.overview.cpu') }}</div>
             <div class="us-stat-value {{ $r['cpu'] === null ? 'is-empty' : '' }}">{{ $r['cpu'] === null ? $none : number_format($r['cpu'], 1) . '%' }}</div>

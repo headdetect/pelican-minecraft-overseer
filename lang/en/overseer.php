@@ -15,6 +15,14 @@ return [
         'server_time' => "The server's clock",
     ],
 
+    'refresh' => [
+        'now' => 'Refresh',
+        'auto' => 'Refresh automatically',
+        'off' => 'Off',
+        'seconds' => 'Every :n s',
+        'minute' => 'Every minute',
+    ],
+
     'rcon' => [
         'off' => [
             'title' => 'RCON is off',
@@ -71,7 +79,7 @@ return [
         'zoom' => 'Zoom',
         'zoom_in' => 'Zoom in',
         'zoom_out' => 'Zoom out',
-        'live' => 'Live · every :seconds s',
+        'live' => 'Live',
         'loading' => 'Loading players',
         'stale' => 'Positions unavailable',
         'online' => 'Online now',
@@ -147,7 +155,6 @@ return [
         'whitelisted' => 'Whitelisted',
         'online_now' => 'Online now',
         'never' => 'Never',
-        'refresh' => 'Refresh',
         'add_to_whitelist' => 'Add to whitelist',
         'actions' => [
             'kick' => 'Kick',

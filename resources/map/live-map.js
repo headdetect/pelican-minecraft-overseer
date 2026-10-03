@@ -47,20 +47,32 @@ window.overseerLiveMap = function (cfg) {
             this.pins = new Map();
             this.resize = new ResizeObserver(() => this.render());
             this.resize.observe(this.$refs.viewport);
-            this.onVisible = () => !document.hidden && this.tick();
-            document.addEventListener('visibilitychange', this.onVisible);
+            // The refresh control on the tab row sets the pace, so "Off" stops polling.
+            this.onRefresh = (e) => this.refresh(e.detail?.manual);
+            window.addEventListener('overseer-refresh', this.onRefresh);
 
             this.tick();
-            this.timer = setInterval(() => this.tick(), cfg.refresh * 1000);
+
         },
 
         destroy() {
-            clearInterval(this.timer);
+            window.removeEventListener('overseer-refresh', this.onRefresh);
             this.resize?.disconnect();
-            document.removeEventListener('visibilitychange', this.onVisible);
+
         },
 
         // ---- data ----
+
+        // Positions every time; the stats cards (Livewire) at most every 15 s, since
+        // Pelican caches resource usage that long, or right away for a click.
+        refresh(manual) {
+            this.tick();
+            const now = Date.now();
+            if (manual || now - (this.statsAt ?? 0) >= 15000) {
+                this.statsAt = now;
+                this.$wire.$refresh();
+            }
+        },
 
         async tick() {
             // Stop polling when the tab is hidden or the page was navigated away from.

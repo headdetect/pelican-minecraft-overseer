@@ -11,7 +11,7 @@
     .us-filters button:focus-visible { outline: 2px solid var(--primary-500, #3b82f6); outline-offset: 1px; }
     .us-filters .us-count { font-size: 0.7rem; font-variant-numeric: tabular-nums; opacity: 0.7; }
 </style>
-<div class="us-filters-bar">
+<div class="us-filters-bar" x-data x-on:overseer-refresh.window="$wire.refreshPlayers($event.detail.manual)">
 <div class="us-filters" role="group" aria-label="{{ trans('overseer::overseer.players.title') }}">
     @foreach ($tabs as $key => $tab)
         <button type="button" wire:click="$set('activeTab', '{{ $key }}')" @class(['is-on' => $active === $key]) aria-pressed="{{ $active === $key ? 'true' : 'false' }}">

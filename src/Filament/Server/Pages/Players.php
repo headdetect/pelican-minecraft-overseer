@@ -273,11 +273,6 @@ class Players extends Page implements HasTable
                     ->size('sm'),
             ])
             ->headerActions([
-                Action::make('refresh')
-                    ->label(trans('overseer::overseer.players.refresh'))
-                    ->icon('tabler-refresh')
-                    ->color('gray')
-                    ->action(fn () => $this->loadPlayers(fresh: true)),
                 Action::make('add_to_whitelist')
                     ->label(trans('overseer::overseer.players.add_to_whitelist'))
                     ->icon('tabler-user-plus')
@@ -291,6 +286,12 @@ class Players extends Page implements HasTable
                     ->action(fn (array $data) => $this->runFor('whitelist', 'whitelist add', $data['name'], 'whitelist_added')),
             ])
             ->emptyStateHeading(fn () => $this->emptyHeading());
+    }
+
+    /** Called by the refresh control on the tab row. */
+    public function refreshPlayers(bool $manual = false): void
+    {
+        $this->loadPlayers(fresh: $manual);
     }
 
     public function content(Schema $schema): Schema

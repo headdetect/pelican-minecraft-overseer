@@ -48,6 +48,13 @@ class OverseerPluginProvider extends ServiceProvider
 
         FilamentView::registerRenderHook(PanelsRenderHook::PAGE_START, fn () => view('overseer::config-styles'), scopes: [Pages\Config::class]);
 
+        // Refresh controls on the tab row. Not on Config, where a refresh would drop unsaved edits.
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::PAGE_SUB_NAVIGATION_TOP_BEFORE,
+            fn () => view('overseer::refresh-control'),
+            scopes: [Pages\Overview::class, Pages\Players::class, Pages\Tools::class],
+        );
+
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             $schedule->command(LiftExpiredBans::class)->everyMinute()->withoutOverlapping();
         });
