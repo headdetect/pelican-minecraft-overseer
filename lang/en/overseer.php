@@ -75,6 +75,8 @@ return [
         'stale' => 'Positions unavailable',
         'online' => 'Online now',
         'nobody' => 'Nobody is online.',
+        'dead' => 'Dead, waiting to respawn',
+        'not_on_map' => 'Not on the map right now',
         'health' => 'health',
         'op_heading' => 'Make :name an operator?',
         'teleport' => [

@@ -226,6 +226,12 @@ class PlayerService
         return [(int) floor((float) $m[1]), (int) floor((float) $m[2]), (int) floor((float) $m[3])];
     }
 
+    /** Parses "Doobie has the following entity data: 20.0f" into 20.0. */
+    public static function parseFloat(string $reply): ?float
+    {
+        return preg_match('/entity data: (-?\d+(?:\.\d+)?)[bsfdL]?\s*$/', trim($reply), $m) ? (float) $m[1] : null;
+    }
+
     /** Parses "Doobie has the following entity data: 30" into 30. */
     public static function parseNumber(string $reply): ?int
     {

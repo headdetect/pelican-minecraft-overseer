@@ -26,6 +26,8 @@ window.overseerLiveMap = function (cfg) {
         time: null,
         server: null,
         chat: [],
+        // Online players squaremap leaves off the map, such as dead players.
+        unmapped: [],
         // The point menu: a block clicked on the map, with its ground height once known.
         point: null,
         chatScrolled: false,
@@ -74,6 +76,7 @@ window.overseerLiveMap = function (cfg) {
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const result = await response.json();
                 this.players = result.players;
+                this.unmapped = result.unmapped ?? [];
                 this.time = result.time ?? null;
                 this.server = result.server ?? null;
                 this.setChat(result.chat ?? []);

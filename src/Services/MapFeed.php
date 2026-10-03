@@ -18,6 +18,7 @@ class MapFeed
         private readonly MapService $map,
         private readonly PlayerService $players,
         private readonly OverviewService $overview,
+        private readonly ConsoleService $console,
     ) {}
 
     /**
@@ -27,10 +28,14 @@ class MapFeed
     {
         $running = $server->retrieveStatus() === ContainerStatus::Running;
         $players = [];
+        $unmapped = [];
         if ($running) {
-            $players = $this->map->source($server)['status'] === MapService::READY
-                ? $this->map->players($server)
-                : $this->rconPlayers($server);
+            if ($this->map->source($server)['status'] === MapService::READY) {
+                $players = $this->map->players($server);
+                $unmapped = $players !== null ? $this->unmapped($server, array_column($players, 'name')) : [];
+            } else {
+                $players = $this->rconPlayers($server);
+            }
         }
 
         // ops.json rarely changes, so read it at most every 30 seconds.
@@ -41,6 +46,7 @@ class MapFeed
         return [
             'ok' => $players !== null,
             'players' => array_map(fn (array $player) => [...$player, 'op' => in_array($player['name'], $ops, true)], $players ?? []),
+            'unmapped' => array_map(fn (array $player) => [...$player, 'op' => in_array($player['name'], $ops, true)], $unmapped),
             'time' => $running ? $this->overview->gameTime($server) : null,
             'chat' => $running ? ($this->overview->chat($server) ?? []) : [],
             'server' => [
@@ -49,6 +55,34 @@ class MapFeed
                 'uptime' => $uptime !== null ? trans('overseer::overseer.overview.uptime', ['time' => ServerStats::uptime($uptime)]) : null,
             ],
         ];
+    }
+
+    /**
+     * Online players squaremap leaves off its map, other than spectators.
+     * squaremap hides dead players until they respawn, and those should still
+     * show in Online now.
+     *
+     * @param  string[]  $mapped
+     * @return array<int, array{name: string, dead: bool}>
+     */
+    private function unmapped(Server $server, array $mapped): array
+    {
+        $reply = $this->console->query($server, 'list');
+        if ($reply === null) {
+            return [];
+        }
+
+        $players = [];
+        foreach (array_diff(PlayerService::parseList($reply), $mapped) as $name) {
+            $mode = PlayerService::parseNumber((string) $this->console->query($server, "data get entity $name playerGameType"));
+            if ($mode === 3) {
+                continue;
+            }
+            $health = PlayerService::parseFloat((string) $this->console->query($server, "data get entity $name Health"));
+            $players[] = ['name' => $name, 'dead' => $health !== null && $health <= 0];
+        }
+
+        return $players;
     }
 
     /**

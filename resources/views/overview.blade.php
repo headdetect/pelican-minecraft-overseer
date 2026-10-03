@@ -197,7 +197,7 @@
 
             <x-filament::section :heading="trans('overseer::overseer.map.online')" compact>
                 <x-slot name="afterHeader">
-                    <x-filament::badge color="success"><span x-text="players.length">0</span></x-filament::badge>
+                    <x-filament::badge color="success"><span x-text="players.length + unmapped.length">0</span></x-filament::badge>
                 </x-slot>
 
                 <div class="us-list">
@@ -210,7 +210,16 @@
                             </div>
                         </button>
                     </template>
-                    <div class="us-empty" x-show="players.length === 0 && state === 'live'">{{ trans('overseer::overseer.map.nobody') }}</div>
+                    <template x-for="u in unmapped" :key="u.name">
+                        <div class="us-row is-unmapped">
+                            <img :src="head(u.name)" alt="">
+                            <div style="min-width: 0">
+                                <div class="us-row-name"><span class="us-dot" aria-hidden="true"></span><span x-text="u.name"></span><span class="us-badge" x-show="u.op">OP</span></div>
+                                <div class="us-row-where" x-text="u.dead ? '{{ trans('overseer::overseer.map.dead') }}' : '{{ trans('overseer::overseer.map.not_on_map') }}'"></div>
+                            </div>
+                        </div>
+                    </template>
+                    <div class="us-empty" x-show="players.length === 0 && unmapped.length === 0 && state === 'live'">{{ trans('overseer::overseer.map.nobody') }}</div>
                     <div class="us-empty" x-show="state === 'stale'" x-cloak>
                         {{ $config['mode'] === 'squaremap' ? trans('overseer::overseer.map.no_positions_squaremap') : trans('overseer::overseer.map.no_positions_rcon') }}
                     </div>

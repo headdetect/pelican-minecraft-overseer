@@ -134,6 +134,8 @@ check('item id modded', CommandInput::itemId('create:wrench'), 'create:wrench');
 throws('item id with nbt', fn () => CommandInput::itemId('diamond_sword{Enchantments:[]}'));
 check('game mode', CommandInput::gameMode(' Creative '), 'creative');
 check('entity number', PlayerService::parseNumber('headdetect has the following entity data: 30'), 30);
+check('entity float', PlayerService::parseFloat('headdetect has the following entity data: 0.0f'), 0.0);
+check('entity float health', PlayerService::parseFloat('headdetect has the following entity data: 20.0f'), 20.0);
 check('entity number missing', PlayerService::parseNumber('No entity was found'), null);
 throws('game mode injection', fn () => CommandInput::gameMode('creative @a'));
 check('teleport to player', CommandInput::teleport('Doobie', ['to' => 'player', 'target' => 'kelp_lord']), 'tp Doobie kelp_lord');
