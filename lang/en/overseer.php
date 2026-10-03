@@ -238,10 +238,10 @@ return [
             'cancel_help' => 'Chunky deletes the task, so it can\'t be continued. Chunks it already generated stay.',
         ],
         'render' => [
-            'title' => 'Render the map',
-            'help' => 'squaremap draws new chunks on its own, including ones the Generate chunks tool makes. Render the world to draw chunks that existed before squaremap was installed.',
-            'start' => 'Render world',
-            'start_help' => 'squaremap redraws every generated chunk in this world. Large worlds take a while.',
+            'title' => 'Redraw the map',
+            'help' => 'squaremap already draws new and changed chunks on its own, including the ones Generate chunks makes, so you rarely need this. Redraw a world when its map is missing areas, for example chunks generated before squaremap was installed, or after you change squaremap\'s colors or shading in its config.',
+            'start' => 'Redraw world',
+            'start_help' => 'squaremap draws every generated chunk in this world again from scratch. Large worlds take a while, and the server works harder until it finishes.',
         ],
     ],
 

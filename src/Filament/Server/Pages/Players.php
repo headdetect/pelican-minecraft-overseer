@@ -159,6 +159,11 @@ class Players extends Page implements HasTable
                 return new LengthAwarePaginator(array_slice($rows, ($page - 1) * $recordsPerPage, $recordsPerPage), count($rows), $recordsPerPage, $page);
             })
             ->paginated([25, 50, 100])
+            // The filters are small buttons inside the table's card instead of tabs above it.
+            ->header(fn () => view('overseer::partials.player-filters', [
+                'tabs' => collect($this->getTabs())->map(fn (Tab $tab) => ['label' => $tab->getLabel(), 'badge' => $tab->getBadge()])->all(),
+                'active' => $this->activeTab ?: array_key_first($this->getTabs()),
+            ]))
             ->columns([
                 ImageColumn::make('head')
                     ->label('')
@@ -271,7 +276,6 @@ class Players extends Page implements HasTable
     public function content(Schema $schema): Schema
     {
         return $schema->components([
-            $this->getTabsContentComponent(),
             EmbeddedTable::make(),
         ]);
     }
