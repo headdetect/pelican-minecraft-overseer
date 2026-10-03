@@ -67,6 +67,10 @@ window.overseerLiveMap = function (cfg) {
         // Pelican caches resource usage that long, or right away for a click.
         refresh(manual) {
             this.tick();
+            // Terrain changes as players build and explore, so reload the visible
+            // tiles every fifth refresh, or right away for a click.
+            this.refreshes = (this.refreshes ?? 0) + 1;
+            if (manual || this.refreshes % 5 === 0) this.reloadTiles();
             const now = Date.now();
             if (manual || now - (this.statsAt ?? 0) >= 15000) {
                 this.statsAt = now;
@@ -198,6 +202,22 @@ window.overseerLiveMap = function (cfg) {
             if (cfg.mode === 'squaremap') this.renderTiles();
             else this.renderGrid();
             this.renderPins();
+        },
+
+        // Loads each visible tile again in the background and swaps it in once it
+        // arrives, so the map doesn't flicker. The query string skips the
+        // browser's 30-second tile cache. Tiles that failed before get another try.
+        reloadTiles() {
+            const version = Date.now();
+            this.tiles.forEach((img, key) => {
+                const fresh = new Image();
+                fresh.onload = () => {
+                    if (this.tiles.get(key) !== img) return;
+                    img.src = fresh.src;
+                    img.style.visibility = '';
+                };
+                fresh.src = `${cfg.tileBase}tiles/${key}.png?v=${version}`;
+            });
         },
 
         clearTiles() {
