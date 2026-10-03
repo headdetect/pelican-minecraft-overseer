@@ -26,6 +26,7 @@ use Headdetect\Overseer\Services\PlayerService;
 use Headdetect\Overseer\Support\CommandInput;
 use Headdetect\Overseer\Support\Permission;
 use Headdetect\Overseer\Support\ServerStats;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Renderless;
 
 class Overview extends Page
@@ -44,9 +45,11 @@ class Overview extends Page
     protected string $view = 'overseer::overview';
 
     /** @var array{status: string, port: ?int, worlds: array<int, array<string, mixed>>} */
+    #[Locked]
     public array $source = [];
 
     /** @var string[] */
+    #[Locked]
     public array $ops = [];
 
     public static function canAccess(): bool
@@ -99,7 +102,7 @@ class Overview extends Page
 
         return [
             'mode' => $squaremap ? 'squaremap' : 'grid',
-            'worlds' => $squaremap ? $this->source['worlds'] : self::gridWorlds(),
+            'worlds' => $squaremap ? self::labelWorlds($this->source['worlds']) : self::gridWorlds(),
             'tileBase' => url("/overseer/servers/{$this->server()->uuid}/map") . '/',
             'headUrl' => 'https://mc-heads.net/avatar/{name}/64',
             'refresh' => (int) config('overseer.map.refresh', 5),
@@ -114,6 +117,19 @@ class Overview extends Page
                 'providers' => trans('overseer::overseer.overview.providers'),
             ],
         ];
+    }
+
+    /** The player's game mode over RCON, for the Game mode form's default. */
+    private function currentGameMode(string $player): string
+    {
+        try {
+            $name = CommandInput::playerName($player);
+            $mode = PlayerService::parseNumber((string) app(ConsoleService::class)->query($this->server(), "data get entity $name playerGameType"));
+
+            return CommandInput::GAME_MODES[$mode] ?? 'survival';
+        } catch (Exception) {
+            return 'survival';
+        }
     }
 
     /** Teleport any online player to coordinates, from the Quick actions card. */
@@ -333,6 +349,7 @@ class Overview extends Page
             ->visible(fn () => $this->can(Permission::PLAYERS_CHEAT))
             ->modalHeading(fn (array $arguments) => trans('overseer::overseer.players.gamemode_heading', ['name' => $arguments['name'] ?? '']))
             ->modalSubmitActionLabel(trans('overseer::overseer.players.actions.gamemode'))
+            ->fillForm(fn (array $arguments) => ['mode' => $this->currentGameMode($arguments['name'] ?? '')])
             ->schema([Select::make('mode')
                     ->label(trans('overseer::overseer.players.game_mode'))
                     ->options(collect(CommandInput::GAME_MODES)->mapWithKeys(fn ($mode) => [$mode => trans("overseer::overseer.players.game_modes.$mode")])->all())
@@ -346,6 +363,9 @@ class Overview extends Page
     {
         return Action::make('deop')
             ->visible(fn () => $this->can(Permission::PLAYERS_OP))
+            ->requiresConfirmation()
+            ->modalHeading(fn (array $arguments) => trans('overseer::overseer.map.deop_heading', ['name' => $arguments['name'] ?? '']))
+            ->modalSubmitActionLabel(trans('overseer::overseer.players.actions.deop'))
             ->action(fn (array $arguments) => $this->runFor('deop', 'deop', $arguments['name'] ?? '', 'deopped'));
     }
 
@@ -388,6 +408,29 @@ class Overview extends Page
 
             return false;
         }
+    }
+
+    /**
+     * squaremap labels worlds with their ids ("minecraft:the_nether") unless
+     * its config names them, and lists them in no useful order. Use the
+     * translated names for the vanilla dimensions, and put them first.
+     *
+     * @param  array<int, array<string, mixed>>  $worlds
+     * @return array<int, array<string, mixed>>
+     */
+    private static function labelWorlds(array $worlds): array
+    {
+        $rank = ['overworld' => 0, 'nether' => 1, 'end' => 2];
+
+        $worlds = array_map(fn (array $world) => [
+            ...$world,
+            'label' => isset($rank[$world['type']]) && str_contains($world['label'], ':')
+                ? trans("overseer::overseer.map.worlds.{$world['type']}")
+                : $world['label'],
+        ], $worlds);
+        usort($worlds, fn ($a, $b) => ($rank[$a['type']] ?? 3) <=> ($rank[$b['type']] ?? 3));
+
+        return $worlds;
     }
 
     /**

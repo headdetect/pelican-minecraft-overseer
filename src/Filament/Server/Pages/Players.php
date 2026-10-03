@@ -347,6 +347,7 @@ class Players extends Page implements HasTable
             ->visible(fn (array $record) => ($record['is_online'] ?? false) && $this->can(Permission::PLAYERS_CHEAT))
             ->modalHeading(fn (array $record) => trans('overseer::overseer.players.gamemode_heading', ['name' => $record['name']]))
             ->modalSubmitActionLabel(trans('overseer::overseer.players.actions.gamemode'))
+            ->fillForm(fn (array $record) => ['mode' => $record['gamemode'] ?? 'survival'])
             ->schema([Select::make('mode')
                     ->label(trans('overseer::overseer.players.game_mode'))
                     ->options(collect(CommandInput::GAME_MODES)->mapWithKeys(fn ($mode) => [$mode => trans("overseer::overseer.players.game_modes.$mode")])->all())
@@ -500,8 +501,8 @@ class Players extends Page implements HasTable
             ->icon(fn (array $record) => $isOp($record) ? 'tabler-crown-off' : 'tabler-crown')
             ->color('gray')
             ->visible(fn () => $this->activeTab !== 'banned' && $this->can(Permission::PLAYERS_OP))
-            ->requiresConfirmation(fn (array $record) => !$isOp($record))
-            ->modalDescription(trans('overseer::overseer.players.op_warning'))
+            ->requiresConfirmation()
+            ->modalDescription(fn (array $record) => $isOp($record) ? null : trans('overseer::overseer.players.op_warning'))
             ->action(fn (array $record) => $isOp($record)
                 ? $this->runFor('deop', 'deop', $record['name'], 'deopped')
                 : $this->runFor('op', 'op', $record['name'], 'opped'));

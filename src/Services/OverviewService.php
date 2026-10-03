@@ -88,12 +88,16 @@ class OverviewService
 
     public function gameTime(Server $server): ?array
     {
-        $day = $this->console->query($server, 'time query day');
-        $daytime = $day !== null && str_contains($day, 'The time is')
-            ? $this->console->query($server, 'time query daytime')
-            : null;
+        return Cache::remember("overseer:game-time:$server->uuid", now()->addSeconds(4), function () use ($server) {
+            $day = $this->console->query($server, 'time query day');
+            $timeline = $day !== null && str_contains($day, 'Timeline');
 
-        return ServerStats::gameTime($day, $daytime);
+            // 26.1+ wraps the day timeline every day, so count days from total game time.
+            $daytime = $day !== null && !$timeline ? $this->console->query($server, 'time query daytime') : null;
+            $gametime = $timeline ? $this->console->query($server, 'time query gametime') : null;
+
+            return ServerStats::gameTime($day, $daytime, $gametime);
+        });
     }
 
     /** Wings reports usage. The limits are the server's, in MiB and percent, where 0 means no limit. */

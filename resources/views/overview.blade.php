@@ -1,6 +1,7 @@
 @php
-    $config = $this->mapConfig();
-    $setup = $this->statusMessage();
+    // The map, stats and players need map-view. Users with only command permissions see the quick actions.
+    $config = $this->canSeeMap() ? $this->mapConfig() : null;
+    $setup = $this->canSeeMap() ? $this->statusMessage() : null;
     $can = $this->abilities();
 @endphp
 
@@ -64,6 +65,7 @@
         </x-filament::section>
     @endif
 
+    <div class="us-map-wrap">
     <div wire:ignore x-data="overseerLiveMap(@js($config))" class="us-map">
         <div>
             <div
@@ -110,7 +112,7 @@
                         <div class="us-pop us-point" :style="`left:${point.left}px;top:${point.top}px`" x-on:pointerdown.stop role="dialog" aria-label="{{ trans('overseer::overseer.map.point.title') }}">
                             <div class="us-point-coords">
                                 <span x-text="`x ${point.x}`"></span>
-                                <span x-text="point.loading ? 'y …' : (point.y === null ? 'y ?' : `y ${point.y}`)"></span>
+                                <span x-text="point.loading ? 'y …' : (point.y === null ? 'y ?' : `y ${point.y}`)" :title="point.loading ? @js(trans('overseer::overseer.map.point.finding')) : null"></span>
                                 <span x-text="`z ${point.z}`"></span>
                             </div>
                             <div class="us-pop-where" x-text="worldLabel(point.world)"></div>
@@ -134,27 +136,27 @@
                 <template x-if="pop && selectedPlayer">
                     <div class="us-pop" :style="`left:${pop.left}px;top:${pop.top}px`" x-on:pointerdown.stop>
                         <div class="us-pop-head">
-                            <img :src="head(selectedPlayer.name)" alt="">
+                            <img :src="head(selectedPlayer?.name)" alt="">
                             <div>
-                                <strong x-text="selectedPlayer.name"></strong>
-                                <span class="us-badge" x-show="selectedPlayer.op">OP</span>
-                                <div class="us-row-where" x-show="selectedPlayer.health !== null" x-text="`${selectedPlayer.health} / 20 {{ trans('overseer::overseer.map.health') }}`"></div>
+                                <strong x-text="selectedPlayer?.name"></strong>
+                                <span class="us-badge" x-show="selectedPlayer?.op">{{ trans('overseer::overseer.map.op') }}</span>
+                                <div class="us-row-where" x-show="selectedPlayer?.health !== null" x-text="`${selectedPlayer?.health} / 20 ` + @js(trans('overseer::overseer.map.health'))"></div>
                             </div>
                         </div>
-                        <div class="us-pop-where" x-text="`${worldLabel(selectedPlayer.world)} · ${selectedPlayer.x}, ${selectedPlayer.y ?? '?'}, ${selectedPlayer.z}`"></div>
+                        <div class="us-pop-where" x-text="`${worldLabel(selectedPlayer?.world)} · ${selectedPlayer?.x}, ${selectedPlayer?.y ?? '?'}, ${selectedPlayer?.z}`"></div>
                         <div class="us-pop-actions">
                             @if ($can['kick'])
-                                <button type="button" class="us-pop-btn is-warning" x-on:click="act('kick', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.kick') }}</button>
+                                <button type="button" class="us-pop-btn is-warning" x-on:click="act('kick', selectedPlayer?.name)">{{ trans('overseer::overseer.players.actions.kick') }}</button>
                             @endif
                             @if ($can['ban'])
-                                <button type="button" class="us-pop-btn is-danger" x-on:click="act('ban', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.ban') }}</button>
+                                <button type="button" class="us-pop-btn is-danger" x-on:click="act('ban', selectedPlayer?.name)">{{ trans('overseer::overseer.players.actions.ban') }}</button>
                             @endif
                             @if ($can['gamemode'])
-                                <button type="button" class="us-pop-btn is-gray" x-on:click="act('gamemode', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.gamemode') }}</button>
+                                <button type="button" class="us-pop-btn is-gray" x-on:click="act('gamemode', selectedPlayer?.name)">{{ trans('overseer::overseer.players.actions.gamemode') }}</button>
                             @endif
                             @if ($can['op'])
-                                <button type="button" class="us-pop-btn is-gray" x-show="!selectedPlayer.op" x-on:click="act('op', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.op') }}</button>
-                                <button type="button" class="us-pop-btn is-gray" x-show="selectedPlayer.op" x-on:click="act('deop', selectedPlayer.name)">{{ trans('overseer::overseer.players.actions.deop') }}</button>
+                                <button type="button" class="us-pop-btn is-gray" x-show="!selectedPlayer?.op" x-on:click="act('op', selectedPlayer?.name)">{{ trans('overseer::overseer.players.actions.op') }}</button>
+                                <button type="button" class="us-pop-btn is-gray" x-show="selectedPlayer?.op" x-on:click="act('deop', selectedPlayer?.name)">{{ trans('overseer::overseer.players.actions.deop') }}</button>
                             @endif
                         </div>
                     </div>
@@ -168,7 +170,7 @@
                 <div class="us-chat" aria-live="polite">
                     <template x-for="(m, i) in chat" :key="i">
                         <div class="us-chat-line" :class="`is-${m.type}`">
-                            <span class="us-chat-time" x-text="m.time.slice(0, 5)"></span>
+                            <span class="us-chat-time" x-text="m.time.slice(0, 5)" title="{{ trans('overseer::overseer.chat.server_time') }}"></span>
                             <template x-if="m.type === 'chat'">
                                 <span><b x-text="m.name"></b> <span x-text="m.text"></span></span>
                             </template>
@@ -205,7 +207,7 @@
                         <button type="button" class="us-row" :class="{ 'is-selected': selected === p.name }" x-on:click="focus(p)" :aria-pressed="selected === p.name">
                             <img :src="head(p.name)" alt="">
                             <div style="min-width: 0">
-                                <div class="us-row-name"><span x-text="p.name"></span><span class="us-badge" x-show="p.op">OP</span></div>
+                                <div class="us-row-name"><span x-text="p.name"></span><span class="us-badge" x-show="p.op">{{ trans('overseer::overseer.map.op') }}</span></div>
                                 <div class="us-row-where" x-text="`${worldLabel(p.world)} · ${p.x}, ${p.z}`"></div>
                             </div>
                         </button>
@@ -214,8 +216,8 @@
                         <div class="us-row is-unmapped">
                             <img :src="head(u.name)" alt="">
                             <div style="min-width: 0">
-                                <div class="us-row-name"><span x-text="u.name"></span><span class="us-badge" x-show="u.op">OP</span></div>
-                                <div class="us-row-where" x-text="u.dead ? '{{ trans('overseer::overseer.map.dead') }}' : '{{ trans('overseer::overseer.map.not_on_map') }}'"></div>
+                                <div class="us-row-name"><span x-text="u.name"></span><span class="us-badge" x-show="u.op">{{ trans('overseer::overseer.map.op') }}</span></div>
+                                <div class="us-row-where" x-text="u.dead ? @js(trans('overseer::overseer.map.dead')) : @js(trans('overseer::overseer.map.not_on_map'))"></div>
                             </div>
                         </div>
                     </template>
@@ -230,7 +232,7 @@
 
             <x-filament::section compact>
                 <div class="us-stat-label">{{ trans('overseer::overseer.overview.minecraft') }}</div>
-                <div class="us-stat-value" :class="{ 'is-empty': !server?.version }" x-text="server?.version ?? '{{ trans('overseer::overseer.overview.none') }}'"></div>
+                <div class="us-stat-value" :class="{ 'is-empty': !server?.version }" x-text="server?.version ?? @js(trans('overseer::overseer.overview.none'))"></div>
                 <div class="us-stat-sub">
                     <template x-if="server?.modpack">
                         <span :title="`${server.modpack.name} ${server.modpack.version ?? ''}`">
@@ -243,9 +245,10 @@
                         <span>{{ trans('overseer::overseer.overview.no_modpack') }}</span>
                     </template>
                 </div>
-                <div class="us-stat-sub" x-text="server?.uptime ?? '{{ trans('overseer::overseer.overview.offline') }}'"></div>
+                <div class="us-stat-sub" x-text="server?.uptime ?? @js(trans('overseer::overseer.overview.offline'))"></div>
             </x-filament::section>
         </div>
+    </div>
     </div>
     @endif
 

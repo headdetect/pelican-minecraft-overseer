@@ -21,12 +21,14 @@ final class ServerStats
      *
      * @return ?array{day: int, clock: string, phase: string}
      */
-    public static function gameTime(?string $dayReply, ?string $daytimeReply = null): ?array
+    public static function gameTime(?string $dayReply, ?string $daytimeReply = null, ?string $gametimeReply = null): ?array
     {
         if ($dayReply !== null && preg_match('/Timeline minecraft:day is at (-?\d+) tick/', $dayReply, $m)) {
-            $total = (int) $m[1];
+            $ticks = (int) $m[1];
+            // The timeline wraps each day, so the day number comes from total game time when known.
+            $total = $gametimeReply !== null && preg_match('/game time is (\d+) tick/', $gametimeReply, $g) ? (int) $g[1] : $ticks;
 
-            return self::clock(intdiv($total, self::TICKS_PER_DAY), $total % self::TICKS_PER_DAY);
+            return self::clock(intdiv($total, self::TICKS_PER_DAY), $ticks % self::TICKS_PER_DAY);
         }
 
         if (

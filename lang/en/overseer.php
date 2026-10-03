@@ -12,6 +12,7 @@ return [
         'joined' => ':name joined',
         'left' => ':name left',
         'failed' => "Couldn't send the message",
+        'server_time' => "The server's clock",
     ],
 
     'rcon' => [
@@ -79,6 +80,8 @@ return [
         'not_on_map' => 'Not on the map right now',
         'health' => 'health',
         'op_heading' => 'Make :name an operator?',
+        'deop_heading' => 'Remove :name as an operator?',
+        'op' => 'OP',
         'teleport' => [
             'heading' => 'Teleport a player',
             'ground' => 'Land on the ground',
@@ -92,6 +95,7 @@ return [
             'nobody' => 'Nobody is online to teleport.',
             'no_ground' => "Couldn't find the ground here. The server may be busy.",
             'nether' => 'In the Nether, the top block is usually the bedrock roof.',
+            'finding' => 'Finding the ground height',
         ],
         'no_positions_squaremap' => "Can't read player positions from squaremap right now.",
         'no_positions_rcon' => 'Turn on RCON in server.properties to see where players are.',
@@ -249,6 +253,8 @@ return [
 
     'commands' => [
         'quick' => 'Quick actions',
+        'send' => 'Send',
+        'run' => 'Run',
         'players' => 'Players',
         'sent' => 'Ran :command',
         'failed' => "That didn't work",
@@ -270,6 +276,7 @@ return [
             'title' => 'Recent actions',
             'help' => 'What admins ran from Overseer on this server. Also in the Activity log.',
             'empty' => 'Nothing yet.',
+            'system' => 'system',
         ],
         'short' => [
             'save' => 'Save',

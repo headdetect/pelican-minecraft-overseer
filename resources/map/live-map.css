@@ -28,7 +28,10 @@
     --us-axis: rgba(255, 255, 255, 0.25);
     --us-label: rgba(255, 255, 255, 0.4);
 }
-@media (max-width: 1000px) {
+/* Stack the map and the right column by the space the page has, not the window:
+   the panel sidebar takes about 330px of a 1024px window. */
+.us-map-wrap { container-type: inline-size; }
+@container (max-width: 860px) {
     .us-map { grid-template-columns: 1fr; }
 }
 

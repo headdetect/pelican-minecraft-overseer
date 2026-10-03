@@ -73,6 +73,8 @@ check('reason newlines flattened', CommandInput::text("Griefing\nop Me\r\nstop")
 check('reason colour codes removed', CommandInput::text('§cBad §lplayer'), 'Bad player');
 check('reason length bounded', mb_strlen(CommandInput::text(str_repeat('x', 500))), 200);
 check('command leading slash removed', CommandInput::command('/time set day'), 'time set day');
+check('reply lines separated', CommandInput::readableReply('Saving the game (this may take a moment!)Saved the game'), 'Saving the game (this may take a moment!) Saved the game');
+check('reply version untouched', CommandInput::readableReply('id = 1.21.8name = 1.21.8'), 'id = 1.21.8name = 1.21.8');
 check('command one line', CommandInput::command("say hi\nstop"), 'say hi stop');
 
 // --- Chunky ---
@@ -106,6 +108,7 @@ check('lan is private', ServerAddress::isPublic('10.0.0.5'), false);
 // --- Overview stats ---
 check('time 26.1 timeline', ServerStats::gameTime('Timeline minecraft:day is at 3153 tick(s)'), ['day' => 1, 'clock' => '9:09 AM', 'phase' => 'day']);
 check('time 26.1 later day', ServerStats::gameTime('Timeline minecraft:day is at 66000 tick(s)'), ['day' => 3, 'clock' => '12:00 AM', 'phase' => 'night']);
+check('time 26.1 day from game time', ServerStats::gameTime('Timeline minecraft:day is at 4029 tick(s)', null, 'The game time is 94161 tick(s)'), ['day' => 4, 'clock' => '10:01 AM', 'phase' => 'day']);
 check('time older versions', ServerStats::gameTime('The time is 4', 'The time is 12500'), ['day' => 5, 'clock' => '6:30 PM', 'phase' => 'sunset']);
 check('time older daytime keeps counting', ServerStats::gameTime('The time is 0', 'The time is 47000')['clock'], '5:00 AM');
 check('time unknown reply', ServerStats::gameTime('Unknown or incomplete command'), null);

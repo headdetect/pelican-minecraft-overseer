@@ -382,9 +382,9 @@ window.overseerLiveMap = function (cfg) {
                 return;
             }
             const at = this.toScreen(p.x + 0.5, p.z + 0.5);
-            const { w } = this.size();
+            const { w, h } = this.size();
             const left = at.x + 250 > w ? at.x - 256 : at.x + 18;
-            this.pop = { left: Math.max(8, left), top: Math.max(8, at.y - 60) };
+            this.pop = { left: Math.max(8, left), top: Math.max(8, Math.min(at.y - 60, h - 190)) };
         },
 
         head(name) {

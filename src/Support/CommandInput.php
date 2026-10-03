@@ -102,6 +102,16 @@ final class CommandInput
     }
 
     /** Strips § colour codes from server output. */
+    /**
+     * Minecraft joins the lines of an RCON reply with nothing between them:
+     * "Saving the game (this may take a moment!)Saved the game". Puts a space
+     * where a sentence ends right against the next one. For display only.
+     */
+    public static function readableReply(string $text): string
+    {
+        return preg_replace('/([.!?)])(?=[A-Z])/', '$1 ', $text) ?? $text;
+    }
+
     public static function stripFormatting(string $text): string
     {
         return preg_replace('/§./u', '', $text) ?? $text;

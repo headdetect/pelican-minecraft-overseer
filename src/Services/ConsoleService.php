@@ -45,7 +45,7 @@ class ConsoleService
 
         if ($client = $this->rcon($server)) {
             try {
-                $response = CommandInput::stripFormatting(trim($client->command($command)));
+                $response = CommandInput::readableReply(CommandInput::stripFormatting(trim($client->command($command))));
             } catch (RconException $exception) {
                 report($exception);
                 $this->rcon = null;

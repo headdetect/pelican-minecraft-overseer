@@ -81,6 +81,7 @@ trait RunsQuickCommands
             ->color('gray')
             ->label(trans('overseer::overseer.commands.buttons.broadcast'))
             ->icon('tabler-speakerphone')
+            ->modalSubmitActionLabel(trans('overseer::overseer.commands.send'))
             ->visible(fn () => $this->canRunOpsCommands())
             ->schema([Textarea::make('message')->label(trans('overseer::overseer.commands.server.message'))->required()->maxLength(200)->rows(2)])
             ->action(fn (array $data) => $this->sendCommand('broadcast', 'say ' . CommandInput::text($data['message'])));
@@ -93,6 +94,7 @@ trait RunsQuickCommands
             ->color('gray')
             ->label(trans('overseer::overseer.commands.buttons.custom'))
             ->icon('tabler-terminal-2')
+            ->modalSubmitActionLabel(trans('overseer::overseer.commands.run'))
             ->visible(fn () => $this->canRunOpsCommands())
             ->schema([TextInput::make('command')
                 ->label(trans('overseer::overseer.commands.server.command'))
@@ -148,7 +150,7 @@ trait RunsQuickCommands
             ->map(fn (AuditEntry $entry) => sprintf(
                 '%s · %s · /%s%s',
                 $entry->created_at->diffForHumans(short: true),
-                $entry->user->username ?? 'system',
+                $entry->user->username ?? trans('overseer::overseer.commands.recent.system'),
                 $entry->command,
                 $entry->response ? ' → ' . str($entry->response)->limit(80) : '',
             ))

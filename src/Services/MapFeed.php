@@ -43,6 +43,9 @@ class MapFeed
         $stats = $this->overview->stats($server);
         $uptime = $stats['resources']['uptime'];
 
+        // The sidebar badge shows the same count as Online now while someone has the Overview open.
+        Cache::put("overseer:online-count:$server->uuid", count($players ?? []) + count($unmapped), now()->addSeconds(30));
+
         return [
             'ok' => $players !== null,
             'players' => array_map(fn (array $player) => [...$player, 'op' => in_array($player['name'], $ops, true)], $players ?? []),

@@ -13,6 +13,8 @@ Route::middleware(['web', 'auth'])
             ->name('overseer.map.tile');
         Route::get('/map-feed', MapFeedController::class)
             ->name('overseer.map.feed');
+        // Each request loads a chunk and summons a marker, so cap how often one user can ask.
         Route::get('/map-surface', MapSurfaceController::class)
+            ->middleware('throttle:30,1')
             ->name('overseer.map.surface');
     });

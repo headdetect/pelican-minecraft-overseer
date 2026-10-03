@@ -12,7 +12,7 @@
     color: var(--us-text);
 }
 @media (min-width: 1024px) {
-    .us-stats { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
+    .us-stats { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 }
 .dark .us-stats {
     --us-panel: rgba(255, 255, 255, 0.03);

@@ -7,7 +7,7 @@
         <button
             type="button"
             class="us-tile-btn"
-            title="/{{ $tile['command'] }}"
+            title="{{ $tile['command'] !== '' ? '/' . $tile['command'] : $tile['label'] }}"
             x-data="{ busy: false }"
             x-on:click="busy = true; $wire.mountAction('{{ $tile['action'] }}').finally(() => (busy = false))"
             x-bind:disabled="busy"
