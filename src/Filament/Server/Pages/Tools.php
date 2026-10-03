@@ -57,12 +57,17 @@ class Tools extends Page
         return static::getNavigationLabel();
     }
 
-    /** @return array{running: bool, installed: ?bool, tasks: array<int, array<string, mixed>>} */
+    /** @return array{running: bool, starting: bool, installed: ?bool, tasks: array<int, array<string, mixed>>, saved: array<int, array<string, mixed>>} */
     public function chunky(): array
     {
-        $running = $this->server()->retrieveStatus() === ContainerStatus::Running;
+        $status = $this->server()->retrieveStatus();
+        $running = $status === ContainerStatus::Running;
 
-        return ['running' => $running, ...($running ? app(Chunky::class)->status($this->server()) : ['installed' => null, 'tasks' => []])];
+        return [
+            'running' => $running,
+            'starting' => $status === ContainerStatus::Starting,
+            ...($running ? app(Chunky::class)->status($this->server()) : ['installed' => null, 'tasks' => [], 'saved' => []]),
+        ];
     }
 
     public function squaremapReady(): bool
@@ -77,7 +82,7 @@ class Tools extends Page
             ->label(trans('overseer::overseer.tools.pregen.start'))
             ->icon('tabler-player-play')
             ->modalHeading(trans('overseer::overseer.tools.pregen.start_heading'))
-            ->modalDescription(trans('overseer::overseer.tools.pregen.start_help'))
+            ->modalDescription(fn () => trans('overseer::overseer.tools.pregen.start_help') . ($this->chunky()['saved'] ? ' ' . trans('overseer::overseer.tools.pregen.replaces_saved') : ''))
             ->modalSubmitActionLabel(trans('overseer::overseer.tools.pregen.start'))
             ->schema([
                 Select::make('world')
@@ -110,8 +115,8 @@ class Tools extends Page
                     ->default(true)
                     ->live(),
                 Grid::make(2)->visible(fn (Get $get) => !$get('spawn'))->schema([
-                    TextInput::make('x')->label('X')->numeric()->integer()->minValue(-29999984)->maxValue(29999984)->default(0)->required(),
-                    TextInput::make('z')->label('Z')->numeric()->integer()->minValue(-29999984)->maxValue(29999984)->default(0)->required(),
+                    TextInput::make('x')->label('X')->validationAttribute('X')->numeric()->integer()->minValue(-29999984)->maxValue(29999984)->default(0)->required(),
+                    TextInput::make('z')->label('Z')->validationAttribute('Z')->numeric()->integer()->minValue(-29999984)->maxValue(29999984)->default(0)->required(),
                 ]),
                 Text::make(fn (Get $get) => $this->estimate($get('radius'), $get('shape'))),
             ])
@@ -197,11 +202,11 @@ class Tools extends Page
 
     private function estimate(mixed $radius, ?string $shape): string
     {
-        if (!is_numeric($radius) || (int) $radius < 16) {
+        if (!is_numeric($radius) || (int) $radius < 16 || (int) $radius > Chunky::MAX_RADIUS) {
             return '';
         }
 
-        $chunks = Chunky::chunkCount(min((int) $radius, Chunky::MAX_RADIUS), $shape ?? 'square');
+        $chunks = Chunky::chunkCount((int) $radius, $shape ?? 'square');
 
         return trans('overseer::overseer.tools.pregen.estimate', ['chunks' => number_format($chunks)]);
     }

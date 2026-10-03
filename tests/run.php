@@ -81,6 +81,9 @@ check('command one line', CommandInput::command("say hi\nstop"), 'say hi stop');
 // --- Chunky ---
 check('chunky progress', Chunky::parseProgress('[Chunky] Task running for minecraft:overworld. Processed: 1040 chunks (68.38%), ETA: 0:00:12, Rate: 38.1 cps, Current: -4, -7'), [['world' => 'minecraft:overworld', 'chunks' => 1040, 'percent' => 68.38, 'eta' => '0:00:12', 'rate' => 38.1]]);
 check('chunky two tasks', array_column(Chunky::parseProgress("[Chunky] Task running for minecraft:overworld. Processed: 5 chunks (1.00%), ETA: 1:00:00, Rate: 2.0 cps, Current: 0, 0\n[Chunky] Task running for minecraft:the_nether. Processed: 9 chunks (2.00%), ETA: 0:30:00, Rate: 3.0 cps, Current: 0, 0"), 'world'), ['minecraft:overworld', 'minecraft:the_nether']);
+check('chunky comma decimals', Chunky::parseProgress('[Chunky] Task running for minecraft:overworld. Processed: 10 chunks (1,50%), ETA: 0:01:00, Rate: 2,5 cps')[0]['percent'], 1.5);
+check('chunky saved task', Chunky::parseTask("world=minecraft:overworld\ncancelled=false\nradius=2000.0\nshape=square\nchunks=18651\n"), ['world' => 'minecraft:overworld', 'chunks' => 18651, 'percent' => 29.6]);
+check('chunky cancelled task', Chunky::parseTask("world=minecraft:overworld\ncancelled=true\n"), null);
 check('chunky idle', Chunky::parseProgress('[Chunky] No tasks running.'), []);
 check('chunky square count', Chunky::chunkCount(300, 'square'), 1444);
 check('chunky circle smaller', Chunky::chunkCount(300, 'circle') < 1444, true);

@@ -2,8 +2,11 @@
 
 namespace Headdetect\Overseer\Services\Tools;
 
-use Headdetect\Overseer\Services\ConsoleService;
 use App\Models\Server;
+use App\Repositories\Daemon\DaemonFileRepository;
+use Exception;
+use Headdetect\Overseer\Services\ConsoleService;
+use Headdetect\Overseer\Support\Properties;
 use InvalidArgumentException;
 
 /**
@@ -20,18 +23,95 @@ class Chunky
 
     public function __construct(private readonly ConsoleService $console) {}
 
+    /** Where Chunky saves paused tasks: config/ on Fabric and NeoForge, plugins/ on Paper. */
+    private const TASK_DIRS = ['config/chunky/tasks', 'plugins/Chunky/tasks'];
+
     /**
-     * Whether Chunky answers, and its running tasks. installed is null when RCON is off.
+     * Whether Chunky answers, its running tasks, and saved tasks that aren't
+     * running (paused, or interrupted by a restart). installed is null when
+     * RCON is off.
      *
-     * @return array{installed: ?bool, tasks: array<int, array<string, mixed>>}
+     * @return array{installed: ?bool, tasks: array<int, array<string, mixed>>, saved: array<int, array<string, mixed>>}
      */
     public function status(Server $server): array
     {
         $reply = $this->console->query($server, 'chunky progress');
+        $tasks = $reply === null ? [] : self::parseProgress($reply);
+        $running = array_column($tasks, 'world');
 
         return [
             'installed' => $reply === null ? null : str_contains($reply, '[Chunky]'),
-            'tasks' => $reply === null ? [] : self::parseProgress($reply),
+            'tasks' => $tasks,
+            'saved' => $reply === null ? [] : array_values(array_filter($this->savedTasks($server), fn ($task) => !in_array($task['world'], $running, true))),
+        ];
+    }
+
+    /**
+     * Tasks Chunky saved to disk and hasn't cancelled.
+     *
+     * @return array<int, array{world: string, chunks: int, percent: ?float}>
+     */
+    private function savedTasks(Server $server): array
+    {
+        $files = (new DaemonFileRepository())->setServer($server);
+        $tasks = [];
+
+        foreach (self::TASK_DIRS as $dir) {
+            try {
+                $namespaces = $files->getDirectory($dir);
+            } catch (Exception) {
+                continue;
+            }
+
+            foreach ($namespaces as $namespace) {
+                if (!($namespace['directory'] ?? false)) {
+                    continue;
+                }
+                try {
+                    $entries = $files->getDirectory("$dir/{$namespace['name']}");
+                } catch (Exception) {
+                    continue;
+                }
+
+                foreach ($entries as $entry) {
+                    if (!str_ends_with($entry['name'] ?? '', '.properties')) {
+                        continue;
+                    }
+                    try {
+                        $task = self::parseTask($files->getContent("$dir/{$namespace['name']}/{$entry['name']}"));
+                    } catch (Exception) {
+                        $task = null;
+                    }
+                    if ($task) {
+                        $tasks[] = $task;
+                    }
+                }
+            }
+        }
+
+        return $tasks;
+    }
+
+    /**
+     * Parses a saved task file. Null when it was cancelled or isn't a task.
+     *
+     * @return ?array{world: string, chunks: int, percent: ?float}
+     */
+    public static function parseTask(string $contents): ?array
+    {
+        $task = Properties::parse($contents);
+        if (!isset($task['world']) || ($task['cancelled'] ?? 'false') === 'true') {
+            return null;
+        }
+
+        $chunks = (int) ($task['chunks'] ?? 0);
+        $radius = (int) round((float) ($task['radius'] ?? 0));
+        $total = $radius >= 16 ? self::chunkCount($radius, ($task['shape'] ?? 'square') === 'circle' ? 'circle' : 'square') : 0;
+
+        return [
+            'world' => $task['world'],
+            'chunks' => $chunks,
+            'percent' => $total > 0 ? min(100.0, round($chunks / $total * 100, 1)) : null,
         ];
     }
 
@@ -56,7 +136,11 @@ class Chunky
         $this->run($server, "chunky radius $radius");
         $this->run($server, "chunky shape $shape");
 
-        return $this->run($server, 'chunky start');
+        // With a saved task for this world, Chunky asks to confirm replacing it.
+        // The form already says so, so confirm.
+        $reply = $this->run($server, 'chunky start');
+
+        return $reply !== null && str_contains($reply, 'confirm') ? $this->run($server, 'chunky confirm') : $reply;
     }
 
     public function pause(Server $server): ?string
@@ -90,14 +174,16 @@ class Chunky
      */
     public static function parseProgress(string $reply): array
     {
-        preg_match_all('/Task running for ([\w:.\/-]+)\. Processed: (\d+) chunks \(([\d.]+)%\)(?:, ETA: ([\d:]+))?(?:, Rate: ([\d.]+) cps)?/', $reply, $matches, PREG_SET_ORDER);
+        // Some JVM locales print decimals with a comma.
+        preg_match_all('/Task running for ([\w:.\/-]+)\. Processed: (\d+) chunks \(([\d.,]+)%\)(?:, ETA: ([\d:]+))?(?:, Rate: ([\d.,]+) cps)?/', $reply, $matches, PREG_SET_ORDER);
+        $number = fn (string $value) => (float) str_replace(',', '.', $value);
 
         return array_map(fn (array $m) => [
             'world' => $m[1],
             'chunks' => (int) $m[2],
-            'percent' => min(100.0, (float) $m[3]),
+            'percent' => min(100.0, $number($m[3])),
             'eta' => ($m[4] ?? '') !== '' ? $m[4] : null,
-            'rate' => ($m[5] ?? '') !== '' ? (float) $m[5] : null,
+            'rate' => ($m[5] ?? '') !== '' ? $number($m[5]) : null,
         ], $matches);
     }
 

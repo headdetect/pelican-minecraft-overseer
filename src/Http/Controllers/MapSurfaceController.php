@@ -10,6 +10,7 @@ use Headdetect\Overseer\Support\Permission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use InvalidArgumentException;
 
 /**
  * The ground height at a point clicked on the map. A plain route, so the
@@ -27,12 +28,18 @@ class MapSurfaceController extends Controller
             'z' => ['required', 'integer', 'between:-29999984,29999984'],
         ]);
 
+        try {
+            $dimension = Surface::dimension($data['world']);
+        } catch (InvalidArgumentException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+
         if ($server->retrieveStatus() !== ContainerStatus::Running) {
             return response()->json(['y' => null]);
         }
 
         try {
-            $y = $surface->y($server, Surface::dimension($data['world']), (int) $data['x'], (int) $data['z']);
+            $y = $surface->y($server, $dimension, (int) $data['x'], (int) $data['z']);
         } catch (Exception $exception) {
             report($exception);
             $y = null;

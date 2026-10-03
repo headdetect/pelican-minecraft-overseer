@@ -27,6 +27,12 @@ class Overseer extends Cluster
 
     protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
 
+    /** A user with none of Overseer's permissions gets a 403 instead of an empty page. */
+    public static function canAccess(): bool
+    {
+        return static::canAccessClusteredComponents() && parent::canAccess();
+    }
+
     public static function getNavigationLabel(): string
     {
         return trans('overseer::overseer.cluster');

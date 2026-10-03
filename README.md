@@ -6,7 +6,7 @@ A [Pelican](https://pelican.dev) panel plugin for running a Minecraft Java serve
 
 - **Overview**: CPU, memory and disk use, and Save, Broadcast and Command buttons. A live map from squaremap shows everyone online, refreshed every 5 seconds. Switch between Overworld, Nether and End, drag and zoom, and click a player to kick, ban, op them or change their game mode. Click anywhere else to see that spot's coordinates, ground height included, and teleport a player there. Without squaremap, players are drawn on a block grid using RCON. Beside the map:
   - Live chat, joins and leaves, with a box to message everyone.
-  - Who is online now, spectators included. Click a player to find them on the map.
+  - Who is online now. Dead players show as Dead, and spectators are left out. Click a player to find them on the map.
   - The game time with a day or night icon, and one-click time of day and weather.
   - The Minecraft version, the modpack with a link to its Modrinth or CurseForge page, and uptime. The modpack comes from `modrinth.index.json`, which the Modrinth generic egg leaves in the server folder, or from the [Modpack Manager](https://hub.pelican.dev/plugins/modpack-manager) plugin.
   - Recent actions, below the map.
@@ -44,7 +44,9 @@ A [Pelican](https://pelican.dev) panel plugin for running a Minecraft Java serve
 
 Install [squaremap](https://github.com/jpenilla/squaremap) on the Minecraft server (Paper, Fabric or NeoForge). Its built-in web server listens on port 8080 by default (`settings.internal-webserver.port` in squaremap's `config.yml`). Add that port as an allocation on the server in Pelican, like the RCON port.
 
-squaremap draws only the chunks that exist and updates them as players explore. To draw an existing world now, run `squaremap fullrender minecraft:overworld` in the server console.
+squaremap draws only the chunks that exist and updates them as players explore. To draw an existing world now, use Redraw the map on the Tools tab, or run `squaremap fullrender minecraft:overworld` in the server console.
+
+Overseer polls the server over RCON every few seconds while one of its pages is open, and Minecraft logs a "Thread RCON Client ... started" line for each connection. Those lines show in Pelican's console.
 
 The browser never connects to squaremap: the panel fetches the tiles and passes them on, so the map works on an HTTPS panel and the port does not need to be open to the internet. The panel only ever connects to the server's own address on one of its own allocated ports.
 
@@ -67,18 +69,22 @@ Then give people access under the server's **Users** page. The Overseer tab has 
 
 | Permission | Lets them |
 | --- | --- |
-| map-view | Open the Live Map |
+| map-view | See the Overview: stats, the map, chat and who is online |
 | players-view | Open the Players page |
 | players-kick | Kick |
 | players-ban | Ban and unban |
 | players-op | Op and deop |
 | players-whitelist | Change the whitelist |
-| commands-world | Time, weather, difficulty, game rules, save |
-| commands-ops | Whitelist on or off, broadcast, any command |
+| players-cheat | Change game mode, give items and teleport players |
+| commands-world | Set the time and weather, and save the world |
+| commands-ops | Broadcast, send chat and run any console command |
 | config-view | Open the Config page |
 | config-edit | Change settings on the Config page |
+| tools | Generate chunks and redraw the map on the Tools page |
 
 The server owner and panel admins always have every permission.
+
+`commands-ops` lets someone run any console command, including `op` and `stop`, so it covers everything the other permissions allow. Only give it to people you'd trust with the console.
 
 ## Settings
 

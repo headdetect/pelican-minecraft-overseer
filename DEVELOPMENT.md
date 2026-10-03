@@ -34,7 +34,8 @@ the admin pages do by hand:
 3. Creates a node and writes the wings configuration.
 4. Imports the Fabric egg and creates a server called `dev`.
 5. Writes `server.properties` with RCON on, accepts the EULA and downloads
-   Fabric API and squaremap from Modrinth.
+   Fabric API, squaremap and Chunky from Modrinth. Chunky is optional: if it
+   has no build for the Minecraft version, the step leaves it out.
 6. Starts the server.
 7. Waits for the server to boot. Then it generates the 16 by 16 chunks around
    spawn and has squaremap render them, so the Live Map shows terrain before
@@ -87,6 +88,10 @@ script/screenshot players
 script/screenshot config --click "Game rules"
 script/screenshot /admin/plugins
 ```
+
+`--click TEXT` clicks the first visible element with exactly that text before the
+screenshot, and the PNG name gets the clicked text added. `--wait MS` sets the pause
+before the screenshot, 1500 milliseconds by default.
 
 To see players on the Players page and the map, join `localhost:25565` with
 your Minecraft client.

@@ -12,7 +12,7 @@ return [
     'overseer_players_whitelist' => 'Add players to or remove them from the whitelist.',
     'overseer_players_cheat' => 'Change the game mode of, give items to and teleport online players.',
     'overseer_commands_world' => 'Set the time and weather, and save the world, from the Overview.',
-    'overseer_commands_ops' => 'Broadcast messages and run any console command from the Overview.',
+    'overseer_commands_ops' => 'Broadcast, send chat and run any console command from the Overview. Any command includes op and stop, so this covers everything the other permissions allow.',
     'overseer_config_view' => 'See the Config page with the server settings, game rules and Paper settings.',
     'overseer_tools' => 'Use the Tools page: generate chunks ahead of time and redraw the map.',
     'overseer_config_edit' => 'Change server settings, game rules and Paper settings from the Config page.',

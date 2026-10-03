@@ -6,7 +6,7 @@
     <x-filament::section icon="tabler-grid-dots" :heading="trans('overseer::overseer.tools.pregen.title')" :description="trans('overseer::overseer.tools.pregen.help')">
         <div wire:poll.5s class="flex flex-col gap-4">
             @if (!$chunky['running'])
-                <p class="text-sm text-gray-500 dark:text-gray-400">{{ trans('overseer::overseer.tools.offline') }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ trans($chunky['starting'] ? 'overseer::overseer.tools.starting' : 'overseer::overseer.tools.offline') }}</p>
             @elseif ($chunky['installed'] === null)
                 <p class="text-sm text-gray-500 dark:text-gray-400">{{ trans('overseer::overseer.tools.pregen.no_rcon') }}</p>
             @elseif ($chunky['installed'] === false)
@@ -32,17 +32,31 @@
                         </div>
                     </div>
                 @empty
-                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ trans('overseer::overseer.tools.pregen.idle') }}</p>
+                    @if (!$chunky['saved'])
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ trans('overseer::overseer.tools.pregen.idle') }}</p>
+                    @endif
                 @endforelse
+
+                @foreach ($chunky['saved'] as $task)
+                    <p class="text-sm">
+                        <span class="font-medium">{{ $task['world'] }}</span>
+                        <span class="text-gray-500 dark:text-gray-400">· {{ $task['percent'] !== null
+                            ? trans('overseer::overseer.tools.pregen.paused_at', ['chunks' => number_format($task['chunks']), 'percent' => number_format($task['percent'], 1)])
+                            : trans('overseer::overseer.tools.pregen.paused_chunks', ['chunks' => number_format($task['chunks'])]) }}</span>
+                    </p>
+                @endforeach
 
                 <div class="flex flex-wrap gap-2">
                     {{ $this->startAction }}
                     @if ($chunky['tasks'])
                         {{ $this->pauseAction }}
-                    @else
+                    @endif
+                    @if ($chunky['saved'])
                         {{ $this->continueAction }}
                     @endif
-                    {{ $this->cancelAction }}
+                    @if ($chunky['tasks'] || $chunky['saved'])
+                        {{ $this->cancelAction }}
+                    @endif
                 </div>
             @endif
         </div>

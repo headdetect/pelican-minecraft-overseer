@@ -219,6 +219,7 @@ return [
         'title' => 'Tools',
         'world' => 'World',
         'offline' => 'Start the server to use this tool.',
+        'starting' => 'The server is starting. This tool works once it\'s running.',
         'sent' => 'Done',
         'failed' => "That didn't work",
         'pregen' => [
@@ -226,6 +227,9 @@ return [
             'help' => 'Generate the world ahead of time, so players don\'t wait for new chunks while exploring. Chunky does the work in the background and the server keeps running.',
             'missing' => 'This tool needs the Chunky mod or plugin. Add it to the mods folder (Fabric, NeoForge) or plugins folder (Paper), then restart the server:',
             'idle' => 'No generation is running.',
+            'paused_at' => 'Paused at :chunks chunks, :percent%',
+            'paused_chunks' => 'Paused at :chunks chunks',
+            'replaces_saved' => 'This replaces the paused task, which can\'t be continued afterwards.',
             'progress' => ':chunks chunks · :percent%',
             'eta' => ':eta left',
             'start' => 'Start generating',
@@ -244,7 +248,7 @@ return [
             'pause' => 'Pause',
             'continue' => 'Continue',
             'continue_help' => 'Resume a paused or interrupted task',
-            'cancel' => 'Cancel',
+            'cancel' => 'Cancel task',
             'cancel_help' => 'Chunky deletes the task, so it can\'t be continued. Chunks it already generated stay.',
         ],
         'render' => [
