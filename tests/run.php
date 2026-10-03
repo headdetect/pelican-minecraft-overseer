@@ -113,6 +113,8 @@ check('public ip is public', ServerAddress::isPublic('51.75.10.20'), true);
 check('docker bridge is private', ServerAddress::isPublic('172.18.0.1'), false);
 check('loopback is private', ServerAddress::isPublic('127.0.0.1'), false);
 check('lan is private', ServerAddress::isPublic('10.0.0.5'), false);
+check('join hides the default port', ServerAddress::join('mc.example.com', 25565), 'mc.example.com');
+check('join keeps another port', ServerAddress::join('mc.example.com', 25566), 'mc.example.com:25566');
 
 // --- Overview stats ---
 check('time 26.1 timeline', ServerStats::gameTime('Timeline minecraft:day is at 3153 tick(s)'), ['day' => 1, 'clock' => '9:09 AM', 'phase' => 'day']);
