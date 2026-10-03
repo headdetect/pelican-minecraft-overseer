@@ -189,7 +189,6 @@
 .us-row img { width: 28px; height: 28px; border-radius: 4px; image-rendering: pixelated; flex: none; }
 .us-row-name { font-weight: 600; font-size: 14px; }
 .us-row-where { font-size: 12px; color: var(--us-muted); font-family: ui-monospace, monospace; }
-.us-dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--us-good); vertical-align: 1px; }
 .us-map > :first-child { display: flex; flex-direction: column; min-height: 0; }
 .us-map > :first-child > .us-viewport { flex: 1; }
 .us-side { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }

@@ -205,7 +205,7 @@
                         <button type="button" class="us-row" :class="{ 'is-selected': selected === p.name }" x-on:click="focus(p)" :aria-pressed="selected === p.name">
                             <img :src="head(p.name)" alt="">
                             <div style="min-width: 0">
-                                <div class="us-row-name"><span class="us-dot" aria-hidden="true"></span><span x-text="p.name"></span><span class="us-badge" x-show="p.op">OP</span></div>
+                                <div class="us-row-name"><span x-text="p.name"></span><span class="us-badge" x-show="p.op">OP</span></div>
                                 <div class="us-row-where" x-text="`${worldLabel(p.world)} · ${p.x}, ${p.z}`"></div>
                             </div>
                         </button>
@@ -214,7 +214,7 @@
                         <div class="us-row is-unmapped">
                             <img :src="head(u.name)" alt="">
                             <div style="min-width: 0">
-                                <div class="us-row-name"><span class="us-dot" aria-hidden="true"></span><span x-text="u.name"></span><span class="us-badge" x-show="u.op">OP</span></div>
+                                <div class="us-row-name"><span x-text="u.name"></span><span class="us-badge" x-show="u.op">OP</span></div>
                                 <div class="us-row-where" x-text="u.dead ? '{{ trans('overseer::overseer.map.dead') }}' : '{{ trans('overseer::overseer.map.not_on_map') }}'"></div>
                             </div>
                         </div>
