@@ -78,6 +78,7 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ confi
                 mode: config.mode,
                 tileBase: boot.tileBase,
                 head: (name) => headUrl(boot, name),
+                spawnLabel: t('map.spawn'),
                 onPin: (name) => latest.current.onSelect(latest.current.selected === name ? null : name),
                 onClick: (e) => {
                     const { selected, point } = latest.current;

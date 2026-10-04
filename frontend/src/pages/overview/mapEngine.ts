@@ -29,6 +29,8 @@ export interface EngineOptions {
     mode: 'squaremap' | 'grid';
     tileBase: string;
     head: (name: string) => string;
+    /** Text for the spawn marker. */
+    spawnLabel: string;
     /** A marker was clicked. */
     onPin: (name: string) => void;
     /** The user moved the map by hand, with a drag or the arrow keys. */
@@ -55,6 +57,7 @@ export class MapEngine {
 
     private tiles = new Map<string, HTMLImageElement>();
     private pins = new Map<string, HTMLButtonElement>();
+    private spawn: HTMLDivElement | null = null;
     private drag: { x: number; y: number; cx: number; cz: number; moved: boolean } | null = null;
     private resize: ResizeObserver;
     private els: EngineElements;
@@ -92,6 +95,8 @@ export class MapEngine {
         this.clearTiles();
         this.pins.forEach((pin) => pin.remove());
         this.pins.clear();
+        this.spawn?.remove();
+        this.spawn = null;
     }
 
     get current(): World {
@@ -413,7 +418,30 @@ export class MapEngine {
             }
         });
 
+        this.renderSpawn(w, h);
         this.opts.onView();
+    }
+
+    /** The world spawn: a flag that stays put and ignores clicks, below the player pins. */
+    private renderSpawn(w: number, h: number): void {
+        if (!this.spawn) {
+            const marker = document.createElement('div');
+            marker.className = 'us-spawn';
+            const tag = document.createElement('span');
+            tag.className = 'us-spawn-tag';
+            tag.textContent = this.opts.spawnLabel;
+            const flag = document.createElement('span');
+            flag.className = 'us-spawn-flag';
+            marker.append(tag, flag);
+            this.els.pins.prepend(marker);
+            this.spawn = marker;
+        }
+        const { x, z } = this.current.spawn;
+        const at = this.toScreen(x + 0.5, z + 0.5);
+        this.spawn.style.left = at.x + 'px';
+        this.spawn.style.top = at.y + 'px';
+        this.spawn.style.display = at.x < -60 || at.y < -60 || at.x > w + 60 || at.y > h + 60 ? 'none' : '';
+        this.spawn.setAttribute('aria-label', `${this.opts.spawnLabel}, x ${x}, z ${z}`);
     }
 
     // ---- input ----

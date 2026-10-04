@@ -86,6 +86,7 @@ return [
         'title' => 'Live Map',
         'aria' => 'World map. Drag to move, scroll or use plus and minus to zoom, arrow keys to pan.',
         'world' => 'World',
+        'spawn' => 'Spawn',
         'worlds' => [
             'overworld' => 'Overworld',
             'nether' => 'Nether',
