@@ -27,6 +27,19 @@ class Chunky
     private const TASK_DIRS = ['config/chunky/tasks', 'plugins/Chunky/tasks'];
 
     /**
+     * Running tasks only, from one RCON command. The Overview polls this, so
+     * it doesn't read the saved task files the way status() does.
+     *
+     * @return array<int, array{world: string, chunks: int, percent: float, eta: ?string, rate: ?float}>
+     */
+    public function running(Server $server): array
+    {
+        $reply = $this->console->query($server, 'chunky progress');
+
+        return $reply === null ? [] : self::parseProgress($reply);
+    }
+
+    /**
      * Whether Chunky answers, its running tasks, and saved tasks that aren't
      * running (paused, or interrupted by a restart). installed is null when
      * RCON is off.
