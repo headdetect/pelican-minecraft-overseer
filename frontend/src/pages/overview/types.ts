@@ -57,6 +57,14 @@ export interface Feed {
     };
 }
 
+export interface ChunkyTask {
+    world: string;
+    chunks: number;
+    percent: number;
+    eta: string | null;
+    rate: number | null;
+}
+
 export interface Stats {
     running: boolean;
     cpu: number | null;

@@ -26,7 +26,7 @@ import { Badge, Button, Field, Loading, Modal, ModalActions, Section, Skeleton, 
 import { Icon, type IconComponent } from '../../ui/icons';
 import { useAction } from '../../useAction';
 import { LiveMap, type LiveMapHandle } from './LiveMap';
-import type { ChatLine, Feed, GameTime, MapConfig, Stats } from './types';
+import type { ChatLine, ChunkyTask, Feed, GameTime, MapConfig, Stats } from './types';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -38,6 +38,7 @@ export default function Overview() {
     const map = useSWR<MapConfig>(canSeeMap ? '/map' : null);
     const feed = useSWR<Feed>(canSeeMap ? boot.feedUrl : null);
     const stats = useSWR<Stats>(canSeeMap ? '/stats' : null);
+    const chunky = useSWR<{ tasks: ChunkyTask[] }>(canSeeMap ? '/chunky' : null);
     const recent = useSWR<{ lines: string[] }>(canCommand ? '/recent' : null);
 
     const mapRef = useRef<LiveMapHandle>(null);
@@ -66,7 +67,7 @@ export default function Overview() {
         const now = Date.now();
         if (manual || now - counters.current.statsAt >= 15000) {
             counters.current.statsAt = now;
-            if (canSeeMap) jobs.push(stats.mutate());
+            if (canSeeMap) jobs.push(stats.mutate(), chunky.mutate());
             if (canCommand) jobs.push(recent.mutate());
         }
         if (!canSeeMap) return Promise.allSettled(jobs);
@@ -111,6 +112,8 @@ export default function Overview() {
                     {canCommand && <ServerCard onDone={afterCommand} />}
                 </div>
             )}
+
+            {canSeeMap && <ChunkyBanner tasks={chunky.data?.tasks ?? []} />}
 
             {canSeeMap && map.data?.setup && <MapSetup setup={map.data.setup} onChecked={(config) => map.mutate(config, { revalidate: false })} />}
 
@@ -284,6 +287,26 @@ function MapSetup({ setup, onChecked }: { setup: { title: string; body: string }
                 {t('map.check_again')}
             </Button>
         </Section>
+    );
+}
+
+/** A quiet line above the map while Chunky generates chunks, one per running task. */
+function ChunkyBanner({ tasks }: { tasks: ChunkyTask[] }) {
+    if (tasks.length === 0) return null;
+    return (
+        <div className="us-banner" role="status">
+            {tasks.map((task) => (
+                <div key={task.world} className="us-banner-line">
+                    <Spinner />
+                    <span className="us-strong">{t('map.generating')}</span>
+                    <span className="us-muted">{task.world.replace(/^minecraft:/, '')}</span>
+                    <span className="us-muted us-tabular">
+                        {`${task.percent.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`}
+                        {task.eta && task.eta.replace(/[0:]/g, '') !== '' && ` · ${t('tools.pregen.eta', { eta: task.eta })}`}
+                    </span>
+                </div>
+            ))}
+        </div>
     );
 }
 
