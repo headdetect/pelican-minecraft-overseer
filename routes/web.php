@@ -29,6 +29,7 @@ Route::middleware(['web', 'auth'])
         // The React app's API. Each controller checks the permission the action needs.
         Route::prefix('/api')->group(function () {
             Route::get('/stats', [Api\OverviewController::class, 'stats']);
+            Route::get('/chunky', [Api\OverviewController::class, 'chunky']);
             Route::get('/map', [Api\OverviewController::class, 'map']);
             Route::post('/map', [Api\OverviewController::class, 'map']);
             Route::get('/recent', [Api\OverviewController::class, 'recent']);

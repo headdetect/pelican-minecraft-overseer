@@ -30,6 +30,9 @@
 }
 /* Stack the map and the right column by the space the page has, not the window:
    the panel sidebar takes about 330px of a 1024px window. */
+.us-banner { display: flex; flex-direction: column; gap: 2px; padding: 6px 12px; background: var(--us-panel); border: 1px solid var(--us-border); border-radius: 8px; font-size: 13px; }
+.us-banner-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
 .us-map-wrap { container-type: inline-size; }
 @container (max-width: 860px) {
     .us-map { grid-template-columns: 1fr; }
