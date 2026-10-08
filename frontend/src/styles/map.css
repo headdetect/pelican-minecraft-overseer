@@ -152,6 +152,10 @@
     cursor: pointer;
     transition: left 1s linear, top 1s linear;
 }
+.us-spawn { position: absolute; z-index: 1; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; gap: 3px; pointer-events: none; }
+.us-spawn-tag { background: rgba(10, 10, 12, 0.88); color: #fff; border-radius: 6px; padding: 1px 6px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.us-spawn-flag { width: 14px; height: 14px; transform: rotate(45deg); border-radius: 3px; border: 2px solid #fff; background: #f59e0b; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); margin-bottom: 4px; }
+
 .us-pin-tag {
     background: rgba(10, 10, 12, 0.88);
     color: #fff;
