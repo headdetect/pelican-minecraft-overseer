@@ -9,6 +9,7 @@ use App\Repositories\Daemon\DaemonServerRepository;
 use App\Services\Servers\EnvironmentService;
 use Exception;
 use Headdetect\Overseer\Support\ChatLog;
+use Headdetect\Overseer\Support\ModrinthPack;
 use Headdetect\Overseer\Support\ServerStats;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Facades\Cache;
@@ -134,9 +135,28 @@ class OverviewService
         return $version;
     }
 
+    /**
+     * The server's modpack. The Modrinth generic egg's PROJECT_ID names the
+     * project, and Modrinth says what its newest release is, so the version
+     * follows the pack with no setting to edit. VERSION_ID pins one version
+     * when the egg has it set. The Modpack Manager record and the pack
+     * manifest in the server folder come after, for servers without a project.
+     */
     public function modpack(Server $server): ?array
     {
         return Cache::remember("overseer:modpack:$server->uuid", now()->addMinute(), function () use ($server) {
+            $environment = app(EnvironmentService::class)->handle($server);
+            $projectId = $environment['PROJECT_ID'] ?? null;
+
+            if (ModrinthPack::isProject($projectId)) {
+                $versionId = $environment['VERSION_ID'] ?? null;
+                $pack = app(ModrinthService::class)->pack($projectId, is_string($versionId) && $versionId !== '' ? $versionId : null);
+
+                if ($pack) {
+                    return $pack;
+                }
+            }
+
             if (Schema::hasTable(self::MODPACK_TABLE)) {
                 $row = DB::table(self::MODPACK_TABLE)
                     ->where('server_id', $server->id)
@@ -158,8 +178,6 @@ class OverviewService
 
             $index = $this->readJson($files, self::MODRINTH_INDEX);
             if ($index) {
-                $projectId = app(EnvironmentService::class)->handle($server)['PROJECT_ID'] ?? null;
-
                 return ServerStats::modpackFromIndex($index, is_string($projectId) ? $projectId : null);
             }
 

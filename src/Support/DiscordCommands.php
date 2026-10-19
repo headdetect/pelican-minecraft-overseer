@@ -35,7 +35,6 @@ final class DiscordCommands
         ]);
 
         return [
-            $command('status'),
             $command('info'),
             $command('whitelist', [[
                 'type' => self::STRING,
