@@ -32,6 +32,7 @@ final class DiscordEmbeds
     public static function info(string $server, string $address, ?string $version, ?array $modpack, ?string $info, array $text): array
     {
         $fields = [
+            self::field($text['embed']['whitelist'], $text['embed']['whitelist_help']),
             self::field($text['embed']['address'], "```\n$address\n```"),
             self::field($text['embed']['version'], $version ? "$version, {$text['embed']['edition']}" : $text['embed']['edition'], true),
         ];
@@ -40,8 +41,6 @@ final class DiscordEmbeds
             $name = trim($modpack['name'] . ' ' . ($modpack['version'] ?? ''));
             $fields[] = self::field($text['embed']['modpack'], $modpack['url'] ? "[$name]({$modpack['url']})" : $name, true);
         }
-
-        $fields[] = self::field($text['embed']['whitelist'], $text['embed']['whitelist_help']);
 
         return self::embed(array_filter([
             'title' => $server,
@@ -88,8 +87,7 @@ final class DiscordEmbeds
     }
 
     /**
-     * /whitelist went through. The skin head lets a Bedrock player whose
-     * gamertag matches someone else's Java name see that it isn't them.
+     * /whitelist went through.
      *
      * @param  array{id: string, name: string}  $profile
      * @param  ?string  $reply  the server's reply, or null when the command went through Wings
@@ -105,9 +103,7 @@ final class DiscordEmbeds
 
         return self::embed([
             'title' => strtr($text['reply'][$key], [':name' => $profile['name']]),
-            'description' => $text['reply']['not_yours'],
             'color' => $key === 'already' ? self::GRAY : self::GREEN,
-            'thumbnail' => ['url' => "https://mc-heads.net/avatar/{$profile['id']}/64"],
         ]);
     }
 

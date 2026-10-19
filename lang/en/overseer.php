@@ -428,7 +428,6 @@ return [
             'added' => 'Added :name to the whitelist',
             'already' => ':name is already on the whitelist',
             'sent' => 'Sent :name to the server',
-            'not_yours' => "Not your skin? That name belongs to someone else's Java account. Ask an admin to remove it.",
         ],
         'embed' => [
             'address' => 'Address',
@@ -436,7 +435,7 @@ return [
             'modpack' => 'Modpack',
             'edition' => 'Java Edition only',
             'whitelist' => 'Whitelist',
-            'whitelist_help' => 'Run /whitelist with your Java username to get on it.',
+            'whitelist_help' => 'Not on it yet? Run `/whitelist` with your Java username, then join at the address below.',
             'online' => 'Online',
             'offline' => 'Offline',
             'offline_help' => 'The server is offline right now.',

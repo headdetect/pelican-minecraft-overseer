@@ -120,12 +120,13 @@ check('discord signature no key set', DiscordSignature::verify('', $signature, '
 // --- Discord: what /info, /status and /whitelist reply with ---
 $discord = (require __DIR__ . '/../lang/en/overseer.php')['discord'];
 $info = DiscordEmbeds::info('Nurps', 'mc.example.com', '1.21.8', ['name' => 'Cobblemon', 'version' => '1.6', 'url' => 'https://modrinth.com/modpack/cobblemon'], "Be nice.\n", $discord)['embeds'][0];
-check('info address in a code block', $info['fields'][0]['value'], "```\nmc.example.com\n```");
-check('info says java only', $info['fields'][1]['value'], '1.21.8, Java Edition only');
-check('info links the modpack', $info['fields'][2]['value'], '[Cobblemon 1.6](https://modrinth.com/modpack/cobblemon)');
+check('info starts with how to get whitelisted', [$info['fields'][0]['name'], str_contains($info['fields'][0]['value'], '`/whitelist`')], ['Whitelist', true]);
+check('info address in a code block', $info['fields'][1]['value'], "```\nmc.example.com\n```");
+check('info says java only', $info['fields'][2]['value'], '1.21.8, Java Edition only');
+check('info links the modpack', $info['fields'][3]['value'], '[Cobblemon 1.6](https://modrinth.com/modpack/cobblemon)');
 check('info text as the description', $info['description'], 'Be nice.');
 $bare = DiscordEmbeds::info('Nurps', 'mc.example.com:25566', null, null, '  ', $discord)['embeds'][0];
-check('info without version or modpack', array_column($bare['fields'], 'name'), ['Address', 'Version', 'Whitelist']);
+check('info without version or modpack', array_column($bare['fields'], 'name'), ['Whitelist', 'Address', 'Version']);
 check('info without text has no description', array_key_exists('description', $bare), false);
 check('info never pings', DiscordEmbeds::info('Nurps', 'x', null, null, '@everyone', $discord)['allowed_mentions'], ['parse' => []]);
 
@@ -145,7 +146,7 @@ check('status offline title', $offline['title'], 'Nurps: Offline');
 $profile = ['id' => '853c80ef3c3749fdaa49938b674adae6', 'name' => 'jeb_'];
 $added = DiscordEmbeds::whitelisted($profile, 'Added jeb_ to the whitelist', $discord)['embeds'][0];
 check('whitelisted title', $added['title'], 'Added jeb_ to the whitelist');
-check('whitelisted skin head by uuid', $added['thumbnail']['url'], 'https://mc-heads.net/avatar/853c80ef3c3749fdaa49938b674adae6/64');
+check('whitelisted is only a title', array_keys($added), ['title', 'color']);
 check('whitelisted already', DiscordEmbeds::whitelisted($profile, 'Player is already whitelisted', $discord)['embeds'][0]['title'], 'jeb_ is already on the whitelist');
 check('whitelisted through wings', DiscordEmbeds::whitelisted($profile, null, $discord)['embeds'][0]['title'], 'Sent jeb_ to the server');
 check('command keeps selectors', CommandInput::command('kill @e[type=item]'), 'kill @e[type=item]');

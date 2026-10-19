@@ -138,7 +138,7 @@ Then, for each Minecraft server:
 
 Each Discord links to one Minecraft server. Registering the commands on another server, such as next season's, moves the Discord over to it.
 
-`/whitelist` works for anyone in the Discord. Every reply is public, so the channel shows who ran the command and other players see which command to use. The panel looks the name up with Mojang first. A name that can't be a Java name, like a Bedrock gamertag with a space, and a name with no Java account both get a reply that the server is Java Edition only. When the name is added, the reply shows the account's skin, so a player can tell if the name belongs to someone else. Every attempt is in the Discord tab's whitelist log, and the ones that went through are also in Recent actions as `@name (Discord)`.
+`/whitelist` works for anyone in the Discord. Every reply is public, so the channel shows who ran the command and other players see which command to use. The panel looks the name up with Mojang first. A name that can't be a Java name, like a Bedrock gamertag with a space, and a name with no Java account both get a reply that the server is Java Edition only. Every attempt is in the Discord tab's whitelist log, and the ones that went through are also in Recent actions as `@name (Discord)`.
 
 ## Development
 
