@@ -21,7 +21,11 @@ final class AppBoot
         'players' => Pages\Players::class,
         'config' => Pages\Config::class,
         'tools' => Pages\Tools::class,
+        'discord' => Pages\Discord::class,
     ];
+
+    /** Tabs that are Filament pages rather than part of the app, so the tab row loads them as a new page. */
+    private const FULL_PAGES = ['discord'];
 
     /** @return array<string, mixed> */
     public static function payload(Server $server, string $tab): array
@@ -35,6 +39,7 @@ final class AppBoot
                     'key' => $key,
                     'label' => $page::getNavigationLabel(),
                     'url' => $page::getUrl(),
+                    'full' => in_array($key, self::FULL_PAGES, true),
                 ];
             }
         }

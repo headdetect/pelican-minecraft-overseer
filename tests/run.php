@@ -26,6 +26,9 @@ use Headdetect\Overseer\Services\Tools\Chunky;
 use Headdetect\Overseer\Support\ChatLog;
 use Headdetect\Overseer\Support\CommandInput;
 use Headdetect\Overseer\Support\ConfigSchema;
+use Headdetect\Overseer\Support\DiscordCommands;
+use Headdetect\Overseer\Support\DiscordEmbeds;
+use Headdetect\Overseer\Support\DiscordSignature;
 use Headdetect\Overseer\Support\EditableFiles;
 use Headdetect\Overseer\Support\PlayerNbt;
 use Headdetect\Overseer\Support\Properties;
@@ -80,6 +83,71 @@ check('command leading slash removed', CommandInput::command('/time set day'), '
 check('reply lines separated', CommandInput::readableReply('Saving the game (this may take a moment!)Saved the game'), 'Saving the game (this may take a moment!) Saved the game');
 check('reply version untouched', CommandInput::readableReply('id = 1.21.8name = 1.21.8'), 'id = 1.21.8name = 1.21.8');
 check('command one line', CommandInput::command("say hi\nstop"), 'say hi stop');
+
+// --- Discord: a /whitelist name must look like a Java name, or the player gets the Bedrock notice ---
+check('java name', CommandInput::isJavaName('Doobie'), true);
+check('java name with underscore', CommandInput::isJavaName('kelp_lord'), true);
+check('old short java name', CommandInput::isJavaName('ab'), true);
+check('floodgate prefix is bedrock', CommandInput::isJavaName('.Doobie'), false);
+check('space is bedrock', CommandInput::isJavaName('Cool Gamer'), false);
+check('gamertag suffix is bedrock', CommandInput::isJavaName('Gamer#1234'), false);
+check('17 characters is too long', CommandInput::isJavaName(str_repeat('a', 17)), false);
+check('empty is not a name', CommandInput::isJavaName(''), false);
+
+$discordText = (require __DIR__ . '/../lang/en/overseer.php')['discord']['commands'];
+$commands = DiscordCommands::definitions($discordText);
+check('discord command names', array_column($commands, 'name'), ['status', 'info', 'whitelist']);
+check('discord commands are guild only', array_unique(array_merge(...array_column($commands, 'contexts'))), [0]);
+check('discord descriptions fit', max(array_map(fn ($c) => mb_strlen($c['description']), $commands)) <= 100, true);
+check('discord whitelist takes a name', $commands[2]['options'][0]['name'] ?? null, 'name');
+check('discord whitelist name is required', $commands[2]['options'][0]['required'] ?? null, true);
+check('discord status has no options', array_key_exists('options', $commands[0]), false);
+
+// --- Discord: only requests Discord signed get through the interactions endpoint ---
+$keys = sodium_crypto_sign_keypair();
+$publicKey = bin2hex(sodium_crypto_sign_publickey($keys));
+$otherKey = bin2hex(sodium_crypto_sign_publickey(sodium_crypto_sign_keypair()));
+$body = '{"type":1}';
+$signature = bin2hex(sodium_crypto_sign_detached('1700000000' . $body, sodium_crypto_sign_secretkey($keys)));
+check('discord signature valid', DiscordSignature::verify($publicKey, $signature, '1700000000', $body), true);
+check('discord signature tampered body', DiscordSignature::verify($publicKey, $signature, '1700000000', '{"type":2}'), false);
+check('discord signature other timestamp', DiscordSignature::verify($publicKey, $signature, '1700000001', $body), false);
+check('discord signature wrong key', DiscordSignature::verify($otherKey, $signature, '1700000000', $body), false);
+check('discord signature not hex', DiscordSignature::verify($publicKey, str_repeat('zz', 64), '1700000000', $body), false);
+check('discord signature missing', DiscordSignature::verify($publicKey, '', '1700000000', $body), false);
+check('discord signature no key set', DiscordSignature::verify('', $signature, '1700000000', $body), false);
+
+// --- Discord: what /info, /status and /whitelist reply with ---
+$discord = (require __DIR__ . '/../lang/en/overseer.php')['discord'];
+$info = DiscordEmbeds::info('Nurps', 'mc.example.com', '1.21.8', ['name' => 'Cobblemon', 'version' => '1.6', 'url' => 'https://modrinth.com/modpack/cobblemon'], "Be nice.\n", $discord)['embeds'][0];
+check('info address in a code block', $info['fields'][0]['value'], "```\nmc.example.com\n```");
+check('info says java only', $info['fields'][1]['value'], '1.21.8, Java Edition only');
+check('info links the modpack', $info['fields'][2]['value'], '[Cobblemon 1.6](https://modrinth.com/modpack/cobblemon)');
+check('info text as the description', $info['description'], 'Be nice.');
+$bare = DiscordEmbeds::info('Nurps', 'mc.example.com:25566', null, null, '  ', $discord)['embeds'][0];
+check('info without version or modpack', array_column($bare['fields'], 'name'), ['Address', 'Version', 'Whitelist']);
+check('info without text has no description', array_key_exists('description', $bare), false);
+check('info never pings', DiscordEmbeds::info('Nurps', 'x', null, null, '@everyone', $discord)['allowed_mentions'], ['parse' => []]);
+
+$list = 'There are 2 of a max of 20 players online: Doobie, kelp_lord';
+$online = DiscordEmbeds::status('Nurps', true, '3h 4m', $list, PlayerService::parseList($list), $discord)['embeds'][0];
+check('status online title', $online['title'], 'Nurps: Online');
+check('status player count', $online['fields'][0]['name'], 'Players (2/20)');
+check('status names escaped', $online['fields'][0]['value'], 'Doobie, kelp\\_lord');
+check('status uptime', $online['fields'][1]['value'], '3h 4m');
+$empty = DiscordEmbeds::status('Nurps', true, null, 'There are 0 of a max of 20 players online:', [], $discord)['embeds'][0];
+check('status nobody on', $empty['fields'][0]['value'], 'Nobody is on right now.');
+check('status paper count', DiscordEmbeds::playerCount('There are 3/20 players online: a, b, c'), [3, 20]);
+check('status no rcon has no player field', array_key_exists('fields', DiscordEmbeds::status('Nurps', true, null, null, [], $discord)['embeds'][0]), false);
+$offline = DiscordEmbeds::status('Nurps', false, null, null, [], $discord)['embeds'][0];
+check('status offline title', $offline['title'], 'Nurps: Offline');
+
+$profile = ['id' => '853c80ef3c3749fdaa49938b674adae6', 'name' => 'jeb_'];
+$added = DiscordEmbeds::whitelisted($profile, 'Added jeb_ to the whitelist', $discord)['embeds'][0];
+check('whitelisted title', $added['title'], 'Added jeb_ to the whitelist');
+check('whitelisted skin head by uuid', $added['thumbnail']['url'], 'https://mc-heads.net/avatar/853c80ef3c3749fdaa49938b674adae6/64');
+check('whitelisted already', DiscordEmbeds::whitelisted($profile, 'Player is already whitelisted', $discord)['embeds'][0]['title'], 'jeb_ is already on the whitelist');
+check('whitelisted through wings', DiscordEmbeds::whitelisted($profile, null, $discord)['embeds'][0]['title'], 'Sent jeb_ to the server');
 check('command keeps selectors', CommandInput::command('kill @e[type=item]'), 'kill @e[type=item]');
 check('custom quick command keeps selectors', QuickCommands::build('custom', ['command' => 'tp @a 0 64 0']), ['custom', 'tp @a 0 64 0']);
 
@@ -113,6 +181,8 @@ check('public ip is public', ServerAddress::isPublic('51.75.10.20'), true);
 check('docker bridge is private', ServerAddress::isPublic('172.18.0.1'), false);
 check('loopback is private', ServerAddress::isPublic('127.0.0.1'), false);
 check('lan is private', ServerAddress::isPublic('10.0.0.5'), false);
+check('join hides the default port', ServerAddress::join('mc.example.com', 25565), 'mc.example.com');
+check('join keeps another port', ServerAddress::join('mc.example.com', 25566), 'mc.example.com:25566');
 
 // --- Overview stats ---
 check('time 26.1 timeline', ServerStats::gameTime('Timeline minecraft:day is at 3153 tick(s)'), ['day' => 1, 'clock' => '9:09 AM', 'phase' => 'day']);

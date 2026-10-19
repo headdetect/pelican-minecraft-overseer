@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import useSWR, { SWRConfig } from 'swr';
-import { IconAlertTriangle, IconLayoutDashboard, IconSettings2, IconShieldExclamation, IconTool, IconUsersGroup } from '@tabler/icons-react';
+import { IconAlertTriangle, IconBrandDiscord, IconLayoutDashboard, IconSettings2, IconShieldExclamation, IconTool, IconUsersGroup } from '@tabler/icons-react';
 import { getJson } from './api';
 import { useBoot, type RconState, type TabKey } from './boot';
 import { t } from './lang';
@@ -17,6 +17,7 @@ const ICONS: Record<TabKey, IconComponent> = {
     players: IconUsersGroup,
     config: IconSettings2,
     tools: IconTool,
+    discord: IconBrandDiscord,
 };
 
 function tabFromPath(tabs: { key: TabKey; url: string }[]): TabKey | null {
@@ -60,6 +61,10 @@ function useTabs(): [TabKey, (tab: TabKey) => void] {
         (next: TabKey) => {
             const target = boot.tabs.find((item) => item.key === next);
             if (!target) return;
+            if (target.full) {
+                window.location.assign(target.url);
+                return;
+            }
             if (next !== tab) {
                 window.history.pushState({ overseer: next }, '', target.url);
                 window.scrollTo({ top: 0 });
@@ -96,6 +101,8 @@ function Page({ tab }: { tab: TabKey }) {
             return <Config />;
         case 'tools':
             return <Tools />;
+        case 'discord':
+            return null;
     }
 }
 

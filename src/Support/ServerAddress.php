@@ -26,6 +26,26 @@ final class ServerAddress
     }
 
     /**
+     * The host players connect to: the allocation's alias, or the node's FQDN.
+     * Unlike host(), never a private IP the panel happens to reach the server on.
+     */
+    public static function publicHost(Server $server): string
+    {
+        return $server->allocation?->ip_alias ?: $server->node->fqdn;
+    }
+
+    public static function publicPort(Server $server): int
+    {
+        return $server->allocation?->port ?? 25565;
+    }
+
+    /** "host:port" for players to type, without the port when it's Minecraft's default. */
+    public static function join(string $host, int $port): string
+    {
+        return $port === 25565 ? $host : "$host:$port";
+    }
+
+    /**
      * Whether a port bound to this IP may be reachable from the internet:
      * a bind-all address, or any address outside the private and reserved ranges.
      */

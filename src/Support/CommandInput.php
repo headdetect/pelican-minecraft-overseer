@@ -14,6 +14,18 @@ final class CommandInput
     /** Java names are 3-16 of A-Z, 0-9 and _. Bedrock players behind Floodgate get a "." or "*" prefix. */
     private const PLAYER_NAME = '/^[.*]?[A-Za-z0-9_]{1,16}$/';
 
+    /** A name Mojang could have given a Java account. A few old accounts are shorter than 3 characters. */
+    private const JAVA_NAME = '/^[A-Za-z0-9_]{1,16}$/';
+
+    /**
+     * Whether a name could be a Java Edition username. Bedrock gamertags can
+     * have spaces, a "#1234" suffix or Floodgate's "." prefix, and those fail.
+     */
+    public static function isJavaName(string $name): bool
+    {
+        return (bool) preg_match(self::JAVA_NAME, $name);
+    }
+
     public static function playerName(string $name): string
     {
         $name = trim($name);

@@ -16,4 +16,5 @@ return [
     'overseer_config_view' => 'See the Config page with the server settings, game rules and Paper settings.',
     'overseer_tools' => 'Use the Tools page: generate chunks ahead of time and redraw the map.',
     'overseer_config_edit' => 'Change server settings, game rules and Paper settings from the Config page.',
+    'overseer_discord' => 'Use the Discord tab: link the Discord bot, set what /info shows and see who used /whitelist.',
 ];

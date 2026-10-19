@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Sends a signed Discord interaction to the dev panel, since Discord can't reach
+# localhost. Run "script/discord-sign key" for the public key to put in the
+# plugin settings, and "script/discord-sign link" to link the dev server.
+# Example: script/discord-sign whitelist Doobie
+set -euo pipefail
+exec docker exec -u www-data overseer-dev-panel php /script-lib/discord-sign.php "$@"

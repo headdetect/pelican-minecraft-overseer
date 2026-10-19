@@ -36,6 +36,8 @@ final class Permission
 
     public const TOOLS = 'overseer.tools';
 
+    public const DISCORD = 'overseer.discord';
+
     /** @return string[] permission names without the group prefix, as Pelican registers them */
     public static function names(): array
     {
@@ -54,6 +56,7 @@ final class Permission
                 self::CONFIG_VIEW,
                 self::CONFIG_EDIT,
                 self::TOOLS,
+                self::DISCORD,
             ],
         );
     }

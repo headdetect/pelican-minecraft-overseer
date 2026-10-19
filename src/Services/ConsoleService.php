@@ -32,9 +32,10 @@ class ConsoleService
 
     /**
      * @param  string  $action  short name for the log, e.g. "kick" or "time"
+     * @param  ?array{id: string, name: string}  $discord  the Discord user who ran it, when it came from a slash command
      * @return ?string the server's reply, or null when it went through Wings
      */
-    public function run(Server $server, string $action, string $command, ?string $target = null): ?string
+    public function run(Server $server, string $action, string $command, ?string $target = null, ?array $discord = null): ?string
     {
         if ($server->retrieveStatus() !== ContainerStatus::Running) {
             throw new RuntimeException('The server is not running. Start it to use this.');
@@ -64,14 +65,18 @@ class ConsoleService
         AuditEntry::create([
             'server_id' => $server->id,
             'user_id' => user()?->id,
+            'discord_user_id' => $discord['id'] ?? null,
+            'discord_name' => $discord['name'] ?? null,
             'action' => $action,
             'target' => $target,
             'command' => $command,
             'response' => $response,
         ]);
 
+        // A Discord command has no Filament tenant for Pelican to pick the server from.
         Activity::event("server:overseer.$action")
-            ->property(['command' => $command, 'target' => $target])
+            ->subject($server)
+            ->property(['command' => $command, 'target' => $target] + ($discord ? ['discord' => $discord] : []))
             ->log();
 
         return $response;

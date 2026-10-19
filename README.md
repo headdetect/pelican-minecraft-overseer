@@ -16,6 +16,7 @@ A [Pelican](https://pelican.dev) panel plugin for running a Minecraft Java serve
   - Kick with a reason, ban for 1 hour, 1 day, 7 days or for good, and unban.
 - **Config**: server settings, game rules and Paper settings as a form, with a plain title and description for each setting. Change what you need, then save from the top of the page, or save and restart when a change only applies on restart. An undo icon resets a setting to its vanilla default. The Files tab lists mod and plugin config files and opens them in the panel's file editor. See [Config](#config) below.
 - **Tools**: generate chunks ahead of time with [Chunky](https://modrinth.com/plugin/chunky), with progress, pause, continue and cancel. squaremap draws new chunks on its own, and Redraw the map draws a whole world again when its map is missing areas.
+- **Discord**: a Discord bot with three slash commands. `/status` shows whether the server is up and who's on, `/info` shows the address to connect to, and `/whitelist` lets anyone in your Discord add a Java Edition name to the whitelist. The Discord tab links the bot to the server, sets what `/info` shows, and lists every `/whitelist` with who ran it. See [Discord](#discord) below.
 - The Overseer item in the sidebar shows how many players are online. Every Overseer page warns when RCON is off, can't be reached, or is published on a public address.
 - Every action is checked against its own subuser permission and written to the server's Activity log.
 - The pages are one React app inside the panel. Switching tabs doesn't reload the page, and each button shows a spinner and stays disabled until its command finishes.
@@ -100,6 +101,9 @@ Optional `.env` values on the panel:
 | `OVERSEER_MAP_REFRESH` | `5` | Seconds between player position updates on the map |
 | `OVERSEER_RECENT_ACTIONS` | `10` | Rows in "Recent actions" |
 | `OVERSEER_CONFIG_BACKUPS` | `10` | Old copies of each config file kept on the server |
+| `OVERSEER_DISCORD_TIMEOUT` | `2.0` | Seconds to wait for Discord and Mojang |
+
+The Discord application ID, public key and bot token are set from the panel. See [Discord](#discord).
 
 ## Config
 
@@ -112,6 +116,29 @@ The Config page has three sections:
 Saving changes only the lines you changed, so comments and settings Overseer doesn't know about stay as they were. Before each save the old file is copied to `.overseer/backups/` on the server. Difficulty, default game mode, whitelist and AFK kick also apply right away through the console when the server is running. Anything else that needs a restart shows a **Restart to apply** button after saving.
 
 To add a setting, add one entry to the right file in `resources/schemas/`.
+
+## Discord
+
+The bot only answers slash commands. Discord sends each command to the panel as an HTTPS request, so the panel needs a public HTTPS address, and the panel doesn't keep a connection open to Discord.
+
+Set it up once in the [Discord Developer Portal](https://discord.com/developers/applications):
+
+1. Click **New Application** and name it.
+2. Open **Installation** and set **Install Link** to **None**. Discord won't let you make the bot private until you do.
+3. Open **Bot**. Turn off **Public Bot**, so nobody else can add it to their Discord. Click **Reset Token** and copy the token. The bot needs no privileged intents.
+4. Open **General Information** and copy the **Application ID** and **Public Key**.
+5. In the panel, open **Admin**, **Plugins**, **Overseer**, **Settings**, and paste all three.
+6. Back in **General Information**, set **Interactions Endpoint URL** to `https://<your panel>/overseer/discord/interactions` and save. Discord sends a test request when you save, so the plugin has to be installed first.
+
+Then, for each Minecraft server:
+
+1. Open the server's **Discord** tab and click **Invite the bot**. Add it to your Discord.
+2. Pick your Discord and click **Register commands**. The commands show up in Discord right away.
+3. Optionally set the address players connect to and some extra text for `/info`.
+
+Each Discord links to one Minecraft server. Registering the commands on another server, such as next season's, moves the Discord over to it.
+
+`/whitelist` works for anyone in the Discord. The panel looks the name up with Mojang first. A name that can't be a Java name, like a Bedrock gamertag with a space, and a name with no Java account both get a reply that the server is Java Edition only. When the name is added, the reply shows the account's skin, so a player can tell if the name belongs to someone else. Every attempt is in the Discord tab's whitelist log, and the ones that went through are also in Recent actions as `@name (Discord)`.
 
 ## Development
 

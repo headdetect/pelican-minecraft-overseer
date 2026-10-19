@@ -1,11 +1,13 @@
 import { createContext, useContext } from 'react';
 
-export type TabKey = 'overview' | 'players' | 'config' | 'tools';
+export type TabKey = 'overview' | 'players' | 'config' | 'tools' | 'discord';
 
 export interface Tab {
     key: TabKey;
     label: string;
     url: string;
+    /** A Filament page outside the app, which the tab row opens with a page load. */
+    full: boolean;
 }
 
 export interface Abilities {

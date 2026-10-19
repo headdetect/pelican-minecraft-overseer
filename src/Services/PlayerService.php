@@ -11,6 +11,7 @@ use Headdetect\Overseer\Support\PlayerNbt;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 /**
  * Who is online (over RCON) and who is on the ops, whitelist and ban lists (from the server's JSON files).
@@ -50,6 +51,33 @@ class PlayerService
         }
 
         return $players;
+    }
+
+    /**
+     * The Java account with this name, from Mojang, with the name spelled the
+     * way the account has it. Null when no Java account has the name.
+     *
+     * @return ?array{id: string, name: string}
+     *
+     * @throws RequestException when Mojang can't answer
+     */
+    public function profile(string $name): ?array
+    {
+        $response = Http::timeout((float) config('overseer.discord.timeout', 2.0))
+            ->acceptJson()
+            ->get('https://api.mojang.com/users/profiles/minecraft/' . rawurlencode($name));
+
+        // Mojang answers 404 for an unknown name. It used to answer 204.
+        if (in_array($response->status(), [204, 404], true)) {
+            return null;
+        }
+
+        $response->throw();
+
+        $id = $response->json('id');
+        $canonical = $response->json('name');
+
+        return is_string($id) && is_string($canonical) ? ['id' => $id, 'name' => $canonical] : null;
     }
 
     /** @return string[] names in ops.json */

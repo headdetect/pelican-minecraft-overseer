@@ -2,6 +2,7 @@
 
 use Headdetect\Overseer\Http\Controllers\Api;
 use Headdetect\Overseer\Http\Controllers\AssetController;
+use Headdetect\Overseer\Http\Controllers\DiscordInteractionController;
 use Headdetect\Overseer\Http\Controllers\MapFeedController;
 use Headdetect\Overseer\Http\Controllers\MapSurfaceController;
 use Headdetect\Overseer\Http\Controllers\MapTileController;
@@ -12,6 +13,12 @@ Route::middleware(['web', 'auth'])
     ->get('/overseer/assets/{file}', AssetController::class)
     ->where('file', 'overseer\.(js|css)')
     ->name('overseer.asset');
+
+// Discord's slash commands. Outside the web group, so no session or CSRF token:
+// the controller checks Discord's signature instead.
+Route::post('/overseer/discord/interactions', DiscordInteractionController::class)
+    ->middleware('throttle:60,1')
+    ->name('overseer.discord.interactions');
 
 Route::middleware(['web', 'auth'])
     ->prefix('/overseer/servers/{server:uuid}')
