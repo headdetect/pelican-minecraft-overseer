@@ -148,8 +148,8 @@ export default function App() {
                                         </TabItem>
                                     ))}
                                 </Tabs>
-                                {/* Not on Config, where a refresh would drop unsaved edits. */}
-                                {tab !== 'config' && <RefreshControl />}
+                                {/* Not on Config, where a refresh would drop unsaved edits. The wrapper stays, to keep the tabs centered. */}
+                                <div className="us-tabrow-end">{tab !== 'config' && <RefreshControl />}</div>
                             </div>
                             <div className="fi-page-content us-page-content">
                                 <RconWarning />
