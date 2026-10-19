@@ -24,64 +24,51 @@ final class DiscordEmbeds
     }
 
     /**
-     * /info: how to connect.
+     * /info: how to get on the whitelist and connect, whether the server is up,
+     * who is on, and which modpack to download.
      *
-     * @param  ?array{name: string, version: ?string, url: ?string}  $modpack
-     * @param  array<string, mixed>  $text
-     */
-    public static function info(string $server, string $address, ?string $version, ?array $modpack, ?string $info, array $text): array
-    {
-        $fields = [
-            self::field($text['embed']['whitelist'], $text['embed']['whitelist_help']),
-            self::field($text['embed']['address'], "```\n$address\n```"),
-            self::field($text['embed']['version'], $version ? "$version, {$text['embed']['edition']}" : $text['embed']['edition'], true),
-        ];
-
-        if ($modpack) {
-            $name = trim($modpack['name'] . ' ' . ($modpack['version'] ?? ''));
-            $fields[] = self::field($text['embed']['modpack'], $modpack['url'] ? "[$name]({$modpack['url']})" : $name, true);
-        }
-
-        return self::embed(array_filter([
-            'title' => $server,
-            'description' => trim((string) $info) !== '' ? mb_substr(trim($info), 0, 4000) : null,
-            'color' => self::GREEN,
-            'fields' => $fields,
-        ]));
-    }
-
-    /**
-     * /status: up or down, and who's on.
-     *
-     * @param  ?string  $list  the reply to "list", or null when RCON couldn't answer
+     * @param  ?array{name: string, version: ?string, url: ?string, download_url?: ?string}  $modpack
+     * @param  ?string  $uptime  "3h 4m", or null when the server is down or Wings didn't say
+     * @param  ?string  $list  the reply to "list", or null when the server is down or RCON couldn't answer
      * @param  string[]  $names  who's online, from PlayerService::parseList
      * @param  array<string, mixed>  $text
      */
-    public static function status(string $server, bool $running, ?string $uptime, ?string $list, array $names, array $text): array
+    public static function info(string $server, string $address, ?string $version, ?array $modpack, ?string $info, bool $running, ?string $uptime, ?string $list, array $names, array $text): array
     {
-        if (!$running) {
-            return self::embed([
-                'title' => "$server: {$text['embed']['offline']}",
-                'description' => $text['embed']['offline_help'],
-                'color' => self::RED,
-            ]);
-        }
+        $status = $running
+            ? $text['embed']['online'] . ($uptime !== null ? ', ' . strtr($text['embed']['up_for'], [':time' => $uptime]) : '')
+            : $text['embed']['offline'];
 
-        $fields = [];
-        if ($list !== null) {
+        $fields = [
+            self::field($text['embed']['whitelist'], $text['embed']['whitelist_help']),
+            self::field($text['embed']['address'], "```\n$address\n```"),
+            self::field($text['embed']['status'], $status, true),
+            self::field($text['embed']['version'], $version ? "$version, {$text['embed']['edition']}" : $text['embed']['edition'], true),
+        ];
+
+        if ($running && $list !== null) {
             $count = self::playerCount($list);
             $fields[] = self::field(
                 $count ? "{$text['embed']['players']} ({$count[0]}/{$count[1]})" : $text['embed']['players'],
                 $names ? self::escape(implode(', ', $names)) : $text['embed']['nobody'],
             );
         }
-        if ($uptime !== null) {
-            $fields[] = self::field($text['embed']['uptime'], $uptime, true);
+
+        if ($modpack) {
+            $name = self::escape(trim($modpack['name'] . ' ' . ($modpack['version'] ?? '')));
+            $value = $modpack['url'] ? "[$name]({$modpack['url']})" : $name;
+
+            if (!empty($modpack['download_url'])) {
+                $value .= "\n[{$text['embed']['download']}]({$modpack['download_url']})";
+            }
+
+            $fields[] = self::field($text['embed']['modpack'], $value);
         }
 
         return self::embed(array_filter([
-            'title' => "$server: {$text['embed']['online']}",
-            'color' => self::GREEN,
+            'title' => $server,
+            'description' => trim((string) $info) !== '' ? mb_substr(trim($info), 0, 4000) : null,
+            'color' => $running ? self::GREEN : self::RED,
             'fields' => $fields,
         ]));
     }

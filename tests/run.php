@@ -30,6 +30,7 @@ use Headdetect\Overseer\Support\DiscordCommands;
 use Headdetect\Overseer\Support\DiscordEmbeds;
 use Headdetect\Overseer\Support\DiscordSignature;
 use Headdetect\Overseer\Support\EditableFiles;
+use Headdetect\Overseer\Support\ModrinthPack;
 use Headdetect\Overseer\Support\PlayerNbt;
 use Headdetect\Overseer\Support\Properties;
 use Headdetect\Overseer\Support\ServerAddress;
@@ -96,12 +97,12 @@ check('empty is not a name', CommandInput::isJavaName(''), false);
 
 $discordText = (require __DIR__ . '/../lang/en/overseer.php')['discord']['commands'];
 $commands = DiscordCommands::definitions($discordText);
-check('discord command names', array_column($commands, 'name'), ['status', 'info', 'whitelist']);
+check('discord command names', array_column($commands, 'name'), ['info', 'whitelist']);
 check('discord commands are guild only', array_unique(array_merge(...array_column($commands, 'contexts'))), [0]);
 check('discord descriptions fit', max(array_map(fn ($c) => mb_strlen($c['description']), $commands)) <= 100, true);
-check('discord whitelist takes a name', $commands[2]['options'][0]['name'] ?? null, 'name');
-check('discord whitelist name is required', $commands[2]['options'][0]['required'] ?? null, true);
-check('discord status has no options', array_key_exists('options', $commands[0]), false);
+check('discord whitelist takes a name', $commands[1]['options'][0]['name'] ?? null, 'name');
+check('discord whitelist name is required', $commands[1]['options'][0]['required'] ?? null, true);
+check('discord info has no options', array_key_exists('options', $commands[0]), false);
 
 // --- Discord: only requests Discord signed get through the interactions endpoint ---
 $keys = sodium_crypto_sign_keypair();
@@ -117,31 +118,63 @@ check('discord signature not hex', DiscordSignature::verify($publicKey, str_repe
 check('discord signature missing', DiscordSignature::verify($publicKey, '', '1700000000', $body), false);
 check('discord signature no key set', DiscordSignature::verify('', $signature, '1700000000', $body), false);
 
-// --- Discord: what /info, /status and /whitelist reply with ---
+// --- Discord: what /info and /whitelist reply with ---
 $discord = (require __DIR__ . '/../lang/en/overseer.php')['discord'];
-$info = DiscordEmbeds::info('Nurps', 'mc.example.com', '1.21.8', ['name' => 'Cobblemon', 'version' => '1.6', 'url' => 'https://modrinth.com/modpack/cobblemon'], "Be nice.\n", $discord)['embeds'][0];
-check('info starts with how to get whitelisted', [$info['fields'][0]['name'], str_contains($info['fields'][0]['value'], '`/whitelist`')], ['Whitelist', true]);
-check('info address in a code block', $info['fields'][1]['value'], "```\nmc.example.com\n```");
-check('info says java only', $info['fields'][2]['value'], '1.21.8, Java Edition only');
-check('info links the modpack', $info['fields'][3]['value'], '[Cobblemon 1.6](https://modrinth.com/modpack/cobblemon)');
-check('info text as the description', $info['description'], 'Be nice.');
-$bare = DiscordEmbeds::info('Nurps', 'mc.example.com:25566', null, null, '  ', $discord)['embeds'][0];
-check('info without version or modpack', array_column($bare['fields'], 'name'), ['Whitelist', 'Address', 'Version']);
-check('info without text has no description', array_key_exists('description', $bare), false);
-check('info never pings', DiscordEmbeds::info('Nurps', 'x', null, null, '@everyone', $discord)['allowed_mentions'], ['parse' => []]);
-
 $list = 'There are 2 of a max of 20 players online: Doobie, kelp_lord';
-$online = DiscordEmbeds::status('Nurps', true, '3h 4m', $list, PlayerService::parseList($list), $discord)['embeds'][0];
-check('status online title', $online['title'], 'Nurps: Online');
-check('status player count', $online['fields'][0]['name'], 'Players (2/20)');
-check('status names escaped', $online['fields'][0]['value'], 'Doobie, kelp\\_lord');
-check('status uptime', $online['fields'][1]['value'], '3h 4m');
-$empty = DiscordEmbeds::status('Nurps', true, null, 'There are 0 of a max of 20 players online:', [], $discord)['embeds'][0];
-check('status nobody on', $empty['fields'][0]['value'], 'Nobody is on right now.');
-check('status paper count', DiscordEmbeds::playerCount('There are 3/20 players online: a, b, c'), [3, 20]);
-check('status no rcon has no player field', array_key_exists('fields', DiscordEmbeds::status('Nurps', true, null, null, [], $discord)['embeds'][0]), false);
-$offline = DiscordEmbeds::status('Nurps', false, null, null, [], $discord)['embeds'][0];
-check('status offline title', $offline['title'], 'Nurps: Offline');
+$names = PlayerService::parseList($list);
+$pack = ['name' => 'Cobblemon', 'version' => '1.6', 'url' => 'https://modrinth.com/modpack/cobblemon', 'download_url' => 'https://modrinth.com/modpack/cobblemon/version/1.6'];
+$info = DiscordEmbeds::info('Nurps', 'mc.example.com', '1.21.8', $pack, "Be nice.\n", true, '3h 4m', $list, $names, $discord)['embeds'][0];
+check('info title is the server name', $info['title'], 'Nurps');
+check('info field order', array_column($info['fields'], 'name'), ['Whitelist', 'Address', 'Status', 'Version', 'Players (2/20)', 'Modpack']);
+check('info starts with how to get whitelisted', str_contains($info['fields'][0]['value'], '`/whitelist`'), true);
+check('info address in a code block', $info['fields'][1]['value'], "```\nmc.example.com\n```");
+check('info status online with uptime', $info['fields'][2]['value'], 'Online, up for 3h 4m');
+check('info says java only', $info['fields'][3]['value'], '1.21.8, Java Edition only');
+check('info names escaped', $info['fields'][4]['value'], 'Doobie, kelp\\_lord');
+check('info links the modpack and its download', $info['fields'][5]['value'], "[Cobblemon 1.6](https://modrinth.com/modpack/cobblemon)\n[Download](https://modrinth.com/modpack/cobblemon/version/1.6)");
+check('info online is green', $info['color'], 0x10B981);
+check('info text as the description', $info['description'], 'Be nice.');
+$noDownload = DiscordEmbeds::info('Nurps', 'x', null, ['name' => 'Pack', 'version' => null, 'url' => null], null, true, null, null, [], $discord)['embeds'][0];
+check('info modpack without links', end($noDownload['fields'])['value'], 'Pack');
+check('info online without uptime', $noDownload['fields'][2]['value'], 'Online');
+check('info without rcon has no player field', array_column($noDownload['fields'], 'name'), ['Whitelist', 'Address', 'Status', 'Version', 'Modpack']);
+$empty = DiscordEmbeds::info('Nurps', 'x', null, null, null, true, null, 'There are 0 of a max of 20 players online:', [], $discord)['embeds'][0];
+check('info nobody on', end($empty['fields'])['value'], 'Nobody is on right now.');
+check('info paper count', DiscordEmbeds::playerCount('There are 3/20 players online: a, b, c'), [3, 20]);
+$offline = DiscordEmbeds::info('Nurps', 'mc.example.com:25566', null, null, '  ', false, null, null, [], $discord)['embeds'][0];
+check('info offline fields', array_column($offline['fields'], 'name'), ['Whitelist', 'Address', 'Status', 'Version']);
+check('info offline status', $offline['fields'][2]['value'], 'Offline');
+check('info offline is red', $offline['color'], 0xEF4444);
+check('info without text has no description', array_key_exists('description', $offline), false);
+check('info never pings', DiscordEmbeds::info('Nurps', 'x', null, null, '@everyone', true, null, null, [], $discord)['allowed_mentions'], ['parse' => []]);
+
+// --- Modrinth: the pack the egg's PROJECT_ID names ---
+$project = ['slug' => 'nurps-pack', 'title' => 'Nurps Pack', 'project_type' => 'modpack'];
+$versions = [
+    ['id' => 'oldOld01', 'version_number' => '1.2.0', 'version_type' => 'release', 'date_published' => '2026-09-01T00:00:00Z'],
+    ['id' => 'newBeta1', 'version_number' => '1.3.0-beta', 'version_type' => 'beta', 'date_published' => '2026-10-10T00:00:00Z'],
+    ['id' => 'newRel01', 'version_number' => '1.2.1', 'version_type' => 'release', 'date_published' => '2026-10-01T00:00:00Z'],
+];
+$latest = ModrinthPack::fromApi($project, $versions);
+check('modrinth newest release wins over a newer beta', $latest['version'], '1.2.1');
+check('modrinth links the project', $latest['url'], 'https://modrinth.com/modpack/nurps-pack');
+check('modrinth links the version by name', $latest['download_url'], 'https://modrinth.com/modpack/nurps-pack/version/1.2.1');
+check('modrinth pinned by id', ModrinthPack::fromApi($project, $versions, 'oldOld01')['version'], '1.2.0');
+check('modrinth pinned by number', ModrinthPack::fromApi($project, $versions, '1.2.0')['download_url'], 'https://modrinth.com/modpack/nurps-pack/version/1.2.0');
+check('modrinth version name is url encoded', ModrinthPack::fromApi($project, [$versions[1]], null)['download_url'], 'https://modrinth.com/modpack/nurps-pack/version/1.3.0-beta');
+check('modrinth version with a plus and a space', ModrinthPack::fromApi($project, [['id' => 'x1', 'version_number' => '1.0+hotfix 2', 'version_type' => 'release']])['download_url'], 'https://modrinth.com/modpack/nurps-pack/version/1.0%2Bhotfix%202');
+check('modrinth no version name no download link', ModrinthPack::fromApi($project, [['id' => 'x1', 'version_type' => 'release']])['download_url'], null);
+check('modrinth pinned version it does not have', ModrinthPack::fromApi($project, $versions, 'missing1')['version'], '1.2.1');
+check('modrinth only betas', ModrinthPack::fromApi($project, [$versions[1]])['version'], '1.3.0-beta');
+check('modrinth no versions', ModrinthPack::fromApi($project, [])['version'], null);
+check('modrinth not a modpack', ModrinthPack::fromApi(['project_type' => 'mod'] + $project, $versions), null);
+check('modrinth unsafe slug', ModrinthPack::fromApi(['slug' => '../x'] + $project, $versions), null);
+check('modrinth title is plain text', ModrinthPack::fromApi(['title' => '<b>Pack</b>'] + $project, $versions)['name'], 'Pack');
+check('modrinth project id', ModrinthPack::isProject('UoC1lhL0'), true);
+check('modrinth zip is not a project', ModrinthPack::isProject('zip'), false);
+check('modrinth empty is not a project', ModrinthPack::isProject(''), false);
+check('modrinth path is not a project', ModrinthPack::isProject('a/b'), false);
+check('modrinth null is not a project', ModrinthPack::isProject(null), false);
 
 $profile = ['id' => '853c80ef3c3749fdaa49938b674adae6', 'name' => 'jeb_'];
 $added = DiscordEmbeds::whitelisted($profile, 'Added jeb_ to the whitelist', $discord)['embeds'][0];

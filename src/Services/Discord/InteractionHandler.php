@@ -18,7 +18,7 @@ use Throwable;
 use function Illuminate\Support\defer;
 
 /**
- * Answers /status, /info and /whitelist.
+ * Answers /info and /whitelist.
  *
  * Discord drops an interaction the panel doesn't answer within 3 seconds,
  * and each command asks Wings, RCON or Mojang for something. So the panel
@@ -67,7 +67,6 @@ class InteractionHandler
 
         return match ($interaction['data']['name'] ?? null) {
             'info' => $this->later($token, fn () => $this->info($setting)),
-            'status' => $this->later($token, fn () => $this->status($setting->server)),
             'whitelist' => $this->later($token, fn () => $this->whitelist($setting->server, $this->option($interaction, 'name'), $actor)),
             default => ['type' => self::REPLY, 'data' => DiscordEmbeds::text($this->text()['reply']['failed']) + ['flags' => self::EPHEMERAL]],
         };
@@ -76,27 +75,17 @@ class InteractionHandler
     /** @return array<string, mixed> */
     private function info(DiscordSetting $setting): array
     {
-        $stats = $this->overview->stats($setting->server);
-
-        return DiscordEmbeds::info(
-            $setting->server->name,
-            $setting->joinAddress(),
-            $stats['version'],
-            $stats['modpack'],
-            $setting->info,
-            $this->text(),
-        );
-    }
-
-    /** @return array<string, mixed> */
-    private function status(Server $server): array
-    {
+        $server = $setting->server;
         $stats = $this->overview->stats($server);
         $list = $stats['running'] ? $this->console->query($server, 'list') : null;
         $uptime = $stats['resources']['uptime'];
 
-        return DiscordEmbeds::status(
+        return DiscordEmbeds::info(
             $server->name,
+            $setting->joinAddress(),
+            $stats['version'],
+            $stats['modpack'],
+            $setting->info,
             $stats['running'],
             $uptime !== null ? ServerStats::uptime($uptime) : null,
             $list,
