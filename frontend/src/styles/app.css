@@ -18,16 +18,25 @@
 .us-header-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.75rem; }
 .us-header-actions:empty { display: none; }
 
-/* Tab row: the tabs centered, the refresh control at the right end. */
-.us-tabrow { position: relative; display: flex; justify-content: center; align-items: center; min-height: 3.25rem; }
-.us-tabs { max-width: 100%; overflow-x: auto; }
-.us-tabrow .us-refresh { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
+/*
+ * Tab row: the tabs centered, the refresh control at the right end. A spacer and
+ * the control's wrapper share the free space, so the tabs sit in the middle when
+ * there is room. The control takes space in the row, so a wide tab bar shrinks
+ * and scrolls before it runs under the control. The wrapper stays on Config,
+ * where it is empty, so the tabs stay centered there too.
+ */
+.us-tabrow { position: relative; display: flex; align-items: center; gap: 0.75rem; min-height: 3.25rem; }
+.us-tabrow::before { content: ''; flex: 1 1 0; }
+.us-tabs { flex: 0 1 auto; min-width: 0; max-width: 100%; overflow-x: auto; }
+.us-tabrow-end { display: flex; flex: 1 1 0; justify-content: flex-end; min-width: max-content; }
 @media (max-width: 1023px) {
-    .us-tabrow { flex-direction: column-reverse; align-items: stretch; gap: 0.75rem; }
-    .us-tabrow .us-refresh { position: relative; top: 0; transform: none; align-self: flex-end; }
+    .us-tabrow { flex-direction: column-reverse; align-items: stretch; }
+    .us-tabrow::before { display: none; }
+    .us-tabrow-end { flex: none; min-width: 0; }
+    .us-tabrow-end:empty { display: none; }
 }
 
-.us-refresh { z-index: 20; display: inline-flex; border: 1px solid rgb(127 127 127 / 0.25); border-radius: 0.6rem; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+.us-refresh { position: relative; z-index: 20; display: inline-flex; border: 1px solid rgb(127 127 127 / 0.25); border-radius: 0.6rem; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
 .dark .us-refresh { background: rgb(24 24 27); border-color: rgb(255 255 255 / 0.1); }
 .us-refresh > button { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.7rem; font-size: 0.8rem; font-weight: 500; color: inherit; }
 .us-refresh > button:hover { background: rgb(127 127 127 / 0.08); }
