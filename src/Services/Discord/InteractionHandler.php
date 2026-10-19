@@ -66,9 +66,9 @@ class InteractionHandler
         ];
 
         return match ($interaction['data']['name'] ?? null) {
-            'info' => $this->later($token, false, fn () => $this->info($setting)),
-            'status' => $this->later($token, false, fn () => $this->status($setting->server)),
-            'whitelist' => $this->later($token, true, fn () => $this->whitelist($setting->server, $this->option($interaction, 'name'), $actor)),
+            'info' => $this->later($token, fn () => $this->info($setting)),
+            'status' => $this->later($token, fn () => $this->status($setting->server)),
+            'whitelist' => $this->later($token, fn () => $this->whitelist($setting->server, $this->option($interaction, 'name'), $actor)),
             default => ['type' => self::REPLY, 'data' => DiscordEmbeds::text($this->text()['reply']['failed']) + ['flags' => self::EPHEMERAL]],
         };
     }
@@ -163,11 +163,12 @@ class InteractionHandler
 
     /**
      * Sends "thinking" now, and edits the reply after the response is sent.
+     * The reply is public, so the channel shows who ran each command.
      *
      * @param  Closure(): array<string, mixed>  $work
      * @return array<string, mixed>
      */
-    private function later(string $token, bool $private, Closure $work): array
+    private function later(string $token, Closure $work): array
     {
         defer(function () use ($token, $work) {
             try {
@@ -191,7 +192,7 @@ class InteractionHandler
             }
         });
 
-        return ['type' => self::THINKING] + ($private ? ['data' => ['flags' => self::EPHEMERAL]] : []);
+        return ['type' => self::THINKING];
     }
 
     /** @param array<string, mixed> $interaction */
