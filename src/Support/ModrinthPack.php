@@ -19,7 +19,7 @@ final class ModrinthPack
     /**
      * @param  array<string, mixed>  $project  GET /project/{id}
      * @param  array<int, mixed>  $versions  GET /project/{id}/version
-     * @param  ?string  $pinned  a version id, such as the egg's VERSION_ID, or null for the newest release
+     * @param  ?string  $pinned  a version number or id, such as the egg's VERSION_ID, or null for the newest release
      * @return ?array{name: string, version: ?string, provider: string, url: string, download_url: ?string}
      */
     public static function fromApi(array $project, array $versions, ?string $pinned = null): ?array
@@ -32,21 +32,22 @@ final class ModrinthPack
         }
 
         $version = self::pick($versions, $pinned);
-        $id = (string) ($version['id'] ?? '');
         $number = trim(strip_tags((string) ($version['version_number'] ?? '')));
 
+        // The link ends in the version's name, such as 1.2.1, and not its id.
         return [
             'name' => $title,
             'version' => $number !== '' ? $number : null,
             'provider' => 'modrinth',
             'url' => "https://modrinth.com/modpack/$slug",
-            'download_url' => preg_match('/^[A-Za-z0-9]{1,16}$/', $id) === 1 ? "https://modrinth.com/modpack/$slug/version/$id" : null,
+            'download_url' => $number !== '' ? "https://modrinth.com/modpack/$slug/version/" . rawurlencode($number) : null,
         ];
     }
 
     /**
      * The pinned version if the project has it, otherwise the newest release,
-     * otherwise the newest version of any kind.
+     * otherwise the newest version of any kind. A pin is a version number or a
+     * version id.
      *
      * @param  array<int, mixed>  $versions
      * @return ?array<string, mixed>
@@ -57,7 +58,7 @@ final class ModrinthPack
 
         if ($pinned !== null && $pinned !== '') {
             foreach ($versions as $version) {
-                if (($version['id'] ?? null) === $pinned) {
+                if (($version['version_number'] ?? null) === $pinned || ($version['id'] ?? null) === $pinned) {
                     return $version;
                 }
             }

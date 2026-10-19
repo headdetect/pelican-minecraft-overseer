@@ -150,7 +150,12 @@ class OverviewService
 
             if (ModrinthPack::isProject($projectId)) {
                 $versionId = $environment['VERSION_ID'] ?? null;
-                $pack = app(ModrinthService::class)->pack($projectId, is_string($versionId) && $versionId !== '' ? $versionId : null);
+                $token = $environment['MODRINTH_TOKEN'] ?? null;
+                $pack = app(ModrinthService::class)->pack(
+                    $projectId,
+                    is_string($versionId) && $versionId !== '' ? $versionId : null,
+                    is_string($token) && trim($token) !== '' ? trim($token) : null,
+                );
 
                 if ($pack) {
                     return $pack;

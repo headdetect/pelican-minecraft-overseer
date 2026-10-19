@@ -122,7 +122,7 @@ check('discord signature no key set', DiscordSignature::verify('', $signature, '
 $discord = (require __DIR__ . '/../lang/en/overseer.php')['discord'];
 $list = 'There are 2 of a max of 20 players online: Doobie, kelp_lord';
 $names = PlayerService::parseList($list);
-$pack = ['name' => 'Cobblemon', 'version' => '1.6', 'url' => 'https://modrinth.com/modpack/cobblemon', 'download_url' => 'https://modrinth.com/modpack/cobblemon/version/AbCd1234'];
+$pack = ['name' => 'Cobblemon', 'version' => '1.6', 'url' => 'https://modrinth.com/modpack/cobblemon', 'download_url' => 'https://modrinth.com/modpack/cobblemon/version/1.6'];
 $info = DiscordEmbeds::info('Nurps', 'mc.example.com', '1.21.8', $pack, "Be nice.\n", true, '3h 4m', $list, $names, $discord)['embeds'][0];
 check('info title is the server name', $info['title'], 'Nurps');
 check('info field order', array_column($info['fields'], 'name'), ['Whitelist', 'Address', 'Status', 'Version', 'Players (2/20)', 'Modpack']);
@@ -131,7 +131,7 @@ check('info address in a code block', $info['fields'][1]['value'], "```\nmc.exam
 check('info status online with uptime', $info['fields'][2]['value'], 'Online, up for 3h 4m');
 check('info says java only', $info['fields'][3]['value'], '1.21.8, Java Edition only');
 check('info names escaped', $info['fields'][4]['value'], 'Doobie, kelp\\_lord');
-check('info links the modpack and its download', $info['fields'][5]['value'], "[Cobblemon 1.6](https://modrinth.com/modpack/cobblemon)\n[Download](https://modrinth.com/modpack/cobblemon/version/AbCd1234)");
+check('info links the modpack and its download', $info['fields'][5]['value'], "[Cobblemon 1.6](https://modrinth.com/modpack/cobblemon)\n[Download](https://modrinth.com/modpack/cobblemon/version/1.6)");
 check('info online is green', $info['color'], 0x10B981);
 check('info text as the description', $info['description'], 'Be nice.');
 $noDownload = DiscordEmbeds::info('Nurps', 'x', null, ['name' => 'Pack', 'version' => null, 'url' => null], null, true, null, null, [], $discord)['embeds'][0];
@@ -158,8 +158,12 @@ $versions = [
 $latest = ModrinthPack::fromApi($project, $versions);
 check('modrinth newest release wins over a newer beta', $latest['version'], '1.2.1');
 check('modrinth links the project', $latest['url'], 'https://modrinth.com/modpack/nurps-pack');
-check('modrinth links the version page', $latest['download_url'], 'https://modrinth.com/modpack/nurps-pack/version/newRel01');
-check('modrinth pinned version', ModrinthPack::fromApi($project, $versions, 'oldOld01')['version'], '1.2.0');
+check('modrinth links the version by name', $latest['download_url'], 'https://modrinth.com/modpack/nurps-pack/version/1.2.1');
+check('modrinth pinned by id', ModrinthPack::fromApi($project, $versions, 'oldOld01')['version'], '1.2.0');
+check('modrinth pinned by number', ModrinthPack::fromApi($project, $versions, '1.2.0')['download_url'], 'https://modrinth.com/modpack/nurps-pack/version/1.2.0');
+check('modrinth version name is url encoded', ModrinthPack::fromApi($project, [$versions[1]], null)['download_url'], 'https://modrinth.com/modpack/nurps-pack/version/1.3.0-beta');
+check('modrinth version with a plus and a space', ModrinthPack::fromApi($project, [['id' => 'x1', 'version_number' => '1.0+hotfix 2', 'version_type' => 'release']])['download_url'], 'https://modrinth.com/modpack/nurps-pack/version/1.0%2Bhotfix%202');
+check('modrinth no version name no download link', ModrinthPack::fromApi($project, [['id' => 'x1', 'version_type' => 'release']])['download_url'], null);
 check('modrinth pinned version it does not have', ModrinthPack::fromApi($project, $versions, 'missing1')['version'], '1.2.1');
 check('modrinth only betas', ModrinthPack::fromApi($project, [$versions[1]])['version'], '1.3.0-beta');
 check('modrinth no versions', ModrinthPack::fromApi($project, [])['version'], null);

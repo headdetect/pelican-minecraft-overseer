@@ -15,6 +15,12 @@ use Throwable;
  * /info show the pack's current version without anyone editing a setting.
  * The answer is cached for ten minutes. When Modrinth is down, the last good
  * answer stands in for a day.
+ *
+ * A project that isn't public yet (private, a draft, or in review) answers
+ * 404 to everyone but its team. The egg's MODRINTH_TOKEN, when it is set, goes
+ * in the Authorization header so those projects show. The token is sent only
+ * to api.modrinth.com. It isn't cached or logged, and the cache key doesn't
+ * include it.
  */
 class ModrinthService
 {
@@ -25,10 +31,11 @@ class ModrinthService
 
     /**
      * @param  string  $project  a Modrinth project id or slug, already checked with ModrinthPack::isProject
-     * @param  ?string  $versionId  a pinned version id, or null for the newest release
+     * @param  ?string  $versionId  a pinned version number or id, or null for the newest release
+     * @param  ?string  $token  a Modrinth personal access token, or null to ask without a login
      * @return ?array{name: string, version: ?string, provider: string, url: string, download_url: ?string}
      */
-    public function pack(string $project, ?string $versionId): ?array
+    public function pack(string $project, ?string $versionId, ?string $token = null): ?array
     {
         $key = "overseer:modrinth:$project:" . ($versionId ?: 'latest');
 
@@ -41,8 +48,8 @@ class ModrinthService
 
         try {
             $pack = ModrinthPack::fromApi(
-                (array) $this->get("/project/$project")->json(),
-                (array) $this->get("/project/$project/version", ['include_changelog' => 'false'])->json(),
+                (array) $this->get("/project/$project", [], $token)->json(),
+                (array) $this->get("/project/$project/version", ['include_changelog' => 'false'], $token)->json(),
                 $versionId,
             );
         } catch (RequestException $exception) {
@@ -72,16 +79,19 @@ class ModrinthService
      *
      * @throws RequestException
      */
-    private function get(string $path, array $query = []): Response
+    private function get(string $path, array $query, ?string $token): Response
     {
-        return $this->client()->get($path, $query)->throw();
+        return $this->client($token)->get($path, $query)->throw();
     }
 
-    private function client(): PendingRequest
+    private function client(?string $token): PendingRequest
     {
-        return Http::baseUrl(self::BASE)
+        $client = Http::baseUrl(self::BASE)
             ->withUserAgent(self::USER_AGENT)
             ->timeout(3)
             ->acceptJson();
+
+        // Modrinth takes the token as is, with no "Bearer" in front.
+        return $token !== null && $token !== '' ? $client->withHeaders(['Authorization' => $token]) : $client;
     }
 }
