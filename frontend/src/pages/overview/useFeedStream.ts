@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { mutate } from 'swr';
 import { postJson } from '../../api';
 import type { RconState } from '../../boot';
-import type { ChunkyTask, Feed } from './types';
+import type { ChunkyTask, Feed, MapPlayer } from './types';
 
 /** Give up waiting for a poke's answer after this long, so the refresh button doesn't spin forever. */
 const ANSWER_TIMEOUT = 15000;
@@ -25,6 +25,8 @@ interface Waiter {
  * browser closes the stream when the page goes away.
  *
  * refresh() asks the stream for a fresh feed and resolves when it arrives.
+ * Between feeds, the stream sends new marker positions about every second,
+ * while the refreshes keep coming with a nonzero interval.
  */
 export function useFeedStream(url: string | null) {
     const [feed, setFeed] = useState<Feed | undefined>(undefined);
@@ -59,6 +61,11 @@ export function useFeedStream(url: string | null) {
             mutate<RconState>('/rcon', (current) => (current ? { ...current, state: data.rcon } : current), { revalidate: false });
             settle(data.seq);
         });
+        // Positions only. The rest of the feed stays as the last full one left it.
+        source.addEventListener('players', (e) => {
+            const { players } = JSON.parse((e as MessageEvent).data) as { players: MapPlayer[] };
+            setFeed((current) => (current ? { ...current, ok: true, players } : current));
+        });
         source.addEventListener('failed', (e) => {
             setError(true);
             settle((JSON.parse((e as MessageEvent).data) as { seq: number }).seq);
@@ -77,7 +84,8 @@ export function useFeedStream(url: string | null) {
     }, [url, settle]);
 
     const refresh = useCallback(
-        (manual: boolean): Promise<void> =>
+        // interval is the automatic refresh in seconds, 0 when it's off. The stream sends positions only while it's on.
+        (manual: boolean, interval: number): Promise<void> =>
             new Promise((resolve) => {
                 const next = ++seq.current;
                 const timer = setTimeout(() => settle(next), ANSWER_TIMEOUT);
@@ -90,7 +98,7 @@ export function useFeedStream(url: string | null) {
                 });
                 // Still connecting: the new stream's first feed answers this.
                 if (!stream.current) return;
-                postJson(`/feed/${stream.current}`, { seq: next, manual }).catch(() => settle(next));
+                postJson(`/feed/${stream.current}`, { seq: next, manual, interval }).catch(() => settle(next));
             }),
         [settle],
     );

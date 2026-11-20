@@ -20,10 +20,14 @@ use Throwable;
  * page. It holds one RCON connection for the life of the page, instead of
  * connecting for every refresh: each RCON login is two lines in the server log.
  *
- * The page's refresh control still sets the pace. Each tick POSTs to poke(),
- * which leaves a note in the cache. The stream checks for notes a few times a
- * second and answers with the next feed. It is a plain route instead of a
- * Livewire call, because Livewire runs one request at a time per page.
+ * The page's refresh control sets the pace of the full feed. Each tick POSTs to
+ * poke(), which leaves a note in the cache. The stream checks for notes a few
+ * times a second and answers with the next feed. It is a plain route instead of
+ * a Livewire call, because Livewire runs one request at a time per page.
+ *
+ * Between full feeds, the stream sends only the map markers, every second with
+ * squaremap or every two seconds over RCON. It does this only while the pokes
+ * keep coming, so it stops when automatic refresh is off or the tab is hidden.
  *
  * The request holds a PHP-FPM worker while the page is open. It ends when the
  * browser goes away (noticed at the next heartbeat) or after an hour, when the
@@ -45,6 +49,19 @@ class MapFeedController extends Controller
 
     /** The Chunky banner, at most this often unless the refresh was a click. */
     private const CHUNKY_EVERY = 15.0;
+
+    /** Marker positions this often between full feeds. squaremap updates its players.json about once a second. */
+    private const POSITIONS_EVERY = 1.0;
+
+    /** Without squaremap, each position costs several RCON queries per player, so less often. */
+    private const RCON_POSITIONS_EVERY = 2.0;
+
+    /**
+     * Keep sending positions this long past the page's refresh interval. If no
+     * poke comes by then, the page stopped refreshing. A new stream gets this
+     * long before its first poke.
+     */
+    private const LIVE_GRACE = 10.0;
 
     public function stream(Server $server, MapFeed $feed, Chunky $chunky, ConsoleService $console): StreamedResponse
     {
@@ -98,17 +115,34 @@ class MapFeedController extends Controller
                 $tick(0, true);
 
                 $handled = 0;
-                $beat = microtime(true);
+                $beat = $positionsAt = microtime(true);
+                $liveUntil = microtime(true) + self::LIVE_GRACE;
                 $end = time() + self::LIFETIME;
                 while (!connection_aborted() && time() < $end) {
                     usleep(self::POLL_MS * 1000);
+                    $now = microtime(true);
 
                     $poke = Cache::get($key);
                     if (is_array($poke) && $poke['seq'] > $handled) {
                         $handled = $poke['seq'];
+                        $interval = $poke['interval'] ?? 0;
+                        $liveUntil = $interval > 0 ? $now + $interval + self::LIVE_GRACE : 0;
                         $tick($handled, $poke['manual']);
-                        $beat = microtime(true);
-                    } elseif (microtime(true) - $beat >= self::HEARTBEAT) {
+                        $beat = $positionsAt = microtime(true);
+                    } elseif ($now < $liveUntil && $now - $positionsAt >= ($feed->usesSquaremap($server) ? self::POSITIONS_EVERY : self::RCON_POSITIONS_EVERY)) {
+                        $console->retryRcon(self::RCON_RETRY);
+                        // A failure skips this one quietly. The next full feed reports it.
+                        try {
+                            $players = $feed->positions($server);
+                        } catch (Throwable) {
+                            $players = null;
+                        }
+                        if ($players !== null) {
+                            $send('players', ['players' => $players]);
+                            $beat = microtime(true);
+                        }
+                        $positionsAt = microtime(true);
+                    } elseif ($now - $beat >= self::HEARTBEAT) {
                         $write(": ping\n\n");
                         $beat = microtime(true);
                     }
@@ -133,9 +167,15 @@ class MapFeedController extends Controller
         $data = $request->validate([
             'seq' => ['required', 'integer', 'min:1'],
             'manual' => ['boolean'],
+            // The page's automatic refresh interval in seconds, 0 when it's off.
+            'interval' => ['integer', 'min:0', 'max:3600'],
         ]);
 
-        Cache::put(self::pokeKey($stream), ['seq' => (int) $data['seq'], 'manual' => (bool) ($data['manual'] ?? false)], now()->addSeconds(self::LIFETIME));
+        Cache::put(self::pokeKey($stream), [
+            'seq' => (int) $data['seq'],
+            'manual' => (bool) ($data['manual'] ?? false),
+            'interval' => (int) ($data['interval'] ?? 0),
+        ], now()->addSeconds(self::LIFETIME));
 
         return response()->json(['ok' => true]);
     }

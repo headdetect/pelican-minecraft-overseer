@@ -20,7 +20,7 @@ import { postJson } from '../../api';
 import { headUrl, useBoot } from '../../boot';
 import { t } from '../../lang';
 import { notifyDone } from '../../notify';
-import { useRefresh } from '../../refresh';
+import { useRefresh, useRefreshState } from '../../refresh';
 import { TeleportCoordsModal, usePlayerActions } from '../../shared/PlayerActions';
 import { Badge, Button, Field, Loading, Modal, ModalActions, Section, Skeleton, SkeletonLines, SkeletonRow, Spinner, TextInput, cx } from '../../ui';
 import { Icon, type IconComponent } from '../../ui/icons';
@@ -48,9 +48,10 @@ export default function Overview() {
     const counters = useRef({ refreshes: 0, statsAt: Date.now() });
 
     const { refresh: refreshFeed } = feed;
+    const { seconds: interval } = useRefreshState();
     const reloadFeed = useCallback(async (manual = false) => {
-        await refreshFeed(manual);
-    }, [refreshFeed]);
+        await refreshFeed(manual, interval);
+    }, [refreshFeed, interval]);
 
     // Every feed from the stream counts as an update for the "Updated Xs ago" chip.
     useEffect(() => {
@@ -102,7 +103,8 @@ export default function Overview() {
     const feedState: 'loading' | 'live' | 'stale' = feed.error ? 'stale' : !feedData ? 'loading' : feedData.ok ? 'live' : 'stale';
     const players = useMemo(() => feedData?.players ?? [], [feedData]);
     const unmapped = useMemo(() => feedData?.unmapped ?? [], [feedData]);
-    const onlineNames = useMemo(() => [...players.map((p) => p.name), ...unmapped.map((u) => u.name)], [players, unmapped]);
+    // A Set, because positions arrive between full feeds: a player who just respawned can be in both lists until the next one.
+    const onlineNames = useMemo(() => [...new Set([...players.map((p) => p.name), ...unmapped.map((u) => u.name)])], [players, unmapped]);
     const worldLabel = (name: string) => map.data?.worlds.find((w) => w.name === name)?.label ?? name;
 
     return (
