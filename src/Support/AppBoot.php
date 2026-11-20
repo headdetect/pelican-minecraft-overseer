@@ -74,7 +74,8 @@ final class AppBoot
                 'restart' => (bool) user()?->can(SubuserPermission::ControlRestart, $server),
             ],
             'rcon' => [
-                'state' => $console->rconState($server),
+                // The Overview's feed stream reports it over its own connection, so don't open another one here.
+                'state' => $console->rconState($server, probe: !($tab === 'overview' && $can(Permission::MAP_VIEW))),
                 'exposed' => $console->exposedRconPort($server),
             ],
             'lang' => trans('overseer::overseer'),

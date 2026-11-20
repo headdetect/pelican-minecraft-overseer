@@ -43,6 +43,12 @@ class RconConnector
         return $client;
     }
 
+    /** Drops the server.properties read so far, so the next call reads the file again. */
+    public function forget(): void
+    {
+        $this->properties = [];
+    }
+
     /** @return array<string, string> */
     public function properties(Server $server): array
     {

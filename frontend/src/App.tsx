@@ -77,11 +77,13 @@ function useTabs(): [TabKey, (tab: TabKey) => void] {
     return [tab, go];
 }
 
-function RconWarning() {
+function RconWarning({ tab }: { tab: TabKey }) {
     const boot = useBoot();
     const { data, mutate } = useSWR<RconState>('/rcon', getJson, { fallbackData: boot.rcon, revalidateOnMount: false });
     // Recheck on manual refresh only. The state rarely changes while the page is open.
-    useRefresh((manual) => (manual ? mutate() : undefined));
+    // The Overview's feed stream keeps it current over its own RCON connection, so skip the check there.
+    const streamed = tab === 'overview' && boot.can.mapView;
+    useRefresh((manual) => (manual && !streamed ? mutate() : undefined));
 
     return (
         <>
@@ -152,7 +154,7 @@ export default function App() {
                                 <div className="us-tabrow-end">{tab !== 'config' && <RefreshControl />}</div>
                             </div>
                             <div className="fi-page-content us-page-content">
-                                <RconWarning />
+                                <RconWarning tab={tab} />
                                 <Page tab={tab} />
                             </div>
                         </div>

@@ -27,6 +27,7 @@ import { Icon, type IconComponent } from '../../ui/icons';
 import { useAction } from '../../useAction';
 import { LiveMap, type LiveMapHandle } from './LiveMap';
 import type { ChatLine, ChunkyTask, Feed, GameTime, MapConfig, Stats } from './types';
+import { useFeedStream } from './useFeedStream';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -36,9 +37,8 @@ export default function Overview() {
     const canCommand = boot.can.commandsWorld || boot.can.commandsOps;
 
     const map = useSWR<MapConfig>(canSeeMap ? '/map' : null);
-    const feed = useSWR<Feed>(canSeeMap ? boot.feedUrl : null);
+    const feed = useFeedStream(canSeeMap ? boot.feedUrl : null);
     const stats = useSWR<Stats>(canSeeMap ? '/stats' : null);
-    const chunky = useSWR<{ tasks: ChunkyTask[] }>(canSeeMap ? '/chunky' : null);
     const recent = useSWR<{ lines: string[] }>(canCommand ? '/recent' : null);
 
     const mapRef = useRef<LiveMapHandle>(null);
@@ -47,18 +47,22 @@ export default function Overview() {
     const [updatedAt, setUpdatedAt] = useState<number | null>(null);
     const counters = useRef({ refreshes: 0, statsAt: Date.now() });
 
-    const reloadFeed = useCallback(async () => {
-        const data = await feed.mutate();
-        if (data) setUpdatedAt(Date.now());
-        return data;
-    }, [feed]);
+    const { refresh: refreshFeed } = feed;
+    const reloadFeed = useCallback(async (manual = false) => {
+        await refreshFeed(manual);
+    }, [refreshFeed]);
+
+    // Every feed from the stream counts as an update for the "Updated Xs ago" chip.
+    useEffect(() => {
+        if (feed.feed) setUpdatedAt(Date.now());
+    }, [feed.feed]);
 
     // Positions on every refresh. The stat cards at most every 15 s, since Pelican
     // caches resource usage that long, or right away for a click.
     useRefresh((manual) => {
         const jobs: Promise<unknown>[] = [];
         if (canSeeMap) {
-            jobs.push(reloadFeed());
+            jobs.push(reloadFeed(manual));
             // Terrain changes as players build and explore, so reload the visible
             // tiles every fifth refresh, or right away for a click.
             counters.current.refreshes++;
@@ -67,7 +71,8 @@ export default function Overview() {
         const now = Date.now();
         if (manual || now - counters.current.statsAt >= 15000) {
             counters.current.statsAt = now;
-            if (canSeeMap) jobs.push(stats.mutate(), chunky.mutate());
+            // The stream sends the Chunky banner on its own, every 15 s or for a click.
+            if (canSeeMap) jobs.push(stats.mutate());
             if (canCommand) jobs.push(recent.mutate());
         }
         if (!canSeeMap) return Promise.allSettled(jobs);
@@ -78,11 +83,6 @@ export default function Overview() {
         all.then(() => setFetching(false));
         return all;
     });
-
-    // The first feed counts as an update for the "Updated Xs ago" chip.
-    useEffect(() => {
-        if (feed.data && updatedAt === null) setUpdatedAt(Date.now());
-    }, [feed.data, updatedAt]);
 
     const afterCommand = useCallback(() => {
         recent.mutate();
@@ -96,11 +96,12 @@ export default function Overview() {
     const actions = usePlayerActions(afterPlayerAction);
 
     // True only before the first response. A refresh keeps the old data on screen.
-    const feedLoading = !feed.data && !feed.error;
+    const feedData = feed.feed;
+    const feedLoading = !feedData && !feed.error;
     const statsLoading = !stats.data && !stats.error;
-    const feedState: 'loading' | 'live' | 'stale' = feed.error ? 'stale' : !feed.data ? 'loading' : feed.data.ok ? 'live' : 'stale';
-    const players = useMemo(() => feed.data?.players ?? [], [feed.data]);
-    const unmapped = useMemo(() => feed.data?.unmapped ?? [], [feed.data]);
+    const feedState: 'loading' | 'live' | 'stale' = feed.error ? 'stale' : !feedData ? 'loading' : feedData.ok ? 'live' : 'stale';
+    const players = useMemo(() => feedData?.players ?? [], [feedData]);
+    const unmapped = useMemo(() => feedData?.unmapped ?? [], [feedData]);
     const onlineNames = useMemo(() => [...players.map((p) => p.name), ...unmapped.map((u) => u.name)], [players, unmapped]);
     const worldLabel = (name: string) => map.data?.worlds.find((w) => w.name === name)?.label ?? name;
 
@@ -113,7 +114,7 @@ export default function Overview() {
                 </div>
             )}
 
-            {canSeeMap && <ChunkyBanner tasks={chunky.data?.tasks ?? []} />}
+            {canSeeMap && <ChunkyBanner tasks={feed.chunky} />}
 
             {canSeeMap && map.data?.setup && <MapSetup setup={map.data.setup} onChecked={(config) => map.mutate(config, { revalidate: false })} />}
 
@@ -144,7 +145,7 @@ export default function Overview() {
                         </div>
 
                         <div className="us-side">
-                            <Chat lines={feed.data?.chat ?? []} loading={feedLoading} onSent={reloadFeed} />
+                            <Chat lines={feedData?.chat ?? []} loading={feedLoading} onSent={reloadFeed} />
 
                             <Section heading={t('map.online')} compact afterHeader={feedLoading ? <Skeleton width="1.75rem" height="1.4rem" /> : <Badge color="success">{players.length + unmapped.length}</Badge>}>
                                 <div className="us-list">
@@ -192,9 +193,9 @@ export default function Overview() {
                                 </div>
                             </Section>
 
-                            {boot.can.commandsWorld && <QuickActions time={feed.data?.time ?? null} withClock loading={feedLoading} onDone={afterCommand} onTeleported={afterPlayerAction} />}
+                            {boot.can.commandsWorld && <QuickActions time={feedData?.time ?? null} withClock loading={feedLoading} onDone={afterCommand} onTeleported={afterPlayerAction} />}
 
-                            <MinecraftCard server={feed.data?.server} loading={feedLoading} />
+                            <MinecraftCard server={feedData?.server} loading={feedLoading} />
                         </div>
                     </div>
                 </div>

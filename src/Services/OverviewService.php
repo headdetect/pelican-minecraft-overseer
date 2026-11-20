@@ -52,6 +52,19 @@ class OverviewService
     }
 
     /**
+     * Only Wings' usage numbers, for the stat cards. No RCON: the version and
+     * modpack come with the Overview's feed.
+     *
+     * @return array{running: bool, resources: array{cpu: ?float, cpu_limit: int, memory: ?int, memory_limit: int, disk: ?int, disk_limit: int, uptime: ?int}}
+     */
+    public function usage(Server $server): array
+    {
+        $running = $server->retrieveStatus() === ContainerStatus::Running;
+
+        return ['running' => $running, 'resources' => $this->resources($server, $running)];
+    }
+
+    /**
      * Wings returns at most the last 100 console lines, and busy servers (or
      * Chunky's progress lines) push chat out of those quickly. So each poll
      * adds new chat to a history kept here, which outlasts the console.

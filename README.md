@@ -48,7 +48,7 @@ Install [squaremap](https://github.com/jpenilla/squaremap) on the Minecraft serv
 
 squaremap draws only the chunks that exist and updates them as players explore. To draw an existing world now, use Redraw the map on the Tools tab, or run `squaremap fullrender minecraft:overworld` in the server console.
 
-Overseer polls the server over RCON every few seconds while one of its pages is open, and Minecraft logs a "Thread RCON Client ... started" line for each connection. Those lines show in Pelican's console.
+The Overview keeps one RCON connection open for as long as the page is open, through a long-lived request (server-sent events) that answers each refresh. Minecraft logs a "Thread RCON Client ... started" line for each connection, so that is one line per page visit instead of one per refresh. Each open Overview holds one PHP-FPM worker while it is open, so a panel with several people watching the Overview at once may need a higher `pm.max_children`. The other pages and the buttons still connect once per request.
 
 The browser never connects to squaremap: the panel fetches the tiles and passes them on, so the map works on an HTTPS panel and the port does not need to be open to the internet. The panel only ever connects to the server's own address on one of its own allocated ports.
 
