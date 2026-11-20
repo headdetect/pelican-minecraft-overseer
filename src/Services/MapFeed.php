@@ -30,7 +30,7 @@ class MapFeed
         $players = [];
         $unmapped = [];
         if ($running) {
-            if ($this->map->source($server)['status'] === MapService::READY) {
+            if ($this->usesSquaremap($server)) {
                 $players = $this->map->players($server);
                 $unmapped = $players !== null ? $this->unmapped($server, array_column($players, 'name')) : [];
             } else {
@@ -38,8 +38,7 @@ class MapFeed
             }
         }
 
-        // ops.json rarely changes, so read it at most every 30 seconds.
-        $ops = Cache::remember("overseer:ops:$server->uuid", now()->addSeconds(30), fn () => $this->players->ops($server));
+        $ops = $this->ops($server);
         $stats = $this->overview->stats($server);
         $uptime = $stats['resources']['uptime'];
 
@@ -58,6 +57,41 @@ class MapFeed
                 'uptime' => $uptime !== null ? trans('overseer::overseer.overview.uptime', ['time' => ServerStats::uptime($uptime)]) : null,
             ],
         ];
+    }
+
+    /**
+     * Only the map markers, for the stream to send between full feeds. With
+     * squaremap this is one read of its players.json, without RCON. Null when
+     * the server is off or nothing answered.
+     *
+     * @return ?array<int, array<string, mixed>>
+     */
+    public function positions(Server $server): ?array
+    {
+        if ($server->retrieveStatus() !== ContainerStatus::Running) {
+            return null;
+        }
+
+        $players = $this->usesSquaremap($server) ? $this->map->players($server) : $this->rconPlayers($server);
+        if ($players === null) {
+            return null;
+        }
+
+        $ops = $this->ops($server);
+
+        return array_map(fn (array $player) => [...$player, 'op' => in_array($player['name'], $ops, true)], $players);
+    }
+
+    /** Whether positions come from squaremap. Otherwise they cost several RCON queries per player. */
+    public function usesSquaremap(Server $server): bool
+    {
+        return $this->map->source($server)['status'] === MapService::READY;
+    }
+
+    /** @return string[] ops.json rarely changes, so read it at most every 30 seconds. */
+    private function ops(Server $server): array
+    {
+        return Cache::remember("overseer:ops:$server->uuid", now()->addSeconds(30), fn () => $this->players->ops($server));
     }
 
     /**

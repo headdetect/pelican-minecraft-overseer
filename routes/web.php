@@ -26,7 +26,8 @@ Route::middleware(['web', 'auth'])
         Route::get('/map/{path}', MapTileController::class)
             ->where('path', 'tiles/.+')
             ->name('overseer.map.tile');
-        Route::get('/map-feed', MapFeedController::class)
+        // The Overview's live feed: one long request per open page. See MapFeedController.
+        Route::get('/map-feed', [MapFeedController::class, 'stream'])
             ->name('overseer.map.feed');
         // Each request loads a chunk and summons a marker, so cap how often one user can ask.
         Route::get('/map-surface', MapSurfaceController::class)
@@ -36,11 +37,11 @@ Route::middleware(['web', 'auth'])
         // The React app's API. Each controller checks the permission the action needs.
         Route::prefix('/api')->group(function () {
             Route::get('/stats', [Api\OverviewController::class, 'stats']);
-            Route::get('/chunky', [Api\OverviewController::class, 'chunky']);
             Route::get('/map', [Api\OverviewController::class, 'map']);
             Route::post('/map', [Api\OverviewController::class, 'map']);
             Route::get('/recent', [Api\OverviewController::class, 'recent']);
             Route::get('/rcon', [Api\OverviewController::class, 'rcon']);
+            Route::post('/feed/{stream}', [MapFeedController::class, 'poke'])->where('stream', '[0-9a-f]{32}');
 
             Route::post('/commands/{name}', [Api\CommandController::class, 'run'])->where('name', '[a-z]+');
             Route::post('/chat', [Api\CommandController::class, 'chat']);

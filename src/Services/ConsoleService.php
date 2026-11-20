@@ -26,7 +26,8 @@ class ConsoleService
 {
     private ?RconClient $rcon = null;
 
-    private bool $rconFailed = false;
+    /** When connecting or a command last failed. Calls skip RCON after that, until retryRcon(). */
+    private ?float $rconFailedAt = null;
 
     public function __construct(private readonly RconConnector $connector) {}
 
@@ -50,7 +51,7 @@ class ConsoleService
             } catch (RconException $exception) {
                 report($exception);
                 $this->rcon = null;
-                $this->rconFailed = true;
+                $this->rconFailedAt = microtime(true);
             }
         }
 
@@ -94,7 +95,7 @@ class ConsoleService
         } catch (RconException $exception) {
             report($exception);
             $this->rcon = null;
-            $this->rconFailed = true;
+            $this->rconFailedAt = microtime(true);
 
             return null;
         }
@@ -111,8 +112,12 @@ class ConsoleService
      * server.properties), or unreachable (turned on, but the server running
      * doesn't answer). Null when the server isn't running, so it can't tell.
      * Cached briefly, because every Overseer page checks it.
+     *
+     * With $probe false, it never connects: it returns the cached state, or
+     * null when nothing is cached. The Overview uses that, because its feed
+     * stream reports the state over the connection it already holds.
      */
-    public function rconState(Server $server): ?string
+    public function rconState(Server $server, bool $probe = true): ?string
     {
         if (!$this->connector->isConfigured($server)) {
             return self::RCON_OFF;
@@ -122,7 +127,39 @@ class ConsoleService
             return null;
         }
 
-        return cache()->remember("overseer:rcon:$server->uuid", now()->addSeconds(30), fn () => $this->hasRcon($server) ? self::RCON_OK : self::RCON_UNREACHABLE);
+        $cached = cache()->get(self::rconStateKey($server));
+
+        return $cached ?? ($probe ? $this->storeRconState($server) : null);
+    }
+
+    /**
+     * rconState() without the cache: checks with this instance's connection,
+     * which connects if it has none and hasn't failed, and caches the result.
+     */
+    public function checkRcon(Server $server): ?string
+    {
+        if (!$this->connector->isConfigured($server)) {
+            return self::RCON_OFF;
+        }
+
+        if ($server->retrieveStatus() !== ContainerStatus::Running) {
+            return null;
+        }
+
+        return $this->storeRconState($server);
+    }
+
+    private function storeRconState(Server $server): string
+    {
+        $state = $this->hasRcon($server) ? self::RCON_OK : self::RCON_UNREACHABLE;
+        cache()->put(self::rconStateKey($server), $state, now()->addSeconds(30));
+
+        return $state;
+    }
+
+    private static function rconStateKey(Server $server): string
+    {
+        return "overseer:rcon:$server->uuid";
     }
 
     /**
@@ -147,9 +184,30 @@ class ConsoleService
         return $this->rcon($server) !== null;
     }
 
+    /**
+     * Lets calls try RCON again once $after seconds have passed since it
+     * failed. A long-lived request uses this, so a server restart doesn't
+     * leave it without RCON. It reads server.properties again too, in case
+     * the port or password changed.
+     */
+    public function retryRcon(float $after): void
+    {
+        if ($this->rconFailedAt !== null && microtime(true) - $this->rconFailedAt >= $after) {
+            $this->rconFailedAt = null;
+            $this->connector->forget();
+        }
+    }
+
+    /** Closes the RCON connection, if one is open. The next call connects again. */
+    public function disconnect(): void
+    {
+        $this->rcon?->close();
+        $this->rcon = null;
+    }
+
     private function rcon(Server $server): ?RconClient
     {
-        if ($this->rcon || $this->rconFailed) {
+        if ($this->rcon || $this->rconFailedAt !== null) {
             return $this->rcon;
         }
 
@@ -161,7 +219,7 @@ class ConsoleService
             $this->rcon = $this->connector->connect($server);
         } catch (RconException $exception) {
             report($exception);
-            $this->rconFailed = true;
+            $this->rconFailedAt = microtime(true);
         }
 
         return $this->rcon;

@@ -2,7 +2,8 @@
 # script/up, which sets DEV_DATA and seeds the panel. See DEVELOPMENT.md.
 #
 # Both services use the host network, so localhost means the same machine for
-# the browser, the panel, wings and the game server's RCON and map ports.
+# the browser, the panel and wings. The game server's RCON and map ports are the
+# exception: see OVERSEER_RCON_HOST below.
 name: overseer-dev
 
 services:
@@ -21,6 +22,12 @@ services:
       APP_DEBUG: "true"
       # Plugin load errors throw instead of marking the plugin errored.
       PANEL_PLUGIN_DEV_MODE: "true"
+      # seed.php gives RCON and squaremap 127.0.0.1 allocations, and Wings
+      # publishes a 127.0.0.1 allocation on its Docker network's gateway
+      # instead. So localhost:25575 refuses, and the panel has to use the
+      # gateway that seed.php sets in the Wings config.
+      OVERSEER_RCON_HOST: 172.29.0.1
+      OVERSEER_MAP_HOST: 172.29.0.1
     volumes:
       - panel-data:/pelican-data
       - plugins:/var/www/html/plugins

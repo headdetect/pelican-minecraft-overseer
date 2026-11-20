@@ -2,18 +2,15 @@
 
 namespace Headdetect\Overseer\Http\Controllers\Api;
 
-use App\Enums\ContainerStatus;
 use App\Models\Server;
 use Headdetect\Overseer\Services\ConsoleService;
 use Headdetect\Overseer\Services\Map\MapService;
 use Headdetect\Overseer\Services\OverviewService;
 use Headdetect\Overseer\Services\QuickCommands;
-use Headdetect\Overseer\Services\Tools\Chunky;
 use Headdetect\Overseer\Support\Permission;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Cache;
 
-/** The Overview's stat cards, map setup, recent actions and the RCON warning. */
+/** The Overview's stat cards, map setup, recent actions and the RCON warning. The live feed is MapFeedController. */
 class OverviewController extends ApiController
 {
     /** CPU, memory and disk, with sizes already formatted the way Pelican shows them. */
@@ -21,7 +18,7 @@ class OverviewController extends ApiController
     {
         $this->authorizeAny($server, Permission::MAP_VIEW);
 
-        $stats = $overview->stats($server);
+        $stats = $overview->usage($server);
         $bytes = fn (?int $value) => $value === null ? null : convert_bytes_to_readable($value, 1);
         $r = $stats['resources'];
 
@@ -38,18 +35,6 @@ class OverviewController extends ApiController
             'disk_limit' => $r['disk_limit'],
             'disk_limit_text' => $r['disk_limit'] > 0 ? $bytes($r['disk_limit']) : null,
         ]);
-    }
-
-    /** Running Chunky tasks, for the Overview's banner. Cached for 10 seconds, so open tabs share one RCON call. */
-    public function chunky(Server $server, Chunky $chunky): JsonResponse
-    {
-        $this->authorizeAny($server, Permission::MAP_VIEW);
-
-        $tasks = $server->retrieveStatus() === ContainerStatus::Running
-            ? Cache::remember("overseer:chunky:$server->uuid", now()->addSeconds(10), fn () => $chunky->running($server))
-            : [];
-
-        return response()->json(['tasks' => $tasks]);
     }
 
     /** Where the map gets its tiles, and why there are none when squaremap isn't ready. */
