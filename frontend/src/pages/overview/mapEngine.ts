@@ -22,6 +22,9 @@ const WHEEL_PX_PER_LEVEL = 400;
 // How far below squaremap's lowest tile level (0) the view can zoom out.
 // Each level halves the scale, so -3 shows 8x more blocks across than level 0.
 const MIN_ZOOM = -3;
+// Tiles kept after they leave the screen, so panning back doesn't load them
+// again. A 512px tile decodes to 1 MB, so this keeps up to about 256 MB.
+const TILE_CACHE = 256;
 
 export interface EngineElements {
     viewport: HTMLDivElement;
@@ -60,6 +63,11 @@ export class MapEngine {
     /** While true, wheel zoom keeps the center still, so a followed player stays in view. */
     following = false;
 
+    /**
+     * Every tile the viewer has created, in least recently shown order.
+     * Tiles off screen stay here, hidden, until the cache is full. Tiles that
+     * failed to load stay too, so the viewer doesn't request them again.
+     */
     private tiles = new Map<string, HTMLImageElement>();
     private pins = new Map<string, HTMLButtonElement>();
     private spawn: HTMLDivElement | null = null;
@@ -256,9 +264,16 @@ export class MapEngine {
     // Loads each visible tile again in the background and swaps it in once it
     // arrives, so the map doesn't flicker. The query string skips the
     // browser's 30-second tile cache. Tiles that failed before get another try.
+    // Hidden tiles are dropped, so the viewer loads them fresh when they're
+    // back on screen.
     reloadTiles(): void {
         const version = Date.now();
         this.tiles.forEach((img, key) => {
+            if (img.style.display === 'none') {
+                img.remove();
+                this.tiles.delete(key);
+                return;
+            }
             const fresh = new Image();
             fresh.onload = () => {
                 if (this.tiles.get(key) !== img) return;
@@ -304,7 +319,12 @@ export class MapEngine {
                 const key = `${world.name}/${level}/${tx}_${ty}`;
                 wanted.add(key);
                 let img = this.tiles.get(key);
-                if (!img) {
+                if (img) {
+                    // Move it to the end, so it's the last tile the cache drops.
+                    this.tiles.delete(key);
+                    this.tiles.set(key, img);
+                    img.style.display = '';
+                } else {
                     const tile = document.createElement('img');
                     tile.className = 'us-tile';
                     tile.alt = '';
@@ -324,10 +344,15 @@ export class MapEngine {
             }
         }
 
+        let extra = this.tiles.size - Math.max(TILE_CACHE, wanted.size);
         this.tiles.forEach((img, key) => {
-            if (!wanted.has(key)) {
+            if (wanted.has(key)) return;
+            if (extra > 0) {
                 img.remove();
                 this.tiles.delete(key);
+                extra--;
+            } else {
+                img.style.display = 'none';
             }
         });
     }
