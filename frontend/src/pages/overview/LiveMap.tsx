@@ -47,7 +47,7 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ confi
     const boot = useBoot();
     const { seconds } = useRefreshState();
     const viewport = useRef<HTMLDivElement>(null);
-    const tiles = useRef<HTMLDivElement>(null);
+    const tiles = useRef<HTMLCanvasElement>(null);
     const pins = useRef<HTMLDivElement>(null);
     const grid = useRef<HTMLCanvasElement>(null);
     const engine = useRef<MapEngine | null>(null);
@@ -323,7 +323,7 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap({ confi
         {fullscreen && createPortal(<div className="us-map-backdrop" aria-hidden="true" onClick={() => setFullscreen(false)} />, document.body)}
         <div ref={viewport} className={cx('us-viewport', fullscreen && 'is-fullscreen')} tabIndex={0} role="application" aria-label={t('map.aria')}>
             <canvas ref={grid} className="us-grid" style={{ display: config.mode === 'grid' ? undefined : 'none' }} />
-            <div ref={tiles} className="us-tiles" />
+            <canvas ref={tiles} className="us-tiles" />
             <div ref={pins} className="us-pins" />
 
             <div className="us-controls">

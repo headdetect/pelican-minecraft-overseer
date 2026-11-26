@@ -1,9 +1,10 @@
+import { TileLayer } from './tileLayer';
 import type { MapPlayer, World } from './types';
 
 /*
  * A small tile viewer for squaremap tiles, with player markers. No libraries.
- * It draws tiles, the grid and the markers straight into the DOM, because
- * those change on every drag frame. React draws the controls and popovers on
+ * It draws the tiles or the grid on a canvas, and places the markers in the
+ * DOM itself, because those change on every drag frame. TileLayer loads the tiles. React draws the controls and popovers on
  * top, at the screen positions this class works out.
  *
  * Coordinates follow squaremap: at zoom level `max` one pixel is one block, each
@@ -22,13 +23,10 @@ const WHEEL_PX_PER_LEVEL = 400;
 // How far below squaremap's lowest tile level (0) the view can zoom out.
 // Each level halves the scale, so -3 shows 8x more blocks across than level 0.
 const MIN_ZOOM = -3;
-// Tiles kept after they leave the screen, so panning back doesn't load them
-// again. A 512px tile decodes to 1 MB, so this keeps up to about 256 MB.
-const TILE_CACHE = 256;
 
 export interface EngineElements {
     viewport: HTMLDivElement;
-    tiles: HTMLDivElement;
+    tiles: HTMLCanvasElement;
     pins: HTMLDivElement;
     grid: HTMLCanvasElement;
 }
@@ -63,12 +61,10 @@ export class MapEngine {
     /** While true, wheel zoom keeps the center still, so a followed player stays in view. */
     following = false;
 
-    /**
-     * Every tile the viewer has created, in least recently shown order.
-     * Tiles off screen stay here, hidden, until the cache is full. Tiles that
-     * failed to load stay too, so the viewer doesn't request them again.
-     */
-    private tiles = new Map<string, HTMLImageElement>();
+    private tiles: TileLayer;
+    /** The tile keys drawn last, for reloadTiles. */
+    private visible: string[] = [];
+    private redraw = 0;
     private pins = new Map<string, HTMLButtonElement>();
     private spawn: HTMLDivElement | null = null;
     private drag: { x: number; y: number; cx: number; cz: number; moved: boolean } | null = null;
@@ -82,6 +78,7 @@ export class MapEngine {
         this.els = els;
         this.opts = opts;
         this.worlds = worlds;
+        this.tiles = new TileLayer(opts.tileBase, () => this.requestDraw());
         this.world = worlds[0].name;
         this.setWorld(this.world, false);
 
@@ -103,6 +100,7 @@ export class MapEngine {
 
     destroy(): void {
         this.stopGlide();
+        cancelAnimationFrame(this.redraw);
         this.resize.disconnect();
         this.cleanup.forEach((fn) => fn());
         this.clearTiles();
@@ -156,7 +154,6 @@ export class MapEngine {
         this.cx = world.spawn.x;
         this.cz = world.spawn.z;
         if (render) {
-            this.clearTiles();
             this.render();
         }
     }
@@ -184,7 +181,6 @@ export class MapEngine {
             this.cx = player.x;
             this.cz = player.z;
             this.zoom = Math.max(this.zoom, this.current.max);
-            this.clearTiles();
             this.render();
             return;
         }
@@ -200,7 +196,6 @@ export class MapEngine {
             this.cx = player.x + 0.5;
             this.cz = player.z + 0.5;
             this.zoom = Math.min(zoom, this.current.max + this.current.extra);
-            this.clearTiles();
             this.render();
             return;
         }
@@ -262,31 +257,25 @@ export class MapEngine {
     }
 
     // Loads each visible tile again in the background and swaps it in once it
-    // arrives, so the map doesn't flicker. The query string skips the
-    // browser's 30-second tile cache. Tiles that failed before get another try.
-    // Hidden tiles are dropped, so the viewer loads them fresh when they're
-    // back on screen.
+    // arrives, so the map doesn't flicker. TileLayer skips the browser's
+    // 30-second tile cache for these. Tiles that failed before get another try.
     reloadTiles(): void {
-        const version = Date.now();
-        this.tiles.forEach((img, key) => {
-            if (img.style.display === 'none') {
-                img.remove();
-                this.tiles.delete(key);
-                return;
-            }
-            const fresh = new Image();
-            fresh.onload = () => {
-                if (this.tiles.get(key) !== img) return;
-                img.src = fresh.src;
-                img.style.visibility = '';
-            };
-            fresh.src = `${this.opts.tileBase}tiles/${key}.png?v=${version}`;
-        });
+        this.tiles.reload(this.visible);
     }
 
+    // Tile keys include the world, so a world switch keeps the cache.
     clearTiles(): void {
-        this.tiles.forEach((img) => img.remove());
         this.tiles.clear();
+        this.visible = [];
+    }
+
+    /** Draws the tiles again on the next frame, after one finished loading. */
+    private requestDraw(): void {
+        if (this.redraw || this.opts.mode !== 'squaremap') return;
+        this.redraw = requestAnimationFrame(() => {
+            this.redraw = 0;
+            this.renderTiles();
+        });
     }
 
     zoomBy(delta: number, sx?: number, sy?: number): void {
@@ -310,51 +299,48 @@ export class MapEngine {
         const blocks = TILE * Math.pow(2, world.max - level);
         const px = blocks * this.ppb;
         const { w, h } = this.size();
+        const dpr = window.devicePixelRatio || 1;
+        const canvas = this.els.tiles;
+        const cw = Math.round(w * dpr);
+        const ch = Math.round(h * dpr);
+        // Setting the size clears the canvas and its settings, so only do it on a resize.
+        if (canvas.width !== cw || canvas.height !== ch) {
+            canvas.width = cw;
+            canvas.height = ch;
+        }
+        const c = canvas.getContext('2d');
+        if (!c) return;
+
         const tl = this.toBlock(0, 0);
         const br = this.toBlock(w, h);
-        const wanted = new Set<string>();
-
+        const tiles: Array<{ key: string; x: number; y: number; d: number }> = [];
         for (let tx = Math.floor(tl.x / blocks); tx <= Math.floor(br.x / blocks); tx++) {
             for (let ty = Math.floor(tl.z / blocks); ty <= Math.floor(br.z / blocks); ty++) {
-                const key = `${world.name}/${level}/${tx}_${ty}`;
-                wanted.add(key);
-                let img = this.tiles.get(key);
-                if (img) {
-                    // Move it to the end, so it's the last tile the cache drops.
-                    this.tiles.delete(key);
-                    this.tiles.set(key, img);
-                    img.style.display = '';
-                } else {
-                    const tile = document.createElement('img');
-                    tile.className = 'us-tile';
-                    tile.alt = '';
-                    tile.draggable = false;
-                    tile.onerror = () => (tile.style.visibility = 'hidden');
-                    tile.src = `${this.opts.tileBase}tiles/${key}.png`;
-                    this.els.tiles.appendChild(tile);
-                    this.tiles.set(key, tile);
-                    img = tile;
-                }
                 const at = this.toScreen(tx * blocks, ty * blocks);
-                // Round outward so neighbouring tiles never leave a hairline gap.
-                img.style.left = Math.floor(at.x) + 'px';
-                img.style.top = Math.floor(at.y) + 'px';
-                img.style.width = Math.ceil(px) + 1 + 'px';
-                img.style.height = Math.ceil(px) + 1 + 'px';
+                const d = Math.hypot(at.x + px / 2 - w / 2, at.y + px / 2 - h / 2);
+                tiles.push({ key: `${world.name}/${level}/${tx}_${ty}`, x: at.x, y: at.y, d });
             }
         }
+        // Load the tiles nearest the center first.
+        tiles.sort((a, b) => a.d - b.d);
+        this.visible = tiles.map((t) => t.key);
+        this.tiles.want(this.visible, px * dpr);
 
-        let extra = this.tiles.size - Math.max(TILE_CACHE, wanted.size);
-        this.tiles.forEach((img, key) => {
-            if (wanted.has(key)) return;
-            if (extra > 0) {
-                img.remove();
-                this.tiles.delete(key);
-                extra--;
-            } else {
-                img.style.display = 'none';
-            }
-        });
+        c.setTransform(1, 0, 0, 1, 0, 0);
+        c.clearRect(0, 0, cw, ch);
+        // Smooth tiles drawn smaller than their pixels. Keep blocks sharp when zoomed past one pixel per block.
+        c.imageSmoothingEnabled = px * dpr < TILE;
+        c.imageSmoothingQuality = 'medium';
+        for (const t of tiles) {
+            const bitmap = this.tiles.bitmap(t.key);
+            if (!bitmap) continue;
+            // Round both edges to device pixels, so neighbouring tiles never leave a hairline gap.
+            const x0 = Math.round(t.x * dpr);
+            const y0 = Math.round(t.y * dpr);
+            const x1 = Math.round((t.x + px) * dpr);
+            const y1 = Math.round((t.y + px) * dpr);
+            c.drawImage(bitmap, x0, y0, x1 - x0, y1 - y0);
+        }
     }
 
     private renderGrid(): void {
