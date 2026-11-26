@@ -11,12 +11,17 @@ import type { MapPlayer, World } from './types';
  * tx * 512 * 2^(max - level) on x and ty * the same on z.
  *
  * `zoom` can be fractional. The viewer scales the nearest tile level to fit.
+ * Below level 0 it shrinks the level 0 tiles, so the view can go further out
+ * than squaremap renders.
  */
 
 const TILE = 512;
 // Scroll distance, in pixels, for one zoom level (a 2x change in scale).
 // A mouse wheel notch is about 100px, so one notch zooms about 19%.
 const WHEEL_PX_PER_LEVEL = 400;
+// How far below squaremap's lowest tile level (0) the view can zoom out.
+// Each level halves the scale, so -3 shows 8x more blocks across than level 0.
+const MIN_ZOOM = -3;
 
 export interface EngineElements {
     viewport: HTMLDivElement;
@@ -272,7 +277,7 @@ export class MapEngine {
     zoomBy(delta: number, sx?: number, sy?: number): void {
         this.stopGlide();
         const world = this.current;
-        const next = Math.max(0, Math.min(world.max + world.extra, this.zoom + delta));
+        const next = Math.max(MIN_ZOOM, Math.min(world.max + world.extra, this.zoom + delta));
         if (next === this.zoom) return;
         const { w, h } = this.size();
         sx ??= w / 2;
@@ -286,7 +291,7 @@ export class MapEngine {
 
     private renderTiles(): void {
         const world = this.current;
-        const level = Math.min(Math.round(this.zoom), world.max);
+        const level = Math.max(0, Math.min(Math.round(this.zoom), world.max));
         const blocks = TILE * Math.pow(2, world.max - level);
         const px = blocks * this.ppb;
         const { w, h } = this.size();
